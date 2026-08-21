@@ -44,7 +44,8 @@ file-upload fallback · owner accounts/auth · thumbnails · resumable uploads �
 
 ## Roadmap
 
-1. **Walking skeleton** — seeded event, capture page takes ONE photo, uploads it, bare gallery. Phone-verified over the tunnel.
-2. **Real photobooth** — countdown, template-driven multi-shot flow, strip composition, consent + sequential idempotent uploads.
+1. ~~**Walking skeleton**~~ — done, phone-verified over the tunnel.
+2. ~~**Real photobooth**~~ — done: countdown, template-driven multi-shot flow, strip composition,
+   consent + sequential idempotent uploads, camera-lost recovery. (Real-device pass pending.)
 3. **Owner basics** — event create form, printable QR page, gallery grouped by session, delete session/event, event-closed flag, rate limiting.
 4. **Event hardening** — camera-denied recovery screen, in-app-browser interstitial, wake lock, rotate overlay, save-via-share, device pass.
