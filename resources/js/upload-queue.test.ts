@@ -39,13 +39,19 @@ describe('uploadAll', () => {
         expect(attempts).toEqual([0, 0, 1]);
     });
 
-    it('gives up after two retries and surfaces the error', async () => {
+    it('gives up after two retries with growing pauses and surfaces the error', async () => {
+        const waits: number[] = [];
+        const recordingWait = (ms: number) => {
+            waits.push(ms);
+            return Promise.resolve();
+        };
         const send = vi.fn(async () => {
             throw new Error('the venue wifi is a lie');
         });
 
-        await expect(uploadAll([queued(0)], send, () => {}, instantWait))
+        await expect(uploadAll([queued(0)], send, () => {}, recordingWait))
             .rejects.toThrow('the venue wifi is a lie');
         expect(send).toHaveBeenCalledTimes(3);
+        expect(waits).toEqual([1000, 3000]);
     });
 });

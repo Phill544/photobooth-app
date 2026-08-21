@@ -31,8 +31,13 @@ event's album. Event owners view the album on the website.
   capture state machine, upload sequencing. Browser glue (`camera.ts`, DOM wiring) stays dumb.
 - **iOS Safari constraints baked into the design**: one camera stream for the whole session,
   loose `ideal` constraints, frame grabs via `drawImage` (no ImageCapture on iOS), stream dies on
-  lock/background so the state machine has a `cameraLost → reacquiring` transition,
-  `<video playsinline autoplay muted>`, front-camera preview AND capture both mirrored.
+  lock/background so the state machine has an explicit `cameraLost` state (recovery re-acquires
+  the stream and restarts the current shot's countdown) and every path back into a countdown
+  re-checks camera liveness first, `<video playsinline autoplay muted>`, front-camera preview
+  AND capture both mirrored.
+- **Guest upload route is CSRF-exempt**: booth pages sit open for hours, sessions expire, and a
+  419 would lose the guest's strip. The endpoint has no authenticated session to protect — the
+  event code is the credential.
 - **Camera requires HTTPS**: phone testing goes through a cloudflared tunnel against a
   built app (`npm run build`) — see README quickstart.
 

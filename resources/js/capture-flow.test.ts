@@ -4,7 +4,6 @@ import type { StripTemplate } from './templates';
 
 function template(cellCount: number): StripTemplate {
     return {
-        name: 'test',
         cellCount,
         cellWidth: 600,
         cellHeight: 450,
@@ -98,6 +97,19 @@ describe('losing the camera mid-session', () => {
 
         expect(walk(review, [{ type: 'cameraLost' }])).toEqual(review);
         expect(walk(uploading, [{ type: 'cameraLost' }])).toEqual(uploading);
+    });
+
+    it('parks on the camera-lost screen during a flash', () => {
+        const state = walk({ screen: 'flash', shotIndex: 1 }, [{ type: 'cameraLost' }]);
+
+        expect(state).toEqual({ screen: 'cameraLost', shotIndex: 1 });
+    });
+
+    it('ignores a stale capture arriving after the camera was lost', () => {
+        // The flash timer fires shotCaptured ~250ms later even if the camera died.
+        const lost: FlowState = { screen: 'cameraLost', shotIndex: 1 };
+
+        expect(walk(lost, [{ type: 'shotCaptured' }])).toEqual(lost);
     });
 
     it('ignores stale ticks while the camera is lost', () => {

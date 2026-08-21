@@ -1,5 +1,5 @@
 import { cameraIsLive, grabFrame, onCameraLost, startCamera, toJpegBlob } from './camera';
-import { COUNTDOWN_SECONDS, nextState, type FlowEvent, type FlowState } from './capture-flow';
+import { nextState, type FlowEvent, type FlowState } from './capture-flow';
 import { composeStrip } from './strip-compose';
 import { classicStrip as template } from './templates';
 import { uploadPhoto } from './upload';
@@ -31,10 +31,15 @@ let state: FlowState = { screen: 'start' };
 let stream: MediaStream | null = null;
 let shots: HTMLCanvasElement[] = [];
 let strip: HTMLCanvasElement | null = null;
+let tickTimer: ReturnType<typeof setTimeout> | undefined;
+let openingCamera = false;
+let failed = false;
 
 video.style.aspectRatio = `${template.cellWidth} / ${template.cellHeight}`;
 
 function dispatch(event: FlowEvent) {
+    if (failed) return; // the error screen is terminal — only Reload leaves it
+
     const previous = state;
     state = nextState(state, event, template);
     render();
@@ -52,26 +57,21 @@ function render() {
         shotLabel.textContent = `Photo ${state.shotIndex + 1} of ${template.cellCount}`;
     }
     if (state.screen === 'uploading') {
-        uploadProgress.textContent = `Uploading ${Math.min(state.uploaded + 1, state.total)} of ${state.total}…`;
+        uploadProgress.textContent = `Uploading ${state.uploaded + 1} of ${state.total}…`;
     }
 }
 
 function runEffects(previous: FlowState) {
     if (state.screen === 'countdown') scheduleTick();
-    if (state.screen === 'flash') captureShot();
+    if (state.screen === 'flash' && previous.screen !== 'flash') captureShot();
     if (state.screen === 'review' && previous.screen !== 'review') showStripPreview();
-    if (state.screen === 'countdown' && previous.screen !== 'flash') {
-        // A fresh set is starting (start, retake, or camera back) — not the
-        // gap between shots. Clear anything from the previous set.
-        if (state.shotIndex === 0) {
-            shots = [];
-            strip = null;
-        }
-    }
 }
 
+// A single tracked timer: whatever chaos of taps and stale dispatches occurs,
+// at most one countdown tick is ever pending.
 function scheduleTick() {
-    setTimeout(() => {
+    clearTimeout(tickTimer);
+    tickTimer = setTimeout(() => {
         if (state.screen === 'countdown') dispatch({ type: 'tick' });
     }, 1000);
 }
@@ -94,6 +94,7 @@ function showStripPreview() {
 }
 
 async function shareToAlbum() {
+    if (state.screen !== 'review') return;
     dispatch({ type: 'share' });
 
     const group = crypto.randomUUID();
@@ -113,15 +114,25 @@ async function shareToAlbum() {
     );
 }
 
-async function openCamera() {
-    stream = await startCamera(video);
-    onCameraLost(stream, () => dispatch({ type: 'cameraLost' }));
-}
+// Serializes all camera access: concurrent taps are ignored, a live stream is
+// reused, and a dead or superseded one is stopped before a fresh acquisition.
+// Returns false when another acquisition is already in flight.
+async function ensureCamera(): Promise<boolean> {
+    if (openingCamera) return false;
+    if (stream && cameraIsLive(stream)) return true;
 
-async function reacquireCamera() {
-    stream?.getTracks().forEach((track) => track.stop());
-    await openCamera();
-    dispatch({ type: 'cameraBack' });
+    openingCamera = true;
+    try {
+        stream?.getTracks().forEach((track) => track.stop());
+        const fresh = await startCamera(video);
+        stream = fresh;
+        onCameraLost(fresh, () => {
+            if (fresh === stream) dispatch({ type: 'cameraLost' });
+        });
+        return true;
+    } finally {
+        openingCamera = false;
+    }
 }
 
 // iOS kills the stream when the phone locks or the tab backgrounds; the
@@ -132,6 +143,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 function showError(message: string) {
+    failed = true;
     errorMessage.textContent = message;
     for (const screen of Object.values(screens)) screen.hidden = true;
     screens.error.hidden = false;
@@ -141,14 +153,18 @@ window.addEventListener('unhandledrejection', (event) => showError(String(event.
 window.addEventListener('error', (event) => showError(event.message));
 
 document.querySelector('#start')!.addEventListener('click', async () => {
-    await openCamera();
-    dispatch({ type: 'start' });
+    if (await ensureCamera()) dispatch({ type: 'start' });
 });
 
-document.querySelector('#share')!.addEventListener('click', shareToAlbum);
-document.querySelector('#retake')!.addEventListener('click', () => dispatch({ type: 'retake' }));
-document.querySelector('#again')!.addEventListener('click', () => dispatch({ type: 'retake' }));
-document.querySelector('#camera-retry')!.addEventListener('click', reacquireCamera);
+// Retakes can happen long after the phone locked on review/done, which kills
+// the stream — so every path back into a countdown re-ensures a live camera.
+async function retake() {
+    if (await ensureCamera()) dispatch({ type: 'retake' });
+}
 
-shotLabel.textContent = `Photo 1 of ${template.cellCount}`;
-countdownNumber.textContent = String(COUNTDOWN_SECONDS);
+document.querySelector('#share')!.addEventListener('click', shareToAlbum);
+document.querySelector('#retake')!.addEventListener('click', retake);
+document.querySelector('#again')!.addEventListener('click', retake);
+document.querySelector('#camera-retry')!.addEventListener('click', async () => {
+    if (await ensureCamera()) dispatch({ type: 'cameraBack' });
+});

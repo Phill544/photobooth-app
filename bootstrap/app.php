@@ -16,6 +16,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // balancer); without this, asset URLs render as http:// inside
         // https pages and phones block them as mixed content.
         $middleware->trustProxies(at: '*');
+
+        // Booth pages sit open for hours at an event; an expired session
+        // would 419 every share and lose the guest's strip. CSRF protects
+        // authenticated sessions — this endpoint has none: the event code
+        // is the only credential, so the token adds nothing here.
+        $middleware->validateCsrfTokens(except: ['e/*/photos']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

@@ -4,7 +4,6 @@ import type { StripTemplate } from './templates';
 
 function template(overrides: Partial<StripTemplate> = {}): StripTemplate {
     return {
-        name: 'test',
         cellCount: 3,
         cellWidth: 600,
         cellHeight: 450,

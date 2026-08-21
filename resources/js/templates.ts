@@ -2,7 +2,6 @@
 // many photos it holds — the shot count is never hard-coded anywhere else.
 
 export type StripTemplate = {
-    name: string;
     cellCount: number;
     cellWidth: number;
     cellHeight: number;
@@ -13,7 +12,6 @@ export type StripTemplate = {
 };
 
 export const classicStrip: StripTemplate = {
-    name: 'classic',
     cellCount: 3,
     cellWidth: 600,
     cellHeight: 450,
