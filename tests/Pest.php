@@ -6,6 +6,7 @@ use Illuminate\Testing\TestResponse;
 
 pest()->extend(Tests\TestCase::class)
     ->use(RefreshDatabase::class)
+    ->beforeEach(fn () => $this->withoutVite())
     ->in('Feature');
 
 function uploadPhoto(string $code, array $overrides = []): TestResponse
