@@ -5,7 +5,7 @@ use App\Http\Controllers\PhotoController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('home');
 });
 
 Route::get('/e/{event:code}', [EventController::class, 'capture']);

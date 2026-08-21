@@ -21,10 +21,11 @@ event's album. Event owners view the album on the website.
 
 ## Architecture notes
 
-- **Schema**: `events(name, code)` + `photos(event_id, kind original|strip, group_ulid, slot, path)`
-  with `unique(group_ulid, slot)` so upload retries over flaky wifi are idempotent.
+- **Schema**: `events(name, code)` + `photos(event_id, kind original|strip, group_uuid, slot, path)`
+  with `unique(group_uuid, slot)` so upload retries over flaky wifi are idempotent.
 - **Routes**: `GET /e/{event:code}` capture page · `POST /e/{event:code}/photos` upload ·
-  `GET /e/{event:code}/gallery` album · `GET /photos/{photo}` serves the image file.
+  `GET /e/{event:code}/gallery` album · `GET /e/{event:code}/photos/{photo}` serves the image
+  file (scoped to the event so photo ids can't be enumerated across events).
 - **Event codes**: 6 chars from `A-Z2-9` minus lookalikes (`0 O 1 I`), uppercased on lookup.
 - **Client modules** (pure, Vitest-tested): strip layout geometry, crop+mirror math,
   capture state machine, upload sequencing. Browser glue (`camera.ts`, DOM wiring) stays dumb.

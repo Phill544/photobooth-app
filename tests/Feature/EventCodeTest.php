@@ -23,9 +23,9 @@ it('keeps an explicitly given code', function () {
     expect($event->code)->toBe('PARTY2');
 });
 
-it('never generates a duplicate code', function () {
-    Event::create(['name' => 'First']);
-    $codes = Event::pluck('code');
+it('stores an explicitly given code uppercased so lookups always match', function () {
+    Event::create(['name' => 'Lowercase Party', 'code' => 'party2']);
 
-    expect($codes->unique())->toHaveCount($codes->count());
+    $this->get('/e/party2')->assertOk();
+    $this->get('/e/PARTY2')->assertOk();
 });

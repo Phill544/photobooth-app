@@ -4,18 +4,21 @@ type UploadOptions = {
     slot: number;
 };
 
-export async function uploadPhoto(eventCode: string, photo: Blob, options: UploadOptions): Promise<number> {
+export function buildPhotoForm(photo: Blob, options: UploadOptions): FormData {
     const form = new FormData();
     form.append('photo', photo, `${options.kind}-${options.slot}.jpg`);
     form.append('kind', options.kind);
     form.append('group', options.group);
     form.append('slot', String(options.slot));
+    return form;
+}
 
+export async function uploadPhoto(eventCode: string, photo: Blob, options: UploadOptions): Promise<number> {
     const csrf = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')!.content;
     const response = await fetch(`/e/${eventCode}/photos`, {
         method: 'POST',
         headers: { 'X-CSRF-TOKEN': csrf, Accept: 'application/json' },
-        body: form,
+        body: buildPhotoForm(photo, options),
     });
 
     if (!response.ok) {

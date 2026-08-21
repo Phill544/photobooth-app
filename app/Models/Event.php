@@ -20,7 +20,7 @@ class Event extends Model
     protected static function booted(): void
     {
         static::creating(function (Event $event) {
-            $event->code ??= self::freshCode();
+            $event->code = $event->code ? strtoupper($event->code) : self::freshCode();
         });
     }
 
