@@ -24,13 +24,13 @@ describe('the happy path', () => {
         expect(state).toEqual({ screen: 'countdown', shotIndex: 0, secondsLeft: COUNTDOWN_SECONDS });
     });
 
+    it('gives guests a 5-second countdown', () => {
+        expect(COUNTDOWN_SECONDS).toBe(5);
+    });
+
     it('counts down to the flash', () => {
-        const state = walk({ screen: 'start' }, [
-            { type: 'start' },
-            { type: 'tick' },
-            { type: 'tick' },
-            { type: 'tick' },
-        ]);
+        const ticks: FlowEvent[] = Array.from({ length: COUNTDOWN_SECONDS }, () => ({ type: 'tick' }));
+        const state = walk({ screen: 'start' }, [{ type: 'start' }, ...ticks]);
 
         expect(state).toEqual({ screen: 'flash', shotIndex: 0 });
     });

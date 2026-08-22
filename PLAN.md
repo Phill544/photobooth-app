@@ -86,7 +86,9 @@ Growing the guest experience. Sequence: templates → branding → filters → G
 4. **GIF / boomerang** — short burst capture + animated output (biggest lift; needs research).
 
 Also from event feedback: front-camera frames are now captured **un-mirrored** (preview stays
-mirrored) so text/signs in the strip read correctly.
+mirrored) so text/signs in the strip read correctly. Countdown is **5 seconds**. The create form
+shows a **live strip preview** (`create-preview.ts`) that redraws via the real compose modules
+(placeholder cells) as the owner changes layout/colour/caption.
 
 ## Design system
 
