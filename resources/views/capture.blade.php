@@ -26,6 +26,15 @@
 
         #strip-preview { max-width: 62%; max-height: 55dvh; border-radius: var(--r-sm);
             box-shadow: var(--shadow-lg); rotate: var(--strip-tilt); }
+
+        .chips { display: flex; gap: var(--space-xs); overflow-x: auto; padding: var(--space-sm) var(--space-2xs);
+            justify-content: safe center; -webkit-overflow-scrolling: touch; }
+        .chip {
+            flex: 0 0 auto; min-height: 40px; margin: 0; padding: .4rem 1rem;
+            font-size: var(--text-sm); border-radius: var(--r-pill);
+            background: transparent; color: var(--btn-ghost-text); border: 1px solid var(--btn-ghost-border);
+        }
+        .chip.selected { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
         .settings-steps { text-align: left; color: var(--text-muted); font-size: var(--text-sm);
             margin: var(--space-md) auto; max-width: 320px; }
         .settings-steps li { margin-bottom: var(--space-2xs); }
@@ -49,6 +58,8 @@
             <p class="eyebrow">Photobooth</p>
             <h1>{{ $event->name }}</h1>
             <button id="start" class="btn--hero">📸 Start the booth</button>
+            <br>
+            <button id="add-filter" class="btn--ghost">🎨 Add a filter</button>
             <p><a href="/e/{{ $event->code }}/gallery">View the album</a></p>
             <div class="share">
                 <button type="button" class="btn--ghost share-btn" data-share-url="{{ url('/e/'.$event->code) }}" data-share-title="{{ $event->name }}">Invite others</button>
@@ -63,6 +74,10 @@
                 <video id="preview" playsinline autoplay muted></video>
                 <div id="countdown-number"></div>
                 <div id="flash-overlay"></div>
+            </div>
+            <div id="filter-controls" hidden>
+                <div id="filter-rail" class="chips"></div>
+                <button id="customise-start" class="btn--hero">Start with this look</button>
             </div>
         </section>
 

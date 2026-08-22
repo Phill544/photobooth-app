@@ -24,6 +24,19 @@ describe('the happy path', () => {
         expect(state).toEqual({ screen: 'countdown', shotIndex: 0, secondsLeft: COUNTDOWN_SECONDS });
     });
 
+    it('opens the customise screen when a guest opts to add a filter', () => {
+        expect(walk({ screen: 'start' }, [{ type: 'customise' }])).toEqual({ screen: 'customise' });
+    });
+
+    it('starts the countdown from the customise screen', () => {
+        expect(walk({ screen: 'customise' }, [{ type: 'start' }]))
+            .toEqual({ screen: 'countdown', shotIndex: 0, secondsLeft: COUNTDOWN_SECONDS });
+    });
+
+    it('ignores stray ticks on the customise screen', () => {
+        expect(walk({ screen: 'customise' }, [{ type: 'tick' }])).toEqual({ screen: 'customise' });
+    });
+
     it('gives guests a 5-second countdown', () => {
         expect(COUNTDOWN_SECONDS).toBe(5);
     });

@@ -1,6 +1,7 @@
 import { cameraIsLive, grabFrame, onCameraLost, startCamera, toJpegBlob } from './camera';
 import { nextState, type FlowEvent, type FlowState } from './capture-flow';
 import { androidChromeIntent, cameraSupported, detectInApp, isIOS } from './in-app';
+import { FILTERS, filterFor, type Filter } from './filters';
 import { composeStrip, type Branding } from './strip-compose';
 import { stripTheme } from './strip-theme';
 import { templateFor } from './templates';
@@ -55,6 +56,10 @@ let pendingUploads: QueuedUpload[] | null = null;
 let pendingGroup: string | null = null;
 let stripFile: File | null = null;
 let stripUrl: string | null = null;
+let activeFilter: Filter = filterFor('none');
+
+const filterRail = $('#filter-rail');
+const filterControls = $('#filter-controls');
 
 // Only nag touch devices held sideways — never a landscape desktop.
 const landscape = matchMedia('(orientation: landscape) and (pointer: coarse)');
@@ -75,8 +80,10 @@ function dispatch(event: FlowEvent) {
 
 function render() {
     if (failed || takeover) return;
-    const visible = state.screen === 'countdown' || state.screen === 'flash' ? 'camera' : state.screen;
-    showOnly(visible);
+    const onCamera = state.screen === 'countdown' || state.screen === 'flash' || state.screen === 'customise';
+    showOnly(onCamera ? 'camera' : state.screen);
+    filterControls.hidden = state.screen !== 'customise';
+    countdownNumber.hidden = state.screen === 'customise';
 
     if (state.screen === 'countdown') {
         countdownNumber.textContent = String(state.secondsLeft);
@@ -109,7 +116,7 @@ function captureShot() {
     if (state.screen !== 'flash') return;
     // The preview is mirrored so guests can frame like a mirror, but the saved
     // frame is NOT mirrored, so text/signs in the strip read the right way round.
-    shots[state.shotIndex] = grabFrame(video, false, cellAspect);
+    shots[state.shotIndex] = grabFrame(video, false, cellAspect, activeFilter);
     flashOverlay.classList.add('flashing');
     setTimeout(() => {
         flashOverlay.classList.remove('flashing');
@@ -197,16 +204,36 @@ async function ensureCamera(): Promise<boolean> {
     }
 }
 
-async function begin() {
+// Acquires the camera (with the shared error handling), then runs onReady.
+async function enterCamera(onReady: () => void) {
     if (!cameraSupported()) { showTakeover('inApp'); return; }
     try {
         if (await ensureCamera()) {
             clearTakeover();
             void requestWakeLock();
-            dispatch({ type: 'start' });
+            onReady();
         }
     } catch (err) {
         handleCameraError(err);
+    }
+}
+
+// Quick shoot: no filter, straight into the countdown.
+function beginQuick() {
+    setFilter('none');
+    void enterCamera(() => dispatch({ type: 'start' }));
+}
+
+// Customise: opens the live preview so the guest can pick a filter first.
+function beginCustomise() {
+    void enterCamera(() => dispatch({ type: 'customise' }));
+}
+
+function setFilter(key: string) {
+    activeFilter = filterFor(key);
+    video.style.filter = activeFilter.css === 'none' ? '' : activeFilter.css;
+    for (const chip of filterRail.children) {
+        chip.classList.toggle('selected', (chip as HTMLElement).dataset.filter === activeFilter.key);
     }
 }
 
@@ -277,7 +304,21 @@ landscape.addEventListener('change', syncOrientation);
 window.addEventListener('unhandledrejection', (event) => showError(String(event.reason)));
 window.addEventListener('error', (event) => showError(event.message));
 
-$('#start').addEventListener('click', begin);
+// Build the filter chips from the registry (single source of truth).
+for (const filter of FILTERS) {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'chip';
+    chip.dataset.filter = filter.key;
+    chip.textContent = filter.label;
+    chip.addEventListener('click', () => setFilter(filter.key));
+    filterRail.appendChild(chip);
+}
+setFilter('none'); // marks the None chip selected
+
+$('#start').addEventListener('click', beginQuick);
+$('#add-filter').addEventListener('click', beginCustomise);
+$('#customise-start').addEventListener('click', () => dispatch({ type: 'start' }));
 $('#share').addEventListener('click', shareToAlbum);
 $('#retake').addEventListener('click', retake);
 $('#again').addEventListener('click', retake);
@@ -289,7 +330,7 @@ $('#camera-retry').addEventListener('click', async () => {
     }
 });
 $('#upload-retry').addEventListener('click', () => dispatch({ type: 'retryUpload' }));
-$('#denied-retry').addEventListener('click', begin);
+$('#denied-retry').addEventListener('click', beginQuick);
 $('#save-strip').addEventListener('click', saveStrip);
 $('#continue-anyway').addEventListener('click', (event) => { event.preventDefault(); clearTakeover(); showOnly('start'); });
 

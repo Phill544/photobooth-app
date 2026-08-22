@@ -8,6 +8,7 @@ export type FlowState =
     | { screen: 'countdown'; shotIndex: number; secondsLeft: number }
     | { screen: 'flash'; shotIndex: number }
     | { screen: 'review' }
+    | { screen: 'customise' }
     | { screen: 'uploading'; uploaded: number; total: number }
     | { screen: 'uploadFailed'; total: number }
     | { screen: 'done' }
@@ -15,6 +16,7 @@ export type FlowState =
 
 export type FlowEvent =
     | { type: 'start' }
+    | { type: 'customise' }
     | { type: 'tick' }
     | { type: 'shotCaptured' }
     | { type: 'retake' }
@@ -37,6 +39,11 @@ export function nextState(state: FlowState, event: FlowEvent, template: StripTem
 
     switch (state.screen) {
         case 'start':
+            if (event.type === 'start') return countdownFor(0);
+            if (event.type === 'customise') return { screen: 'customise' };
+            return state;
+
+        case 'customise':
             if (event.type === 'start') return countdownFor(0);
             return state;
 

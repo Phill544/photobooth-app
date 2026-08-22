@@ -82,7 +82,11 @@ Growing the guest experience. Sequence: templates → branding → filters → G
    Sand/Champagne) and an optional caption (defaults to event name) at `/new`. Colours live in
    `strip-theme.ts` with keys mirrored in `Event::STRIP_THEMES`; passed to the strip via
    `data-theme`/`data-caption`. A logo upload is a later branding add.
-3. **Filters** — on-device canvas filters (B&W, warm, etc.), likely a per-guest choice.
+3. ~~**Filters**~~ — done: an opt-in "Add a filter" path (quick shoot stays filter-free) with a
+   live-preview chip picker (None/Noir/Golden/Cool/Pop/Film). `filters.ts` defines each look once as
+   an op list → CSS string (preview + Chrome ctx.filter fast path) AND a 4×5 colour matrix (the iOS
+   fallback, since ctx.filter is a no-op on iOS Safari through 2026). Both paths verified to match
+   within 1–2/255. Filter applies to strip + originals; chosen once, locked for the run.
 4. **GIF / boomerang** — short burst capture + animated output (biggest lift; needs research).
 
 Also from event feedback: front-camera frames are now captured **un-mirrored** (preview stays
