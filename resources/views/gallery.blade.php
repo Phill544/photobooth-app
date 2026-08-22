@@ -35,10 +35,12 @@
 
         .feed .empty { text-align: center; color: var(--text-muted); font-family: var(--font-display);
             font-size: var(--text-xl); padding: var(--space-3xl) 0; }
-        .back { display: block; text-align: center; margin-top: var(--space-2xl); }
+        .back { display: block; max-width: var(--measure); margin: 0 auto var(--space-lg);
+            font-size: var(--text-sm); }
     </style>
 </head>
 <body class="ctx-light">
+    <a class="back" href="/e/{{ $event->code }}">← Back to the booth</a>
     <header class="album-head">
         <p class="eyebrow">Event album</p>
         <h1>{{ $event->name }}</h1>
@@ -72,8 +74,6 @@
             <p class="empty">No photos yet — be the first!</p>
         @endforelse
     </main>
-
-    <a class="back" href="/e/{{ $event->code }}">← Back to the booth</a>
     @include('partials.share-script')
 </body>
 </html>

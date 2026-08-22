@@ -6,11 +6,13 @@
     <title>{{ $event->name }} — Event</title>
     @include('partials.theme')
     <style>
-        body.ctx-light { display: grid; place-items: center; text-align: center; padding: var(--space-xl) var(--page-gutter); }
-        main { width: min(100%, 480px); }
-        .card { display: flex; flex-direction: column; align-items: center; gap: var(--space-sm); }
-        .host-links { margin-top: var(--space-xl); font-size: var(--text-sm); display: flex; flex-wrap: wrap; gap: var(--space-md); justify-content: center; }
-        .close-form { margin-top: var(--space-lg); }
+        body.ctx-light { display: grid; place-items: center; text-align: center; padding: var(--space-md) var(--page-gutter); }
+        main { width: min(100%, 480px); min-width: 0; max-width: 100%; }
+        .card { display: flex; flex-direction: column; align-items: center; gap: var(--space-xs); padding: var(--space-lg); }
+        .card p { max-width: 100%; overflow-wrap: anywhere; }
+        .card .code { margin: var(--space-2xs) 0; }
+        .host-links { margin-top: var(--space-lg); font-size: var(--text-sm); display: flex; flex-wrap: wrap; gap: var(--space-md); justify-content: center; }
+        .close-form { margin-top: var(--space-md); }
         @media print {
             body { background: #fff; color: #000; padding: 0; }
             .no-print, .share { display: none; }

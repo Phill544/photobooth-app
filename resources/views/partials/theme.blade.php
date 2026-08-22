@@ -125,7 +125,8 @@
         font-family: var(--font-sans); font-size: var(--text-sm); color: var(--text-muted);
         background: color-mix(in srgb, var(--text) 6%, transparent);
         border: 1px solid var(--line); border-radius: var(--r-pill);
-        padding: .4rem .9rem; user-select: all; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        padding: .4rem .9rem; user-select: all;
+        min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .share .share-copy.copied { color: var(--accent); border-color: var(--accent); }
 

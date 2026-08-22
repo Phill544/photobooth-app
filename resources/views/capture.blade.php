@@ -11,7 +11,7 @@
     @endunless
     <style>
         body.ctx-dark { display: grid; place-items: center; text-align: center; padding: var(--space-lg); }
-        main { width: min(100%, 480px); }
+        main { width: min(100%, 480px); min-width: 0; max-width: 100%; }
         .eyebrow { margin-bottom: var(--space-2xs); }
 
         .camera-frame { position: relative; margin-top: var(--space-md); }
