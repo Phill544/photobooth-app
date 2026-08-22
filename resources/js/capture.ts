@@ -102,7 +102,9 @@ function scheduleTick() {
 
 function captureShot() {
     if (state.screen !== 'flash') return;
-    shots[state.shotIndex] = grabFrame(video, true, cellAspect);
+    // The preview is mirrored so guests can frame like a mirror, but the saved
+    // frame is NOT mirrored, so text/signs in the strip read the right way round.
+    shots[state.shotIndex] = grabFrame(video, false, cellAspect);
     flashOverlay.classList.add('flashing');
     setTimeout(() => {
         flashOverlay.classList.remove('flashing');
