@@ -35,6 +35,18 @@
                     @endforeach
                 </select>
             </div>
+            <div class="field">
+                <label for="theme">Strip colour</label>
+                <select id="theme" name="theme">
+                    @foreach ($themes as $key => $label)
+                        <option value="{{ $key }}" @selected(old('theme') === $key)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="field">
+                <label for="caption">Strip caption <span class="muted">(optional)</span></label>
+                <input id="caption" name="caption" maxlength="60" placeholder="defaults to the event name" value="{{ old('caption') }}">
+            </div>
             <button class="btn--hero">Create the booth</button>
             @error('name')
                 <p class="error">{{ $message }}</p>

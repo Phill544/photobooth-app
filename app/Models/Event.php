@@ -19,7 +19,16 @@ class Event extends Model
         'single' => 'Single shot',
     ];
 
-    protected $fillable = ['name', 'code', 'closed_at', 'template'];
+    // Strip colour themes; hex values live in resources/js/strip-theme.ts.
+    public const STRIP_THEMES = [
+        'midnight' => 'Midnight',
+        'blush' => 'Blush',
+        'forest' => 'Forest',
+        'sand' => 'Sand',
+        'champagne' => 'Champagne',
+    ];
+
+    protected $fillable = ['name', 'code', 'closed_at', 'template', 'theme', 'caption'];
 
     protected $casts = ['closed_at' => 'datetime'];
 

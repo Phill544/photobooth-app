@@ -34,7 +34,7 @@
         #rotate-overlay .rot { font-size: 3rem; }
     </style>
 </head>
-<body class="ctx-dark" data-event-code="{{ $event->code }}" data-event-name="{{ $event->name }}" data-template="{{ $event->template }}">
+<body class="ctx-dark" data-event-code="{{ $event->code }}" data-event-name="{{ $event->name }}" data-template="{{ $event->template }}" data-theme="{{ $event->theme }}" data-caption="{{ $event->caption }}">
     @if ($event->isClosed())
     <main>
         <h1>{{ $event->name }}</h1>

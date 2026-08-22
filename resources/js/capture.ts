@@ -1,7 +1,8 @@
 import { cameraIsLive, grabFrame, onCameraLost, startCamera, toJpegBlob } from './camera';
 import { nextState, type FlowEvent, type FlowState } from './capture-flow';
 import { androidChromeIntent, cameraSupported, detectInApp, isIOS } from './in-app';
-import { composeStrip } from './strip-compose';
+import { composeStrip, type Branding } from './strip-compose';
+import { stripTheme } from './strip-theme';
 import { templateFor } from './templates';
 import { uploadPhoto } from './upload';
 import { uploadAll, type QueuedUpload } from './upload-queue';
@@ -11,6 +12,10 @@ const eventCode = document.body.dataset.eventCode!;
 const eventName = document.body.dataset.eventName!;
 const template = templateFor(document.body.dataset.template ?? '');
 const cellAspect = template.cellWidth / template.cellHeight;
+const branding: Branding = {
+    ...stripTheme(document.body.dataset.theme ?? ''),
+    caption: document.body.dataset.caption || eventName,
+};
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
 
@@ -113,7 +118,7 @@ function captureShot() {
 }
 
 function showStripPreview() {
-    strip = composeStrip(shots, template, eventName);
+    strip = composeStrip(shots, template, branding);
     stripPreview.src = strip.toDataURL('image/jpeg', 0.85);
 }
 

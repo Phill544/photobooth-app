@@ -78,9 +78,15 @@ Growing the guest experience. Sequence: templates → branding → filters → G
    keys+labels in `Event::TEMPLATES` (form + validation). Owner picks one at `/new`, it's
    stored on the event, and the capture flow reads it via `data-template`. Ships classic
    (3×1), quad (4×1), grid (2×2), single. Shot count stays template-driven.
-2. **Per-event branding** — custom footer caption / colour / logo on the strip.
+2. ~~**Per-event branding**~~ — done: owner picks a strip colour theme (Midnight/Blush/Forest/
+   Sand/Champagne) and an optional caption (defaults to event name) at `/new`. Colours live in
+   `strip-theme.ts` with keys mirrored in `Event::STRIP_THEMES`; passed to the strip via
+   `data-theme`/`data-caption`. A logo upload is a later branding add.
 3. **Filters** — on-device canvas filters (B&W, warm, etc.), likely a per-guest choice.
 4. **GIF / boomerang** — short burst capture + animated output (biggest lift; needs research).
+
+Also from event feedback: front-camera frames are now captured **un-mirrored** (preview stays
+mirrored) so text/signs in the strip read correctly.
 
 ## Design system
 

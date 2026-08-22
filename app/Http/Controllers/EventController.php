@@ -15,7 +15,7 @@ class EventController extends Controller
 {
     public function create()
     {
-        return view('create-event', ['templates' => Event::TEMPLATES]);
+        return view('create-event', ['templates' => Event::TEMPLATES, 'themes' => Event::STRIP_THEMES]);
     }
 
     public function store(Request $request)
@@ -23,6 +23,8 @@ class EventController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'template' => ['sometimes', Rule::in(array_keys(Event::TEMPLATES))],
+            'theme' => ['sometimes', Rule::in(array_keys(Event::STRIP_THEMES))],
+            'caption' => ['nullable', 'string', 'max:60'],
         ]);
 
         $event = Event::create($validated);
