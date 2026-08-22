@@ -21,7 +21,7 @@
             <br>
             <button class="btn--hero">Join</button>
         </form>
-        <p class="host-link"><a href="/new">Hosting an event? Create a booth →</a></p>
+        <p class="host-link"><a href="/dashboard">Hosting an event? Sign in →</a></p>
     </main>
     <script>
         document.querySelector('#join').addEventListener('submit', (event) => {

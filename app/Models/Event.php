@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Event extends Model
@@ -28,7 +29,7 @@ class Event extends Model
         'champagne' => 'Champagne',
     ];
 
-    protected $fillable = ['name', 'code', 'closed_at', 'template', 'theme', 'caption', 'logo_path'];
+    protected $fillable = ['name', 'code', 'closed_at', 'template', 'theme', 'caption', 'logo_path', 'owner_id'];
 
     protected $casts = ['closed_at' => 'datetime'];
 
@@ -40,6 +41,16 @@ class Event extends Model
     public function photos(): HasMany
     {
         return $this->hasMany(Photo::class);
+    }
+
+    public function owner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    public function managedBy(?User $user): bool
+    {
+        return $user !== null && ($user->is_admin || $user->id === $this->owner_id);
     }
 
     protected static function booted(): void

@@ -1,9 +1,11 @@
 <?php
 
 use App\Models\Event;
+use App\Models\User;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
+    $this->actingAs(User::factory()->create(['is_admin' => true]));
     $this->event = Event::create(['name' => 'Summer Party', 'code' => 'PARTY2']);
 });
 

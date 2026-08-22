@@ -14,6 +14,16 @@ use Illuminate\Validation\Rule;
 
 class EventController extends Controller
 {
+    public function dashboard(Request $request)
+    {
+        $user = $request->user();
+        // Admins oversee every event; owners see only their own.
+        $events = ($user->is_admin ? Event::query() : $user->events())
+            ->withCount('photos')->latest()->get();
+
+        return view('dashboard', ['events' => $events, 'isAdmin' => $user->is_admin]);
+    }
+
     public function create()
     {
         return view('create-event', ['templates' => Event::TEMPLATES, 'themes' => Event::STRIP_THEMES]);
@@ -29,7 +39,7 @@ class EventController extends Controller
             'logo' => ['nullable', 'image', 'mimes:png,jpeg,webp', 'max:2048'],
         ]);
 
-        $event = Event::create($validated);
+        $event = Event::create([...$validated, 'owner_id' => $request->user()->id]);
         $this->applyLogo($request, $event);
 
         return redirect("/events/{$event->code}");
@@ -44,6 +54,8 @@ class EventController extends Controller
 
     public function show(Event $event)
     {
+        abort_unless($event->managedBy(auth()->user()), 403);
+
         return view('owner', [
             'event' => $event,
             'qrSvg' => $this->qrSvg(url("/e/{$event->code}")),
@@ -55,6 +67,8 @@ class EventController extends Controller
 
     public function update(Request $request, Event $event)
     {
+        abort_unless($event->managedBy($request->user()), 403);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'template' => ['sometimes', Rule::in(array_keys(Event::TEMPLATES))],
@@ -93,6 +107,8 @@ class EventController extends Controller
 
     public function toggleClosed(Event $event)
     {
+        abort_unless($event->managedBy(auth()->user()), 403);
+
         $event->update(['closed_at' => $event->isClosed() ? null : now()]);
 
         return redirect("/events/{$event->code}");

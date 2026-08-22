@@ -1,11 +1,13 @@
 <?php
 
 use App\Models\Event;
+use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
     Storage::fake();
+    $this->actingAs(User::factory()->create(['is_admin' => true]));
     $this->event = Event::create(['name' => 'Acme Party', 'code' => 'PARTY2']);
 });
 

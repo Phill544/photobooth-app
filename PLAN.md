@@ -49,9 +49,20 @@ event's album. Event owners view the album on the website.
 
 ## Deliberately deferred (v1 non-goals)
 
-Per-shot retakes · back-camera toggle · filters/overlays/GIFs · custom strip templates UI ·
-IndexedDB persistence / offline queue · PWA install · live client-side gallery ·
-file-upload fallback · owner accounts/auth · thumbnails · resumable uploads · multi-language.
+Per-shot retakes · back-camera toggle · GIF/boomerang · IndexedDB persistence / offline queue ·
+PWA install · live client-side gallery · file-upload fallback · thumbnails · resumable uploads ·
+multi-language · password reset + email verification (deferred with owner accounts).
+
+## Owner accounts (done)
+
+Hand-rolled auth (register/login/logout, no Tailwind scaffolding) styled to the design system.
+`events.owner_id` (nullable FK) + `users.is_admin`. Create/manage routes are behind `auth`;
+`Event::managedBy($user)` gates show/update/toggle-closed/session-delete (owner OR admin, else 403).
+`/dashboard` lists an owner's events; admins see every event. The **guest flow stays fully public**
+(join by code, capture, gallery, upload, photo/logo serve). Deferred: password reset, email
+verification, an admin UI to grant `is_admin` (set via seeder/tinker for now), and impersonation
+(admin oversight is read/manage-all; add "log in as" only if needed). Dev login: demo@example.com /
+password (seeded admin). **Next: deploy to Laravel Cloud** (managed Postgres + S3 for photos/logos).
 
 ## Roadmap
 

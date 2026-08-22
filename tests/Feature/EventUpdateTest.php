@@ -1,8 +1,10 @@
 <?php
 
 use App\Models\Event;
+use App\Models\User;
 
 beforeEach(function () {
+    $this->actingAs(User::factory()->create(['is_admin' => true]));
     $this->event = Event::create(['name' => 'Summer Party', 'code' => 'PARTY2', 'theme' => 'midnight']);
 });
 

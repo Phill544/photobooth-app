@@ -63,12 +63,14 @@
                         <img src="/e/{{ $event->code }}/photos/{{ $photo->id }}" alt="Event photo" loading="lazy">
                     @endforeach
                 </div>
-                <form class="delete" method="POST" action="/e/{{ $event->code }}/groups/{{ $session->first()->group_uuid }}"
-                      onsubmit="return confirm('Delete this session and its photos?')">
-                    @csrf
-                    @method('DELETE')
-                    <button>Delete session</button>
-                </form>
+                @if ($event->managedBy(auth()->user()))
+                    <form class="delete" method="POST" action="/e/{{ $event->code }}/groups/{{ $session->first()->group_uuid }}"
+                          onsubmit="return confirm('Delete this session and its photos?')">
+                        @csrf
+                        @method('DELETE')
+                        <button>Delete session</button>
+                    </form>
+                @endif
             </section>
         @empty
             <p class="empty">No photos yet — be the first!</p>

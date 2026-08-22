@@ -16,6 +16,8 @@ class PhotoController extends Controller
 
     public function destroyGroup(Event $event, string $group)
     {
+        abort_unless($event->managedBy(auth()->user()), 403);
+
         $photos = $event->photos()->where('group_uuid', $group)->get();
         abort_if($photos->isEmpty(), 404);
 

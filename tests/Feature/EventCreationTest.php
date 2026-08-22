@@ -1,6 +1,9 @@
 <?php
 
 use App\Models\Event;
+use App\Models\User;
+
+beforeEach(fn () => $this->actingAs(User::factory()->create()));
 
 it('shows the create form', function () {
     $this->get('/new')
@@ -75,6 +78,6 @@ it('rejects a blank name', function () {
     expect(Event::count())->toBe(0);
 });
 
-it('links to event creation from the home page', function () {
-    $this->get('/')->assertSee('/new');
+it('links hosts from the home page to their dashboard', function () {
+    $this->get('/')->assertSee('/dashboard');
 });
