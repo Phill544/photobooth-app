@@ -50,6 +50,10 @@ php artisan migrate --force
 php artisan config:cache && php artisan route:cache && php artisan view:cache
 ```
 
+> **`config:cache` captures env at cache time.** If you change env vars (e.g. attach the database
+> or set `DB_CONNECTION`) you must **redeploy** (or `php artisan config:clear`) so the cache picks
+> them up — otherwise the app keeps running with the stale/default values.
+
 Do **not** run `php artisan db:seed` in production — the demo seed is guarded to `local` and will
 no-op, but there's no reason to invoke it.
 
@@ -67,8 +71,10 @@ You're now an admin and can see/manage every event.
 
 | Symptom | Cause | Fix |
 |---|---|---|
+| `Database file at path [.../database.sqlite] does not exist` / `Connection: sqlite` in production | No Postgres attached, so the app fell back to the SQLite default | Attach a Postgres database (Cloud injects `DB_CONNECTION=pgsql` + creds), **redeploy** so config re-caches with the DB env, then `php artisan migrate --force` |
 | Booth / create / owner / dashboard pages 500, but `/`, `/login` load fine | Vite manifest missing — `npm run build` didn't run | Ensure the build step runs `npm run build` and produced `public/build/manifest.json` |
 | 500 on **every** page | `APP_KEY` unset, or migrations haven't run | Set `APP_KEY`; confirm `php artisan migrate --force` is in the deploy commands (temporarily set `APP_DEBUG=true` to read the exact error) |
 | "could not find driver" / "table not found" | DB not attached / `DB_CONNECTION` wrong / migrations not run | Attach Postgres, `DB_CONNECTION=pgsql`, run `migrate --force` |
+| A booth link 404s in production (e.g. `/e/party2`) | `PARTY2` is the **local** demo event; the seed is local-only, so production has no data yet | Register at `/register`, create a real event, then `photobooth:make-admin you@…` |
 | Uploads work but photos disappear after a redeploy | Writing to ephemeral local disk | `FILESYSTEM_DISK=s3` + attach object storage |
 | QR codes / invite links point at the wrong host | `APP_URL` wrong | Set `APP_URL` to the real domain |
