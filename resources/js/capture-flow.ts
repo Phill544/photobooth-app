@@ -9,6 +9,7 @@ export type FlowState =
     | { screen: 'flash'; shotIndex: number }
     | { screen: 'review' }
     | { screen: 'uploading'; uploaded: number; total: number }
+    | { screen: 'uploadFailed'; total: number }
     | { screen: 'done' }
     | { screen: 'cameraLost'; shotIndex: number };
 
@@ -19,6 +20,8 @@ export type FlowEvent =
     | { type: 'retake' }
     | { type: 'share' }
     | { type: 'photoUploaded' }
+    | { type: 'uploadFailed' }
+    | { type: 'retryUpload' }
     | { type: 'cameraLost' }
     | { type: 'cameraBack' };
 
@@ -55,9 +58,15 @@ export function nextState(state: FlowState, event: FlowEvent, template: StripTem
             return state;
 
         case 'uploading':
+            if (event.type === 'uploadFailed') return { screen: 'uploadFailed', total: state.total };
             if (event.type !== 'photoUploaded') return state;
             if (state.uploaded + 1 < state.total) return { ...state, uploaded: state.uploaded + 1 };
             return { screen: 'done' };
+
+        case 'uploadFailed':
+            // Re-run from the start; already-sent slots dedup on the server.
+            if (event.type === 'retryUpload') return { screen: 'uploading', uploaded: 0, total: state.total };
+            return state;
 
         case 'done':
             if (event.type === 'retake') return countdownFor(0);

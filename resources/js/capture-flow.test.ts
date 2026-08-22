@@ -66,6 +66,28 @@ describe('the happy path', () => {
     });
 });
 
+describe('a failed upload', () => {
+    it('parks on the upload-failed screen, keeping the total', () => {
+        const uploading: FlowState = { screen: 'uploading', uploaded: 2, total: 4 };
+
+        expect(walk(uploading, [{ type: 'uploadFailed' }]))
+            .toEqual({ screen: 'uploadFailed', total: 4 });
+    });
+
+    it('retries from the start of the upload (dedup makes re-sends cheap)', () => {
+        const failed: FlowState = { screen: 'uploadFailed', total: 4 };
+
+        expect(walk(failed, [{ type: 'retryUpload' }]))
+            .toEqual({ screen: 'uploading', uploaded: 0, total: 4 });
+    });
+
+    it('ignores unrelated events while parked on the failed screen', () => {
+        const failed: FlowState = { screen: 'uploadFailed', total: 4 };
+
+        expect(walk(failed, [{ type: 'photoUploaded' }])).toEqual(failed);
+    });
+});
+
 describe('retakes', () => {
     it('restarts the whole set from review', () => {
         expect(walk({ screen: 'review' }, [{ type: 'retake' }]))
