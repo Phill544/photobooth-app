@@ -57,8 +57,24 @@ file-upload fallback · owner accounts/auth · thumbnails · resumable uploads �
 
 1. ~~**Walking skeleton**~~ — done, phone-verified over the tunnel.
 2. ~~**Real photobooth**~~ — done: countdown, template-driven multi-shot flow, strip composition,
-   consent + sequential idempotent uploads, camera-lost recovery. (Real-device pass pending.)
+   consent + sequential idempotent uploads, camera-lost recovery. Real-device pass done on
+   Android + iPhone (happy paths, screen-lock recovery, denial error all confirmed).
 3. ~~**Owner basics**~~ — done: event create form, printable QR owner page, gallery grouped by
    session (strips prominent), per-session delete + `photobooth:purge-event` command,
-   event-closed flag (uploads 410, booth page explains, album stays), 30/min/IP upload throttle.
-4. **Event hardening** — camera-denied recovery screen, in-app-browser interstitial, wake lock, rotate overlay, save-via-share, device pass.
+   event-closed flag (uploads 410, booth page explains, album stays), 60/min/event upload throttle.
+4. **Event hardening** — camera-denied recovery screen, in-app-browser interstitial, wake lock,
+   rotate-to-portrait overlay, save-via-share, **retry a fully-errored upload** (see below), device pass.
+
+## Known behaviour & future polish
+
+- **Partial uploads are by design, not a bug.** Uploads run sequentially, strip first, with 2
+  retries each (~4s window). A transient blip recovers; a sustained outage aborts at the first
+  file that exhausts retries and shows the terminal error screen. Because the strip uploads first,
+  a partial session still keeps the most valuable artifact. Confirmed on-device.
+- **Retry from the error screen** (Phase 4): the error screen's only action is Reload, which
+  discards the in-memory blobs, so a partial session is currently permanent. The idempotency key
+  (event, group, slot) already makes re-running the upload cheap and safe — already-sent slots
+  dedupe to 200, only the failed ones transfer — so this is a small, high-value hardening add.
+- **Gallery design pass** (later): the session layout works and doesn't overflow on mobile, but on
+  narrow screens the strip and its photos are cramped side-by-side. Wants a lick of paint plus a
+  responsive tweak (stack photos below the strip on narrow screens).
