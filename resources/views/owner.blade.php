@@ -74,7 +74,8 @@
         <details class="edit no-print" @if ($errors->any()) open @endif>
             <summary>✏️ Edit the booth look</summary>
             <div class="edit-body">
-                <form method="POST" action="/events/{{ $event->code }}" data-strip-form>
+                <form method="POST" action="/events/{{ $event->code }}" enctype="multipart/form-data" data-strip-form
+                      @if ($event->logo_path) data-logo-url="{{ url('/e/'.$event->code.'/logo') }}" @endif>
                     @csrf
                     @method('PATCH')
                     <div class="field">
@@ -100,6 +101,13 @@
                     <div class="field">
                         <label for="caption">Strip caption <span class="muted">(optional)</span></label>
                         <input id="caption" name="caption" maxlength="60" placeholder="defaults to the event name" value="{{ old('caption', $event->caption) }}">
+                    </div>
+                    <div class="field">
+                        <label for="logo">Logo <span class="muted">(optional — replaces the caption)</span></label>
+                        <input id="logo" name="logo" type="file" accept="image/png,image/jpeg,image/webp">
+                        @if ($event->logo_path)
+                            <label class="muted"><input type="checkbox" name="remove_logo" value="1"> Remove the current logo</label>
+                        @endif
                     </div>
                     <button>Save changes</button>
                     @error('name') <p class="error">{{ $message }}</p> @enderror

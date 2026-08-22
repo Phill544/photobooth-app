@@ -35,7 +35,7 @@
         <h1>Set up your booth</h1>
 
         <div class="create">
-            <form id="create-form" method="POST" action="/events" data-strip-form>
+            <form id="create-form" method="POST" action="/events" enctype="multipart/form-data" data-strip-form>
                 @csrf
                 <div class="field">
                     <label for="name">Event name</label>
@@ -61,11 +61,16 @@
                     <label for="caption">Strip caption <span class="muted">(optional)</span></label>
                     <input id="caption" name="caption" maxlength="60" placeholder="defaults to the event name" value="{{ old('caption') }}">
                 </div>
+                <div class="field">
+                    <label for="logo">Logo <span class="muted">(optional — replaces the caption)</span></label>
+                    <input id="logo" name="logo" type="file" accept="image/png,image/jpeg,image/webp">
+                </div>
                 <button class="btn--hero">Create the booth</button>
                 @error('name') <p class="error">{{ $message }}</p> @enderror
                 @error('template') <p class="error">{{ $message }}</p> @enderror
                 @error('theme') <p class="error">{{ $message }}</p> @enderror
                 @error('caption') <p class="error">{{ $message }}</p> @enderror
+                @error('logo') <p class="error">{{ $message }}</p> @enderror
             </form>
 
             <aside class="preview">

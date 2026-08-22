@@ -8,6 +8,7 @@ use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -25,11 +26,20 @@ class EventController extends Controller
             'template' => ['sometimes', Rule::in(array_keys(Event::TEMPLATES))],
             'theme' => ['sometimes', Rule::in(array_keys(Event::STRIP_THEMES))],
             'caption' => ['nullable', 'string', 'max:60'],
+            'logo' => ['nullable', 'image', 'mimes:png,jpeg,webp', 'max:2048'],
         ]);
 
         $event = Event::create($validated);
+        $this->applyLogo($request, $event);
 
         return redirect("/events/{$event->code}");
+    }
+
+    public function logo(Event $event)
+    {
+        abort_if(! $event->logo_path, 404);
+
+        return Storage::response($event->logo_path);
     }
 
     public function show(Event $event)
@@ -50,11 +60,27 @@ class EventController extends Controller
             'template' => ['sometimes', Rule::in(array_keys(Event::TEMPLATES))],
             'theme' => ['sometimes', Rule::in(array_keys(Event::STRIP_THEMES))],
             'caption' => ['nullable', 'string', 'max:60'],
+            'logo' => ['nullable', 'image', 'mimes:png,jpeg,webp', 'max:2048'],
         ]);
 
         $event->update($validated);
+        $this->applyLogo($request, $event);
 
         return redirect("/events/{$event->code}");
+    }
+
+    // Stores a newly uploaded logo (replacing any old one), or removes it.
+    private function applyLogo(Request $request, Event $event): void
+    {
+        if (! $request->hasFile('logo') && ! $request->boolean('remove_logo')) {
+            return;
+        }
+
+        if ($event->logo_path) {
+            Storage::delete($event->logo_path);
+        }
+
+        $event->update(['logo_path' => $request->file('logo')?->store('logos')]);
     }
 
     private function qrSvg(string $url): string

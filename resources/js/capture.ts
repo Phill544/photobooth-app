@@ -16,7 +16,18 @@ const cellAspect = template.cellWidth / template.cellHeight;
 const branding: Branding = {
     ...stripTheme(document.body.dataset.theme ?? ''),
     caption: document.body.dataset.caption || eventName,
+    logo: null,
 };
+
+// Preload the event's logo (same-origin, so it won't taint the strip canvas).
+// It's a small image and loads well before the review screen; if it somehow
+// isn't ready, the strip falls back to the caption text.
+const logoUrl = document.body.dataset.logo;
+if (logoUrl) {
+    const logo = new Image();
+    logo.onload = () => { branding.logo = logo; };
+    logo.src = logoUrl;
+}
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
 

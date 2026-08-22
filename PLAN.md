@@ -83,7 +83,10 @@ Growing the guest experience. Sequence: templates → branding → filters → G
    layout, colour, and caption after creation** from the owner page (`PATCH /events/{code}`) with the
    same live strip preview (`strip-preview.ts`, shared by both forms via `[data-strip-form]`).
    Colours live in `strip-theme.ts` with keys mirrored in `Event::STRIP_THEMES`; passed to the strip
-   via `data-theme`/`data-caption`. Still to add: a **logo upload** for the strip.
+   via `data-theme`/`data-caption`. Owners can also **upload a logo** (create or edit) which is
+   stored on the private disk, served at `GET /e/{code}/logo`, and drawn in the strip footer
+   **instead of the caption** (one or the other); a remove option clears it. The live preview shows
+   it too. Branding is now complete.
 3. ~~**Filters**~~ — done: an opt-in "Add a filter" path (quick shoot stays filter-free) with a
    live-preview chip picker (None/Noir/Golden/Cool/Pop/Film). `filters.ts` defines each look once as
    an op list → CSS string (preview + Chrome ctx.filter fast path) AND a 4×5 colour matrix (the iOS

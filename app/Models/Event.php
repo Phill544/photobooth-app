@@ -28,7 +28,7 @@ class Event extends Model
         'champagne' => 'Champagne',
     ];
 
-    protected $fillable = ['name', 'code', 'closed_at', 'template', 'theme', 'caption'];
+    protected $fillable = ['name', 'code', 'closed_at', 'template', 'theme', 'caption', 'logo_path'];
 
     protected $casts = ['closed_at' => 'datetime'];
 

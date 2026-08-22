@@ -15,6 +15,7 @@ Route::patch('/events/{event:code}', [EventController::class, 'update']);
 Route::post('/events/{event:code}/toggle-closed', [EventController::class, 'toggleClosed']);
 
 Route::get('/e/{event:code}', [EventController::class, 'capture']);
+Route::get('/e/{event:code}/logo', [EventController::class, 'logo']);
 Route::get('/e/{event:code}/gallery', [EventController::class, 'gallery']);
 Route::post('/e/{event:code}/photos', [PhotoController::class, 'store'])->middleware('throttle:uploads');
 Route::get('/e/{event:code}/photos/{photo}', [PhotoController::class, 'show'])->scopeBindings();
