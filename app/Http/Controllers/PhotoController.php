@@ -14,8 +14,21 @@ class PhotoController extends Controller
         return Storage::response($photo->path);
     }
 
+    public function destroyGroup(Event $event, string $group)
+    {
+        $photos = $event->photos()->where('group_uuid', $group)->get();
+        abort_if($photos->isEmpty(), 404);
+
+        Storage::delete($photos->pluck('path')->all());
+        $event->photos()->where('group_uuid', $group)->delete();
+
+        return redirect("/e/{$event->code}/gallery");
+    }
+
     public function store(Request $request, Event $event)
     {
+        abort_if($event->isClosed(), 410, 'This event is closed.');
+
         $validated = $request->validate([
             'photo' => ['required', 'image', 'mimes:jpeg,png,webp', 'max:10240'],
             'kind' => ['required', 'in:original,strip'],

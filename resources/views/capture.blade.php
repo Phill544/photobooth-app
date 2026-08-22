@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $event->name }} — Photobooth</title>
-    @vite('resources/js/capture.ts')
+    @unless ($event->isClosed())
+        @vite('resources/js/capture.ts')
+    @endunless
     <style>
         body {
             font-family: system-ui, sans-serif;
@@ -66,6 +68,13 @@
     </style>
 </head>
 <body data-event-code="{{ $event->code }}" data-event-name="{{ $event->name }}">
+    @if ($event->isClosed())
+    <main>
+        <h1>{{ $event->name }}</h1>
+        <p>This event's photobooth has closed. 📷✨</p>
+        <p><a href="/e/{{ $event->code }}/gallery">See the album</a></p>
+    </main>
+    @else
     <main>
         <section id="start-screen">
             <h1>{{ $event->name }}</h1>
@@ -110,5 +119,6 @@
             <button onclick="location.reload()" class="secondary">Reload</button>
         </section>
     </main>
+    @endif
 </body>
 </html>

@@ -27,6 +27,17 @@ it('does not show photos from other events', function () {
         ->assertDontSee("photos/$other");
 });
 
+it('groups a session together with the strip first', function () {
+    $group = fake()->uuid();
+    $first = uploadPhoto('PARTY2', ['group' => $group, 'slot' => 1])->json('id');
+    $second = uploadPhoto('PARTY2', ['group' => $group, 'slot' => 2])->json('id');
+    $strip = uploadPhoto('PARTY2', ['group' => $group, 'kind' => 'strip', 'slot' => 0])->json('id');
+
+    // The strip leads its session even though it uploaded last.
+    $this->get('/e/PARTY2/gallery')
+        ->assertSeeInOrder(["photos/$strip", "photos/$first", "photos/$second"]);
+});
+
 it('404s for an unknown event code', function () {
     $this->get('/e/XXXXXX/gallery')->assertNotFound();
 });

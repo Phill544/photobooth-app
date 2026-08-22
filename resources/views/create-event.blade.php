@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Photobooth</title>
+    <title>New Event — Photobooth</title>
     <style>
         body {
             font-family: system-ui, sans-serif;
@@ -16,13 +16,11 @@
             text-align: center;
         }
         input {
-            font-size: 1.5rem;
-            width: 8ch;
-            padding: 0.5rem;
+            font-size: 1.25rem;
+            padding: 0.5rem 1rem;
             border-radius: 8px;
             border: none;
             text-align: center;
-            text-transform: uppercase;
         }
         button {
             font-size: 1.25rem;
@@ -33,25 +31,21 @@
             color: #111;
             margin-top: 1rem;
         }
-        a { color: #9cf; }
+        .error { color: #f88; }
     </style>
 </head>
 <body>
     <main>
-        <h1>📸 Photobooth</h1>
-        <form id="join">
-            <input id="code" name="code" maxlength="6" autocapitalize="characters" autocomplete="off" placeholder="CODE" required>
+        <h1>Name your event</h1>
+        <form method="POST" action="/events">
+            @csrf
+            <input name="name" maxlength="100" placeholder="Sarah's 30th" value="{{ old('name') }}" required autofocus>
             <br>
-            <button>Join the booth</button>
+            <button>Create the event</button>
+            @error('name')
+                <p class="error">{{ $message }}</p>
+            @enderror
         </form>
-        <p><a href="/new">Hosting? Create an event</a></p>
     </main>
-    <script>
-        document.querySelector('#join').addEventListener('submit', (event) => {
-            event.preventDefault();
-            const code = document.querySelector('#code').value.trim();
-            location.href = `/e/${encodeURIComponent(code)}`;
-        });
-    </script>
 </body>
 </html>

@@ -52,5 +52,7 @@ file-upload fallback · owner accounts/auth · thumbnails · resumable uploads �
 1. ~~**Walking skeleton**~~ — done, phone-verified over the tunnel.
 2. ~~**Real photobooth**~~ — done: countdown, template-driven multi-shot flow, strip composition,
    consent + sequential idempotent uploads, camera-lost recovery. (Real-device pass pending.)
-3. **Owner basics** — event create form, printable QR page, gallery grouped by session, delete session/event, event-closed flag, rate limiting.
+3. ~~**Owner basics**~~ — done: event create form, printable QR owner page, gallery grouped by
+   session (strips prominent), per-session delete + `photobooth:purge-event` command,
+   event-closed flag (uploads 410, booth page explains, album stays), 30/min/IP upload throttle.
 4. **Event hardening** — camera-denied recovery screen, in-app-browser interstitial, wake lock, rotate overlay, save-via-share, device pass.

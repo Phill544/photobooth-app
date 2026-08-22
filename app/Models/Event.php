@@ -10,7 +10,14 @@ class Event extends Model
     // No 0, O, 1, I — codes get read aloud and typed by hand at events.
     public const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
-    protected $fillable = ['name', 'code'];
+    protected $fillable = ['name', 'code', 'closed_at'];
+
+    protected $casts = ['closed_at' => 'datetime'];
+
+    public function isClosed(): bool
+    {
+        return $this->closed_at !== null;
+    }
 
     public function photos(): HasMany
     {

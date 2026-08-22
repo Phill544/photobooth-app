@@ -3,9 +3,53 @@
 namespace App\Http\Controllers;
 
 use App\Models\Event;
+use BaconQrCode\Renderer\Image\SvgImageBackEnd;
+use BaconQrCode\Renderer\ImageRenderer;
+use BaconQrCode\Renderer\RendererStyle\RendererStyle;
+use BaconQrCode\Writer;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class EventController extends Controller
 {
+    public function create()
+    {
+        return view('create-event');
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate(['name' => ['required', 'string', 'max:100']]);
+
+        $event = Event::create($validated);
+
+        return redirect("/events/{$event->code}");
+    }
+
+    public function show(Event $event)
+    {
+        return view('owner', [
+            'event' => $event,
+            'qrSvg' => $this->qrSvg(url("/e/{$event->code}")),
+            'photoCount' => $event->photos()->count(),
+        ]);
+    }
+
+    private function qrSvg(string $url): string
+    {
+        $renderer = new ImageRenderer(new RendererStyle(280), new SvgImageBackEnd);
+        $svg = (new Writer($renderer))->writeString($url);
+
+        return Str::after($svg, '?>'); // drop the XML declaration for inline HTML use
+    }
+
+    public function toggleClosed(Event $event)
+    {
+        $event->update(['closed_at' => $event->isClosed() ? null : now()]);
+
+        return redirect("/events/{$event->code}");
+    }
+
     public function capture(Event $event)
     {
         return view('capture', ['event' => $event]);
@@ -13,9 +57,13 @@ class EventController extends Controller
 
     public function gallery(Event $event)
     {
-        return view('gallery', [
-            'event' => $event,
-            'photos' => $event->photos()->latest('id')->get(),
-        ]);
+        $sessions = $event->photos()
+            ->orderBy('slot')
+            ->get()
+            ->groupBy('group_uuid')
+            ->sortByDesc(fn ($photos) => $photos->max('id'))
+            ->values();
+
+        return view('gallery', ['event' => $event, 'sessions' => $sessions]);
     }
 }
