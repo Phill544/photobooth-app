@@ -318,10 +318,12 @@ setFilter('none'); // marks the None chip selected
 
 $('#start').addEventListener('click', beginQuick);
 $('#add-filter').addEventListener('click', beginCustomise);
-$('#customise-start').addEventListener('click', () => dispatch({ type: 'start' }));
+// Re-ensure the camera first: a guest can linger on the customise screen long
+// enough for the phone to lock and kill the stream (like retake).
+$('#customise-start').addEventListener('click', () => void enterCamera(() => dispatch({ type: 'start' })));
 $('#share').addEventListener('click', shareToAlbum);
-$('#retake').addEventListener('click', retake);
-$('#again').addEventListener('click', retake);
+$('#retake').addEventListener('click', retake); // same guest, same run — keep their filter
+$('#again').addEventListener('click', () => { setFilter('none'); retake(); }); // fresh run — drop the last guest's look
 $('#camera-retry').addEventListener('click', async () => {
     try {
         if (await ensureCamera()) { void requestWakeLock(); dispatch({ type: 'cameraBack' }); }
