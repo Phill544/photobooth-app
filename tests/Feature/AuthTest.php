@@ -36,6 +36,16 @@ it('requires the password to be confirmed', function () {
     $this->assertGuest();
 });
 
+it('does not let registration grant admin', function () {
+    $this->post('/register', [
+        'name' => 'Sneaky', 'email' => 'sneaky@example.com',
+        'password' => 'secret-password', 'password_confirmation' => 'secret-password',
+        'is_admin' => '1',
+    ])->assertRedirect('/dashboard');
+
+    expect(User::where('email', 'sneaky@example.com')->sole()->is_admin)->toBeFalse();
+});
+
 it('shows the login form', function () {
     $this->get('/login')->assertOk()->assertSee('name="email"', false);
 });
