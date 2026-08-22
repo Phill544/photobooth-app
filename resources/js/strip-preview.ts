@@ -62,16 +62,23 @@ if (form && preview) {
         field.addEventListener('change', render);
     }
 
-    logoInput?.addEventListener('change', () => {
-        const file = logoInput.files?.[0];
-        if (removeLogo) removeLogo.checked = false; // picking a logo cancels a pending removal
-        loadLogo(file ? URL.createObjectURL(file) : (form.dataset.logoUrl || null));
-    });
-    removeLogo?.addEventListener('change', () => {
-        loadLogo(removeLogo.checked ? null : (form.dataset.logoUrl || null));
-    });
+    // Resolve the logo the way the server will: a picked file wins, else the
+    // existing logo, unless removal is ticked. Revoke the previous object URL
+    // so repeated picks don't leak, and keep the preview matching what submits.
+    let lastObjectUrl: string | null = null;
+    const refreshLogo = () => {
+        if (lastObjectUrl) { URL.revokeObjectURL(lastObjectUrl); lastObjectUrl = null; }
+        if (removeLogo?.checked) { loadLogo(null); return; }
+        const file = logoInput?.files?.[0];
+        if (file) { lastObjectUrl = URL.createObjectURL(file); loadLogo(lastObjectUrl); return; }
+        loadLogo(form.dataset.logoUrl || null);
+    };
 
-    // Seed with the event's current logo on the edit form (data-logo-url).
-    if (form.dataset.logoUrl) loadLogo(form.dataset.logoUrl);
-    else render();
+    logoInput?.addEventListener('change', () => {
+        if (removeLogo) removeLogo.checked = false; // picking a logo cancels a pending removal
+        refreshLogo();
+    });
+    removeLogo?.addEventListener('change', refreshLogo);
+
+    refreshLogo(); // seed (also renders once the logo, if any, loads)
 }

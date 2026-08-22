@@ -96,8 +96,9 @@ Growing the guest experience. Sequence: templates → branding → filters → G
 
 Also from event feedback: front-camera frames are now captured **un-mirrored** (preview stays
 mirrored) so text/signs in the strip read correctly. Countdown is **5 seconds**. The create form
-shows a **live strip preview** (`create-preview.ts`) that redraws via the real compose modules
-(placeholder cells) as the owner changes layout/colour/caption.
+and the owner edit form both show a **live strip preview** (`strip-preview.ts`, bound via
+`[data-strip-form]`) that redraws via the real compose modules (placeholder cells) as the owner
+changes layout/colour/caption/logo.
 
 ## Design system
 

@@ -114,6 +114,7 @@
                     @error('template') <p class="error">{{ $message }}</p> @enderror
                     @error('theme') <p class="error">{{ $message }}</p> @enderror
                     @error('caption') <p class="error">{{ $message }}</p> @enderror
+                    @error('logo') <p class="error">{{ $message }}</p> @enderror
                 </form>
                 <div class="edit-preview">
                     <p class="eyebrow">Preview</p>
