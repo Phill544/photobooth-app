@@ -79,9 +79,11 @@ Growing the guest experience. Sequence: templates → branding → filters → G
    stored on the event, and the capture flow reads it via `data-template`. Ships classic
    (3×1), quad (4×1), grid (2×2), single. Shot count stays template-driven.
 2. ~~**Per-event branding**~~ — done: owner picks a strip colour theme (Midnight/Blush/Forest/
-   Sand/Champagne) and an optional caption (defaults to event name) at `/new`. Colours live in
-   `strip-theme.ts` with keys mirrored in `Event::STRIP_THEMES`; passed to the strip via
-   `data-theme`/`data-caption`. A logo upload is a later branding add.
+   Sand/Champagne) and an optional caption (defaults to event name) at `/new`, and can **edit name,
+   layout, colour, and caption after creation** from the owner page (`PATCH /events/{code}`) with the
+   same live strip preview (`strip-preview.ts`, shared by both forms via `[data-strip-form]`).
+   Colours live in `strip-theme.ts` with keys mirrored in `Event::STRIP_THEMES`; passed to the strip
+   via `data-theme`/`data-caption`. Still to add: a **logo upload** for the strip.
 3. ~~**Filters**~~ — done: an opt-in "Add a filter" path (quick shoot stays filter-free) with a
    live-preview chip picker (None/Noir/Golden/Cool/Pop/Film). `filters.ts` defines each look once as
    an op list → CSS string (preview + Chrome ctx.filter fast path) AND a 4×5 colour matrix (the iOS

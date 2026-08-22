@@ -11,6 +11,7 @@ Route::get('/', function () {
 Route::get('/new', [EventController::class, 'create']);
 Route::post('/events', [EventController::class, 'store']);
 Route::get('/events/{event:code}', [EventController::class, 'show']);
+Route::patch('/events/{event:code}', [EventController::class, 'update']);
 Route::post('/events/{event:code}/toggle-closed', [EventController::class, 'toggleClosed']);
 
 Route::get('/e/{event:code}', [EventController::class, 'capture']);

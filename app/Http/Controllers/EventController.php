@@ -38,7 +38,23 @@ class EventController extends Controller
             'event' => $event,
             'qrSvg' => $this->qrSvg(url("/e/{$event->code}")),
             'photoCount' => $event->photos()->count(),
+            'templates' => Event::TEMPLATES,
+            'themes' => Event::STRIP_THEMES,
         ]);
+    }
+
+    public function update(Request $request, Event $event)
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+            'template' => ['sometimes', Rule::in(array_keys(Event::TEMPLATES))],
+            'theme' => ['sometimes', Rule::in(array_keys(Event::STRIP_THEMES))],
+            'caption' => ['nullable', 'string', 'max:60'],
+        ]);
+
+        $event->update($validated);
+
+        return redirect("/events/{$event->code}");
     }
 
     private function qrSvg(string $url): string

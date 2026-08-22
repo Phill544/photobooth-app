@@ -57,7 +57,7 @@
         <section id="start-screen">
             <p class="eyebrow">Photobooth</p>
             <h1>{{ $event->name }}</h1>
-            <button id="start" class="btn--hero">📸 Start the booth</button>
+            <button id="start" class="btn--hero">📸 Quick shoot</button>
             <br>
             <button id="add-filter" class="btn--ghost">🎨 Add a filter</button>
             <p><a href="/e/{{ $event->code }}/gallery">View the album</a></p>

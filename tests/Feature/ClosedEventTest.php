@@ -30,7 +30,7 @@ it('tells guests the booth is closed instead of offering the camera', function (
     $this->get('/e/PARTY2')
         ->assertOk()
         ->assertSee('closed')
-        ->assertDontSee('Start the booth');
+        ->assertDontSee('Quick shoot');
 });
 
 it('keeps the album visible for a closed event', function () {

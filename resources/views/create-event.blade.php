@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>New Event — Photobooth</title>
     @include('partials.theme')
-    @vite('resources/js/create-preview.ts')
+    @vite('resources/js/strip-preview.ts')
     <style>
         body.ctx-dark { display: grid; place-items: center; padding: var(--space-xl) var(--page-gutter); }
         main { width: min(100%, 820px); min-width: 0; max-width: 100%; text-align: center; }
@@ -35,7 +35,7 @@
         <h1>Set up your booth</h1>
 
         <div class="create">
-            <form id="create-form" method="POST" action="/events">
+            <form id="create-form" method="POST" action="/events" data-strip-form>
                 @csrf
                 <div class="field">
                     <label for="name">Event name</label>
@@ -70,7 +70,7 @@
 
             <aside class="preview">
                 <p class="eyebrow">Preview</p>
-                <img id="preview-strip" alt="A preview of your photo strip">
+                <img id="preview-strip" data-strip-preview alt="A preview of your photo strip">
             </aside>
         </div>
     </main>
