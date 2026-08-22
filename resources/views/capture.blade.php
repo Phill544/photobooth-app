@@ -15,7 +15,9 @@
         .eyebrow { margin-bottom: var(--space-2xs); }
 
         .camera-frame { position: relative; margin-top: var(--space-md); }
-        #preview { width: 100%; border-radius: var(--r-md); object-fit: cover; background: #000; }
+        /* Mirror the live preview so guests frame like a mirror; the saved frame
+           is grabbed un-mirrored (see captureShot) so text reads the right way. */
+        #preview { width: 100%; border-radius: var(--r-md); object-fit: cover; background: #000; transform: scaleX(-1); }
         #countdown-number { position: absolute; inset: 0; display: grid; place-items: center;
             font-family: var(--font-display); font-size: 8rem; font-weight: 600; color: #fff;
             text-shadow: 0 2px 12px rgba(0, 0, 0, .6); }

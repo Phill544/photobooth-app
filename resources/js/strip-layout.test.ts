@@ -10,8 +10,6 @@ function template(overrides: Partial<StripTemplate> = {}): StripTemplate {
         cellHeight: 450,
         padding: 24,
         footerHeight: 96,
-        background: '#111111',
-        textColor: '#ffffff',
         ...overrides,
     };
 }

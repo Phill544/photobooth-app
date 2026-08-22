@@ -25,7 +25,7 @@ export function cameraIsLive(stream: MediaStream): boolean {
 }
 
 // Grabs the current frame cropped to the target aspect, at the camera's
-// native resolution. Mirrored to match the mirrored selfie preview.
+// native resolution. Flips the pixels horizontally only when `mirror` is true.
 export function grabFrame(video: HTMLVideoElement, mirror: boolean, targetAspect: number): HTMLCanvasElement {
     const crop = centeredCrop(video.videoWidth, video.videoHeight, targetAspect);
 

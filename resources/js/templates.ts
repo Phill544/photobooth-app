@@ -9,17 +9,14 @@ export type StripTemplate = {
     cellHeight: number;
     padding: number;
     footerHeight: number;
-    background: string;
-    textColor: string;
 };
 
+// Colours are not here — they come from the event's strip-theme (see strip-theme.ts).
 const base = {
     cellWidth: 600,
     cellHeight: 450,
     padding: 24,
     footerHeight: 96,
-    background: '#111111',
-    textColor: '#ffffff',
 } as const;
 
 // The owner picks one of these when creating an event; `key` is what we store.

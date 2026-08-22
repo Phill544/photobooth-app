@@ -10,8 +10,6 @@ function template(cellCount: number): StripTemplate {
         cellHeight: 450,
         padding: 24,
         footerHeight: 96,
-        background: '#111',
-        textColor: '#fff',
     };
 }
 
