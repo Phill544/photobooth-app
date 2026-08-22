@@ -62,19 +62,26 @@ file-upload fallback · owner accounts/auth · thumbnails · resumable uploads �
 3. ~~**Owner basics**~~ — done: event create form, printable QR owner page, gallery grouped by
    session (strips prominent), per-session delete + `photobooth:purge-event` command,
    event-closed flag (uploads 410, booth page explains, album stays), 60/min/event upload throttle.
-4. **Event hardening** — camera-denied recovery screen, in-app-browser interstitial, wake lock,
-   rotate-to-portrait overlay, save-via-share, **retry a fully-errored upload** (see below), device pass.
+4. ~~**Event hardening + UX pass**~~ — done (real-device pass still yours to run): camera-denied
+   recovery screen with per-platform Settings steps, in-app-browser interstitial (UA-detected +
+   getUserMedia-error safety net), screen wake lock (reacquired on visibilitychange),
+   rotate-to-portrait overlay on touch devices, save/share-my-strip via the Web Share API with a
+   long-press + download fallback, retry-a-failed-upload, an invite/share affordance on every main
+   page, gallery↔booth navigation, and a full visual design pass (shared theme, redesigned gallery).
 
-## Known behaviour & future polish
+## Design system
 
-- **Partial uploads are by design, not a bug.** Uploads run sequentially, strip first, with 2
-  retries each (~4s window). A transient blip recovers; a sustained outage aborts at the first
-  file that exhausts retries and shows the terminal error screen. Because the strip uploads first,
-  a partial session still keeps the most valuable artifact. Confirmed on-device.
-- **Retry from the error screen** (Phase 4): the error screen's only action is Reload, which
-  discards the in-memory blobs, so a partial session is currently permanent. The idempotency key
-  (event, group, slot) already makes re-running the upload cheap and safe — already-sent slots
-  dedupe to 200, only the failed ones transfer — so this is a small, high-value hardening add.
-- **Gallery design pass** (later): the session layout works and doesn't overflow on mobile, but on
-  narrow screens the strip and its photos are cramped side-by-side. Wants a lick of paint plus a
-  responsive tweak (stack photos below the strip on narrow screens).
+- One shared theme in `resources/views/partials/theme.blade.php` (Fraunces + tokens + components),
+  `@include`d in every `<head>` (NOT via Vite — the closed-event capture branch loads no JS entry).
+  `<body class="ctx-dark">` = the booth (capture/home/create); `ctx-light` = the album (gallery/owner).
+- Invite affordance (`.share` + `.share-btn`/`.share-copy`/`.link-chip`) driven by
+  `partials/share-script.blade.php`: native share sheet where available, copy-link everywhere else,
+  raw URL always visible. Strip file-share lives in `capture.ts` (needs the built File up-front).
+
+## Known behaviour
+
+- **Partial uploads degrade gracefully.** Uploads run sequentially, strip first, with 2 retries
+  each (~4s window). A transient blip recovers; a sustained outage now parks on an **upload-failed
+  screen with a Retry button** that re-runs the upload — already-sent slots dedup on the server, so
+  only the missing files transfer. Because the strip uploads first, even a never-retried partial
+  keeps the most valuable artifact.

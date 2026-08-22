@@ -4,44 +4,24 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>New Event — Photobooth</title>
+    @include('partials.theme')
     <style>
-        body {
-            font-family: system-ui, sans-serif;
-            margin: 0;
-            min-height: 100dvh;
-            display: grid;
-            place-items: center;
-            background: #111;
-            color: #fff;
-            text-align: center;
-        }
-        input {
-            font-size: 1.25rem;
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            border: none;
-            text-align: center;
-        }
-        button {
-            font-size: 1.25rem;
-            padding: 0.75rem 2rem;
-            border-radius: 999px;
-            border: none;
-            background: #fff;
-            color: #111;
-            margin-top: 1rem;
-        }
-        .error { color: #f88; }
+        body.ctx-dark { display: grid; place-items: center; text-align: center; padding: var(--space-lg); }
+        main { width: min(100%, 460px); }
+        form { margin-top: var(--space-lg); }
+        input[name="name"] { width: min(100%, 320px); }
+        .error { color: var(--danger); margin-top: var(--space-sm); }
     </style>
 </head>
-<body>
+<body class="ctx-dark">
     <main>
-        <h1>Name your event</h1>
+        <p class="eyebrow">New event</p>
+        <h1>Name your booth</h1>
         <form method="POST" action="/events">
             @csrf
             <input name="name" maxlength="100" placeholder="Sarah's 30th" value="{{ old('name') }}" required autofocus>
             <br>
-            <button>Create the event</button>
+            <button class="btn--hero">Create the booth</button>
             @error('name')
                 <p class="error">{{ $message }}</p>
             @enderror
