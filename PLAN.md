@@ -21,11 +21,17 @@ event's album. Event owners view the album on the website.
 
 ## Architecture notes
 
-- **Schema**: `events(name, code)` + `photos(event_id, kind original|strip, group_uuid, slot, path)`
-  with `unique(group_uuid, slot)` so upload retries over flaky wifi are idempotent.
-- **Routes**: `GET /e/{event:code}` capture page · `POST /e/{event:code}/photos` upload ·
-  `GET /e/{event:code}/gallery` album · `GET /e/{event:code}/photos/{photo}` serves the image
-  file (scoped to the event so photo ids can't be enumerated across events).
+- **Schema**: `events(name, code, closed_at)` + `photos(event_id, kind original|strip, group_uuid,
+  slot, path)` with `unique(event_id, group_uuid, slot)` so upload retries over flaky wifi are
+  idempotent (scoped to the event — group_uuids are visible in each gallery).
+- **Guest routes**: `GET /e/{event:code}` capture page · `POST /e/{event:code}/photos` upload
+  (throttled 60/min per event code) · `GET /e/{event:code}/gallery` album ·
+  `GET /e/{event:code}/photos/{photo}` serves the image file (scoped to the event so photo ids
+  can't be enumerated across events) · `DELETE /e/{event:code}/groups/{group}` deletes a session.
+- **Owner routes**: `GET /new` create form · `POST /events` create · `GET /events/{event:code}`
+  owner page (printable QR, links, photo count, close toggle) ·
+  `POST /events/{event:code}/toggle-closed`.
+- **Purge**: `php artisan photobooth:purge-event {code}` deletes an event, its rows, and its files.
 - **Event codes**: 6 chars from `A-Z2-9` minus lookalikes (`0 O 1 I`), uppercased on lookup.
 - **Client modules** (pure, Vitest-tested): strip layout geometry, crop+mirror math,
   capture state machine, upload sequencing. Browser glue (`camera.ts`, DOM wiring) stays dumb.

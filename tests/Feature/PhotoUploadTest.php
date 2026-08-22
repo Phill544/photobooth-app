@@ -68,3 +68,15 @@ it('rejects an oversized upload', function () {
 it('404s when uploading to an unknown event', function () {
     uploadPhoto('XXXXXX')->assertNotFound();
 });
+
+it('lets two events reuse the same group and slot independently', function () {
+    // group_uuids are visible in each gallery, so a shared value must not let
+    // an upload to one event collide with another's dedupe key.
+    Event::create(['name' => 'Other Party', 'code' => 'OTHER2']);
+
+    uploadPhoto('PARTY2', ['group' => $this->group, 'slot' => 1])->assertCreated();
+    uploadPhoto('OTHER2', ['group' => $this->group, 'slot' => 1])->assertCreated();
+
+    expect(Event::where('code', 'PARTY2')->sole()->photos()->count())->toBe(1)
+        ->and(Event::where('code', 'OTHER2')->sole()->photos()->count())->toBe(1);
+});

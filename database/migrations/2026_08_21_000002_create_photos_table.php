@@ -18,7 +18,9 @@ return new class extends Migration
             $table->timestamps();
 
             // Retried uploads over flaky wifi must not duplicate photos.
-            $table->unique(['group_uuid', 'slot']);
+            // Scoped to the event so a group_uuid reused across events (they
+            // are visible in each gallery) can't collide.
+            $table->unique(['event_id', 'group_uuid', 'slot']);
         });
     }
 

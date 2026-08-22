@@ -11,10 +11,10 @@ it('shows the event code, a QR code, and booth links', function () {
     $this->get('/events/PARTY2')
         ->assertOk()
         ->assertSee('Summer Party')
-        ->assertSee('PARTY2')
+        ->assertSee('>PARTY2<', false) // the join-code display, not just link URLs
         ->assertSee('<svg', false)
-        ->assertSee('/e/PARTY2', false)
-        ->assertSee('/e/PARTY2/gallery', false);
+        ->assertSee('href="/e/PARTY2"', false) // the booth link specifically
+        ->assertSee('href="/e/PARTY2/gallery"', false);
 });
 
 it('shows how many photos the event has', function () {
