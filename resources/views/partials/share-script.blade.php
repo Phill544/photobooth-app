@@ -10,7 +10,11 @@
         }
         for (const copy of document.querySelectorAll('.share-copy')) {
             copy.addEventListener('click', async () => {
-                await navigator.clipboard?.writeText(copy.dataset.copy);
+                try {
+                    await navigator.clipboard?.writeText(copy.dataset.copy);
+                } catch {
+                    return; // clipboard blocked (some webviews) — the URL is shown in .link-chip anyway
+                }
                 const label = copy.textContent;
                 copy.textContent = 'Copied!';
                 copy.classList.add('copied');

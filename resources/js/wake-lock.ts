@@ -8,6 +8,7 @@ let wanted = false;
 
 export async function requestWakeLock(): Promise<void> {
     wanted = true;
+    if (sentinel) return; // already holding one — don't orphan it with a second request
     if (!('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
     try {
         sentinel = await navigator.wakeLock.request('screen');

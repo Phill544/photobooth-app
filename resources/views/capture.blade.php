@@ -120,8 +120,8 @@
             <h1>Open in your browser</h1>
             <p class="muted">The camera doesn't work inside this app's browser.</p>
             <a id="open-chrome" class="btn" hidden>Open in Chrome</a>
-            <div id="open-safari" hidden>
-                <p class="muted">Tap the ••• or share menu, then <strong>Open in Safari</strong> — or copy the link:</p>
+            <p id="open-safari" class="muted" hidden>Tap the ••• or share menu, then <strong>Open in Safari</strong> — or copy the link:</p>
+            <div class="share">
                 <button type="button" class="btn--ghost share-copy" data-copy="{{ url('/e/'.$event->code) }}">Copy link</button>
                 <span class="link-chip">{{ url('/e/'.$event->code) }}</span>
             </div>

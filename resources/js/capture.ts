@@ -198,8 +198,7 @@ async function begin() {
             dispatch({ type: 'start' });
         }
     } catch (err) {
-        if ((err as DOMException).name === 'NotAllowedError') showTakeover('denied');
-        else showTakeover('inApp'); // no camera / locked-down webview — offer the browser escape
+        handleCameraError(err);
     }
 }
 
@@ -212,13 +211,24 @@ async function retake() {
             dispatch({ type: 'retake' });
         }
     } catch (err) {
-        if ((err as DOMException).name === 'NotAllowedError') showTakeover('denied');
-        else showTakeover('inApp');
+        handleCameraError(err);
     }
+}
+
+// A denied permission is recoverable via settings; anything else (no camera,
+// busy hardware, locked-down webview) gets the browser-escape screen.
+function handleCameraError(err: unknown) {
+    if ((err as DOMException).name === 'NotAllowedError') showTakeover('denied');
+    else showTakeover('inApp');
 }
 
 function showTakeover(id: 'denied' | 'inApp') {
     takeover = true;
+    // Recovery from a takeover always starts a fresh capture, so drop back to
+    // 'start' — otherwise the retry buttons would render the stale review/done
+    // screen the flow was on when the camera failed.
+    state = { screen: 'start' };
+    shots = [];
     if (id === 'denied') {
         $('#denied-ios').hidden = !isIOS();
         $('#denied-android').hidden = isIOS();
@@ -227,7 +237,7 @@ function showTakeover(id: 'denied' | 'inApp') {
         const openChrome = $<HTMLAnchorElement>('#open-chrome');
         openChrome.hidden = isIOS();
         if (!isIOS()) openChrome.href = androidChromeIntent(location.href);
-        $('#open-safari').hidden = false;
+        $('#open-safari').hidden = !isIOS(); // the "Open in Safari" hint is iOS-only; copy-link stays for all
     }
     showOnly(id);
 }
@@ -263,7 +273,13 @@ $('#start').addEventListener('click', begin);
 $('#share').addEventListener('click', shareToAlbum);
 $('#retake').addEventListener('click', retake);
 $('#again').addEventListener('click', retake);
-$('#camera-retry').addEventListener('click', async () => { if (await ensureCamera()) dispatch({ type: 'cameraBack' }); });
+$('#camera-retry').addEventListener('click', async () => {
+    try {
+        if (await ensureCamera()) { void requestWakeLock(); dispatch({ type: 'cameraBack' }); }
+    } catch (err) {
+        handleCameraError(err);
+    }
+});
 $('#upload-retry').addEventListener('click', () => dispatch({ type: 'retryUpload' }));
 $('#denied-retry').addEventListener('click', begin);
 $('#save-strip').addEventListener('click', saveStrip);
