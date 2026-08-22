@@ -5,6 +5,7 @@ import type { StripTemplate } from './templates';
 function template(overrides: Partial<StripTemplate> = {}): StripTemplate {
     return {
         cellCount: 3,
+        columns: 1,
         cellWidth: 600,
         cellHeight: 450,
         padding: 24,
@@ -52,5 +53,36 @@ describe('cellRects', () => {
         const lastCell = cellRects(t).at(-1)!;
 
         expect(lastCell.y + lastCell.height).toBe(stripSize(t).height - t.footerHeight - t.padding);
+    });
+});
+
+describe('multi-column (grid) templates', () => {
+    const grid = template({ cellCount: 4, columns: 2 }); // 2x2
+
+    it('is as wide as its columns', () => {
+        expect(stripSize(grid).width).toBe(24 + 2 * (600 + 24));
+    });
+
+    it('is only as tall as its rows plus the footer', () => {
+        // 4 cells in 2 columns = 2 rows
+        expect(stripSize(grid).height).toBe(24 + 2 * (450 + 24) + 96);
+    });
+
+    it('flows cells left to right, then top to bottom', () => {
+        const r = cellRects(grid);
+        const col2x = 24 + (600 + 24);
+        const row2y = 24 + (450 + 24);
+
+        expect(r[0]).toEqual({ x: 24, y: 24, width: 600, height: 450 });
+        expect(r[1]).toEqual({ x: col2x, y: 24, width: 600, height: 450 });
+        expect(r[2]).toEqual({ x: 24, y: row2y, width: 600, height: 450 });
+        expect(r[3]).toEqual({ x: col2x, y: row2y, width: 600, height: 450 });
+    });
+
+    it('rounds a partial last row up (3 cells in 2 columns = 2 rows)', () => {
+        const t = template({ cellCount: 3, columns: 2 });
+
+        expect(cellRects(t)).toHaveLength(3);
+        expect(stripSize(t).height).toBe(24 + 2 * (450 + 24) + 96);
     });
 });

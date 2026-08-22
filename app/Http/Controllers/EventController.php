@@ -9,17 +9,21 @@ use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class EventController extends Controller
 {
     public function create()
     {
-        return view('create-event');
+        return view('create-event', ['templates' => Event::TEMPLATES]);
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate(['name' => ['required', 'string', 'max:100']]);
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+            'template' => ['sometimes', Rule::in(array_keys(Event::TEMPLATES))],
+        ]);
 
         $event = Event::create($validated);
 

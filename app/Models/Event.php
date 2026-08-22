@@ -10,7 +10,16 @@ class Event extends Model
     // No 0, O, 1, I — codes get read aloud and typed by hand at events.
     public const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
-    protected $fillable = ['name', 'code', 'closed_at'];
+    // Strip template keys the owner can pick. The geometry for each lives in
+    // resources/js/templates.ts (canvas needs it); these keys must stay in sync.
+    public const TEMPLATES = [
+        'classic' => 'Classic strip · 3 photos',
+        'quad' => 'Tall strip · 4 photos',
+        'grid' => 'Grid · 2×2',
+        'single' => 'Single shot',
+    ];
+
+    protected $fillable = ['name', 'code', 'closed_at', 'template'];
 
     protected $casts = ['closed_at' => 'datetime'];
 

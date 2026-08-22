@@ -2,13 +2,14 @@ import { cameraIsLive, grabFrame, onCameraLost, startCamera, toJpegBlob } from '
 import { nextState, type FlowEvent, type FlowState } from './capture-flow';
 import { androidChromeIntent, cameraSupported, detectInApp, isIOS } from './in-app';
 import { composeStrip } from './strip-compose';
-import { classicStrip as template } from './templates';
+import { templateFor } from './templates';
 import { uploadPhoto } from './upload';
 import { uploadAll, type QueuedUpload } from './upload-queue';
 import { reacquireWakeLock, releaseWakeLock, requestWakeLock } from './wake-lock';
 
 const eventCode = document.body.dataset.eventCode!;
 const eventName = document.body.dataset.eventName!;
+const template = templateFor(document.body.dataset.template ?? '');
 const cellAspect = template.cellWidth / template.cellHeight;
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel)!;

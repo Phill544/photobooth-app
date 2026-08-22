@@ -69,6 +69,19 @@ file-upload fallback · owner accounts/auth · thumbnails · resumable uploads �
    long-press + download fallback, retry-a-failed-upload, an invite/share affordance on every main
    page, gallery↔booth navigation, and a full visual design pass (shared theme, redesigned gallery).
 
+## Richer booth (in progress)
+
+Growing the guest experience. Sequence: templates → branding → filters → GIF.
+
+1. ~~**Strip templates**~~ — done. The layout engine is a grid model (`columns` +
+   `cellCount`); templates live in `resources/js/templates.ts` (geometry) with matching
+   keys+labels in `Event::TEMPLATES` (form + validation). Owner picks one at `/new`, it's
+   stored on the event, and the capture flow reads it via `data-template`. Ships classic
+   (3×1), quad (4×1), grid (2×2), single. Shot count stays template-driven.
+2. **Per-event branding** — custom footer caption / colour / logo on the strip.
+3. **Filters** — on-device canvas filters (B&W, warm, etc.), likely a per-guest choice.
+4. **GIF / boomerang** — short burst capture + animated output (biggest lift; needs research).
+
 ## Design system
 
 - One shared theme in `resources/views/partials/theme.blade.php` (Fraunces + tokens + components),

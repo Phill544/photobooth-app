@@ -5,6 +5,7 @@ import type { StripTemplate } from './templates';
 function template(cellCount: number): StripTemplate {
     return {
         cellCount,
+        columns: 1,
         cellWidth: 600,
         cellHeight: 450,
         padding: 24,
