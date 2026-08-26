@@ -77,3 +77,24 @@ it('logs out', function () {
 it('sends an already-authenticated visitor away from the login page', function () {
     $this->actingAs(User::factory()->create())->get('/login')->assertRedirect('/dashboard');
 });
+
+// Only /login was throttled, so account creation was the unthrottled way to
+// hammer the app — every attempt costs a bcrypt and can leave a row behind.
+it('throttles a flood of registration attempts', function () {
+    foreach (range(1, 10) as $i) {
+        $this->post('/register', [])->assertStatus(302); // invalid, but allowed
+    }
+
+    $this->post('/register', [])->assertStatus(429);
+});
+
+// The unnamed throttle middleware keys on the address alone, so this budget is
+// deliberately the same one /login spends: ten auth attempts a minute from one
+// address is plenty for real hosts, whichever form they are fumbling.
+it('spends the same per-address budget as logging in', function () {
+    foreach (range(1, 10) as $i) {
+        $this->post('/login', ['email' => 'nobody@example.com', 'password' => 'nope']);
+    }
+
+    $this->post('/register', [])->assertStatus(429);
+});

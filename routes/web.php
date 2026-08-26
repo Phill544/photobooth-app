@@ -12,7 +12,10 @@ Route::get('/', function () {
 // --- Auth ---
 Route::middleware('guest')->group(function () {
     Route::get('/register', [AuthController::class, 'showRegister']);
-    Route::post('/register', [AuthController::class, 'register']);
+    // Ten auth attempts a minute per address. The unnamed throttle keys on the
+    // address alone, so register and login share one budget — which is the
+    // point: both are guesses at an account from the same place.
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 });
