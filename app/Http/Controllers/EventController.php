@@ -55,7 +55,9 @@ class EventController extends Controller
     {
         abort_if(! $event->logo_path, 404);
 
-        return Storage::response($event->logo_path);
+        // Same reasoning as a served photo: a header is the only way to say
+        // noindex about a file.
+        return Storage::response($event->logo_path, null, ['X-Robots-Tag' => 'noindex']);
     }
 
     public function show(Event $event)

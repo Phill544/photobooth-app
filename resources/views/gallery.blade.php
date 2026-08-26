@@ -3,6 +3,10 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    {{-- The event code is the only credential here, so an indexed link would
+         publish the whole event. robots.txt says the same thing for crawlers
+         that never fetch the page. --}}
+    <meta name="robots" content="noindex, nofollow">
     <title>{{ $event->name }} — Album</title>
     @include('partials.theme')
     <style>

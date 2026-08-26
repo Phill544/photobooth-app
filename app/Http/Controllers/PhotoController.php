@@ -11,7 +11,9 @@ class PhotoController extends Controller
 {
     public function show(Event $event, Photo $photo)
     {
-        return Storage::response($photo->path);
+        // A meta tag cannot ride on a JPEG. robots.txt already tells a compliant
+        // crawler not to fetch this path; the header is for one that asked anyway.
+        return Storage::response($photo->path, null, ['X-Robots-Tag' => 'noindex']);
     }
 
     public function destroyGroup(Event $event, string $group)

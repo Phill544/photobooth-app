@@ -1,2 +1,11 @@
+# The booth and the album are private to whoever has the event code, and the
+# host pages sit behind a login. The join page is the only one meant to be
+# found. The noindex meta on the guest pages and the X-Robots-Tag on served
+# images say the same thing again, for anything that never reads this file.
 User-agent: *
-Disallow:
+Disallow: /e/
+Disallow: /dashboard
+Disallow: /new
+Disallow: /events
+Disallow: /login
+Disallow: /register

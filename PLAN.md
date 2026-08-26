@@ -14,6 +14,7 @@ event's album. Event owners view the album on the website.
 | Shot count | **Defined by the strip template — never hard-coded** | Future templates may hold more or fewer photos. |
 | Upload payload | All originals + the strip, strip first, one file per request | Owner wants raw images server-side; strip is the most valuable artifact. |
 | Gallery visibility | Anyone with the event code | Simplest MVP; browsing the album is a feature. Consent text says "visible to everyone with the event link". |
+| Search indexing | Guest pages `noindex`; only `/` is meant to be crawlable | An album is only as private as its code, so one crawled link would publish a whole event. A meta tag can't reach an image, so served photos/logos carry `X-Robots-Tag: noindex` too. |
 | Auth | None in MVP — the event code is the credential | Upgrade path: starter kit + `owner_id` + middleware on owner routes. Guest flow never changes. |
 | Photo serving | Private disk behind a controller route (`Storage::response`) | Same effort as public disk now; future auth becomes a one-middleware change. |
 | Database | SQLite (WAL) | Zero setup; swap to MySQL is a `.env` change if a big event needs it. |

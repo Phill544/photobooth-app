@@ -3,6 +3,10 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    {{-- The event code is the only credential here, so an indexed link would
+         publish the whole event. robots.txt says the same thing for crawlers
+         that never fetch the page. --}}
+    <meta name="robots" content="noindex, nofollow">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $event->name }} — Photobooth</title>
     @include('partials.theme')
