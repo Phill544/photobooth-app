@@ -153,7 +153,7 @@
         #rotate-overlay svg { display: block; margin: 0 auto var(--space-md); color: var(--text-faint); }
     </style>
 </head>
-<body class="ctx-dark" data-event-code="{{ $event->code }}" data-event-name="{{ $event->name }}" data-template="{{ $event->template }}" data-theme="{{ $event->theme }}" data-caption="{{ $event->caption }}" data-logo="{{ $event->logo_path ? url('/e/'.$event->code.'/logo') : '' }}">
+<body class="ctx-dark" data-event-code="{{ $event->code }}" data-event-name="{{ $event->name }}" data-template="{{ $event->template }}" data-theme="{{ $event->theme }}" data-caption="{{ $event->caption }}" data-logo="{{ $event->logo_path ? url($event->logoUrl()) : '' }}">
     @if ($event->isClosed())
     <main class="screen screen--center">
         <div class="inner">
@@ -169,7 +169,7 @@
             <div class="inner">
                 <div class="bottom">
                     @if ($event->logo_path)
-                        <img class="event-logo" src="/e/{{ $event->code }}/logo" alt="">
+                        <img class="event-logo" src="{{ $event->logoUrl() }}" alt="">
                     @endif
                     <p class="eyebrow">Tonight</p>
                     <h1>{{ $event->name }}</h1>

@@ -43,6 +43,15 @@ class Event extends Model
         return $this->hasMany(Photo::class);
     }
 
+    // One stable route per event, but the host can replace the file behind it —
+    // and images are served with a year of immutable caching. So the URL carries
+    // the stored file's fingerprint: a swapped logo is simply a different URL.
+    // Only meaningful for an event that has one; every call site checks first.
+    public function logoUrl(): string
+    {
+        return "/e/{$this->code}/logo?v=".substr(md5($this->logo_path), 0, 8);
+    }
+
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_id');

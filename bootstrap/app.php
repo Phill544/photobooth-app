@@ -6,6 +6,8 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -14,6 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
+        // Serving a photo needs its route bindings and nothing else — no
+        // session, no CSRF, no cookies. An album asks for dozens at once.
+        then: fn () => Route::middleware(SubstituteBindings::class)
+            ->group(base_path('routes/images.php')),
     )
     ->withMiddleware(function (Middleware $middleware): void {
         // Where auth middleware sends people: guests -> login, logged-in -> dashboard.

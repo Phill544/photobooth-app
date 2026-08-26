@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Event;
+use App\Support\ImageResponse;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
@@ -51,13 +52,11 @@ class EventController extends Controller
         return redirect("/events/{$event->code}");
     }
 
-    public function logo(Event $event)
+    public function logo(Request $request, Event $event)
     {
         abort_if(! $event->logo_path, 404);
 
-        // Same reasoning as a served photo: a header is the only way to say
-        // noindex about a file.
-        return Storage::response($event->logo_path, null, ['X-Robots-Tag' => 'noindex']);
+        return ImageResponse::immutable($request, $event->logo_path);
     }
 
     public function show(Event $event)

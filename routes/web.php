@@ -34,7 +34,8 @@ Route::middleware('auth')->group(function () {
 
 // --- Guests: join by code, no login (the event code is the credential) ---
 Route::get('/e/{event:code}', [EventController::class, 'capture']);
-Route::get('/e/{event:code}/logo', [EventController::class, 'logo']);
 Route::get('/e/{event:code}/gallery', [EventController::class, 'gallery']);
 Route::post('/e/{event:code}/photos', [PhotoController::class, 'store'])->middleware('throttle:uploads');
-Route::get('/e/{event:code}/photos/{photo}', [PhotoController::class, 'show'])->scopeBindings();
+
+// The image routes themselves live in routes/images.php — they have no use for a
+// session, so they are registered outside this group (see bootstrap/app.php).

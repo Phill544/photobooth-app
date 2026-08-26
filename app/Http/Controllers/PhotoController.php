@@ -4,16 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Event;
 use App\Models\Photo;
+use App\Support\ImageResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class PhotoController extends Controller
 {
-    public function show(Event $event, Photo $photo)
+    public function show(Request $request, Event $event, Photo $photo)
     {
-        // A meta tag cannot ride on a JPEG. robots.txt already tells a compliant
-        // crawler not to fetch this path; the header is for one that asked anyway.
-        return Storage::response($photo->path, null, ['X-Robots-Tag' => 'noindex']);
+        return ImageResponse::immutable($request, $photo->path, $photo->downloadName($event->name));
     }
 
     public function destroyGroup(Event $event, string $group)

@@ -117,7 +117,7 @@
                 <summary class="btn btn--ghost btn--small">Edit the look</summary>
                 <div class="edit-body">
                     <form method="POST" action="/events/{{ $event->code }}" enctype="multipart/form-data" data-strip-form
-                          @if ($event->logo_path) data-logo-url="{{ url('/e/'.$event->code.'/logo') }}" @endif>
+                          @if ($event->logo_path) data-logo-url="{{ url($event->logoUrl()) }}" @endif>
                         @csrf
                         @method('PATCH')
                         <div class="field">
