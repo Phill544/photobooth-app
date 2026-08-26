@@ -1,9 +1,13 @@
 <?php
 
+use App\Models\Event;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -31,4 +35,21 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // A code that opens no booth is the 404 this app will serve most often —
+        // it gets read off a sign and typed by hand. Pass the code that was
+        // tried to errors/404.blade.php so it can say so and offer the form
+        // again. Every other 404 (including a missing photo under a real code)
+        // falls through to the same view without a code to blame.
+        $exceptions->render(function (NotFoundHttpException $e, Request $request) {
+            $missing = $e->getPrevious();
+
+            if ($request->expectsJson()
+                || ! $missing instanceof ModelNotFoundException
+                || $missing->getModel() !== Event::class) {
+                return null;
+            }
+
+            return response()->view('errors.404', ['code' => Str::upper($request->segment(2))], 404);
+        });
     })->create();

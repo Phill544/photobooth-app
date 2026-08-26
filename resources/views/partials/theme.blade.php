@@ -199,6 +199,31 @@
     .hint { margin: 0; font-size: var(--text-xs); color: var(--text-faint); }
     .error { color: var(--danger); font-size: var(--text-sm); margin: 0; }
 
+    /* --- Code entry: six tiles standing in for the field. The real input sits
+       on top, invisible, so the phone keyboard and autofill still work; without
+       JS the field renders as a plain ruled input instead. --- */
+    .join-form button { width: 100%; margin-top: var(--space-lg); }
+    .join-form .error { margin-top: var(--space-sm); }
+    .code-entry { position: relative; }
+    .code-entry input { text-align: center; letter-spacing: .3ch; text-transform: uppercase; }
+    .code-entry .tiles { display: none; }
+    .code-entry.tiled .tiles { display: flex; gap: var(--space-xs); }
+    .code-entry.tiled input {
+        position: absolute; inset: 0; z-index: 1;
+        height: 100%; padding: 0; border: 0; opacity: 0; font-size: 1rem;
+    }
+    .code-entry.tiled:focus-within { outline: 2px solid var(--blue); outline-offset: 6px; border-radius: var(--r-md); }
+    .tile {
+        flex: 1; min-width: 0; aspect-ratio: 3 / 4; border-radius: 10px;
+        background: var(--bg-elev); border: 1px solid var(--line-strong);
+        display: grid; place-items: center;
+        font-family: var(--font-mono); font-weight: 500; font-size: clamp(1.25rem, 6.5vw, 1.875rem);
+    }
+    .tile.empty { background: var(--surface-sunk); border-color: var(--line); }
+    .tile.caret { border-color: var(--blue); color: var(--blue); }
+    .tile.caret::after { content: "|"; animation: caret-pulse 1.2s var(--ease) infinite; }
+    @keyframes caret-pulse { 0%, 100% { opacity: 1 } 50% { opacity: .3 } }
+
     /* --- Swatch pickers: the layout and the strip colour are chosen by eye.
        strip-preview.ts paints the cells and the hues from the same modules the
        canvas uses, so there is one source of truth for both. --- */
@@ -296,6 +321,7 @@
     @media (prefers-reduced-motion: reduce) {
         button, .btn, a, input, select { transition: none; }
         button:hover, .btn:hover { transform: none; }
+        .tile.caret::after { animation: none; }
         .strip-mat--tilt { rotate: none; }
     }
 </style>
