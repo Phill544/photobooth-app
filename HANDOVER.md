@@ -16,8 +16,11 @@ Deployed and running on **Laravel Cloud** (Serverless Postgres 18, S3-compatible
 for photos/logos). Feature-complete through: MVP → hardening → richer booth (templates, branding,
 filters) → owner accounts + admin oversight → **full redesign** (every screen rebuilt to the Claude
 Design canvas `Redesign.dc.html`; see PLAN.md "Design system" + "Redesign") → **P0 safety
-hygiene** (noindex/robots, the friendly unknown-code 404, a throttled register).
-**98 Pest + 56 Vitest tests green.** Every feature slice was built red/green and then put
+hygiene** (noindex/robots, the friendly unknown-code 404, a throttled register) → **P1 safe
+pipes** (typed upload failures, a jittered offline-aware retry tail, an interrupted share that
+resumes itself from IndexedDB, queued album thumbnails + a tap-to-enlarge lightbox, immutably
+cached session-free image routes).
+**136 Pest + 82 Vitest tests green.** Every feature slice was built red/green and then put
 through an adversarial review (see Conventions).
 
 ## Stack & how to run
@@ -41,10 +44,18 @@ through an adversarial review (see Conventions).
 
 ## Architecture map
 
-**Routing (`routes/web.php`)** splits cleanly:
-- **Guest, public (no login):** `GET /e/{code}` (capture), `/e/{code}/logo`, `/e/{code}/gallery`,
-  `POST /e/{code}/photos` (throttled, CSRF-exempt), `GET /e/{code}/photos/{photo}`. The event code
-  is the credential.
+**Routing** splits cleanly across two files:
+- **Guest, public (no login), `routes/web.php`:** `GET /e/{code}` (capture), `/e/{code}/gallery`,
+  `POST /e/{code}/photos` (throttled, CSRF-exempt). The event code is the credential.
+- **Images, `routes/images.php`:** `/e/{code}/logo`, `/e/{code}/photos/{photo}` and `.../thumb`,
+  registered from the `then:` closure in `bootstrap/app.php` with **only `SubstituteBindings`** --
+  deliberately outside the `web` group, because an album asks for dozens of immutable files at once
+  and not one of them needs a session, a CSRF token or a cookie. All three answer through
+  `App\Support\ImageResponse::immutable()`: a year of **`private`** caching (never `public` — an
+  album is only as private as its code, and a deleted session must not live on in a shared cache),
+  an ETag over the stored path, `X-Robots-Tag: noindex`, and a 304 when the phone already has the
+  bytes. Verified to survive the `route:cache` the deploy runs, and the unknown-code 404 still
+  names the code from these session-free routes.
 - **Owner, auth-gated:** `/dashboard`, `/new`, `POST /events`, `GET|PATCH /events/{code}`,
   toggle-closed, and `DELETE /e/{code}/groups/{group}`. `Event::managedBy($user)` = owner OR admin,
   else 403.
@@ -60,17 +71,38 @@ through an adversarial review (see Conventions).
 **Client (`resources/js/`)** — pure, unit-tested logic vs dumb browser glue:
 - Pure (Vitest): `capture-flow.ts` (the whole booth as a state machine), `strip-layout.ts` (grid
   geometry), `strip-compose.ts`, `templates.ts`, `strip-theme.ts`, `filters.ts` (CSS strings +
-  colour matrices), `upload-queue.ts`, `in-app.ts`.
+  colour matrices), `upload-queue.ts`, `in-app.ts`, `pending-session.ts` (the IndexedDB store,
+  tested for real against `fake-indexeddb`).
 - Glue (device-tested): `camera.ts` (getUserMedia + filtered frame grab), `capture.ts` (wires the
   state machine to the DOM), `wake-lock.ts`, `strip-preview.ts` (live preview on create/edit forms),
   `upload.ts`.
+- **A failed upload is a branch, not a message:** `upload.ts` turns a refused upload into a typed
+  `UploadError` — `closed` (410), `throttled` (429, honouring `Retry-After`), `rejected` (422) or
+  `network` — and `upload-queue.ts` decides from that: terminal kinds stop at once, the rest get a
+  jittered 1s/3s/8s/20s tail. It also holds (bounded, `OFFLINE_HOLD_MS`) while `navigator.onLine`
+  is false rather than spending attempts on a dead radio — bounded because the uploading screen is
+  the one screen with no way to save a strip, so the queue must always be able to end. The failed
+  screen's copy comes from the reason **and** the landed count: the strip is queued first, so one
+  landed file means it is already in the album and the screen must not say otherwise.
+- **An interrupted share finishes itself:** tapping Share writes the session (blobs, group uuid,
+  event code) to IndexedDB before the first byte goes up; the next load of that booth drains
+  whatever is left in the background and narrates it in `#resume-notice`. Records expire after 24h,
+  and are dropped after a terminal failure. The store is a safety net, never a dependency — a
+  device that will not give us one (private-mode Safari) still shoots, shares and saves.
 - **Filters are the subtle bit:** each filter is one op-list → a CSS string (live preview + the
   Chrome `ctx.filter` fast path) AND a 4×5 colour matrix. iOS Safari ships `ctx.filter` disabled, so
   `grabFrame` feature-detects it and falls back to a `getImageData` colour-matrix pass — verified to
   match the CSS path within 1–2/255.
 
 **Server** — `EventController` (create/manage/dashboard/logo/QR), `PhotoController` (upload +
-idempotent per `(event_id, group_uuid, slot)`, serve, session delete), `AuthController`. Strip
+idempotent per `(event_id, group_uuid, slot)`, serve, serve derivative, session delete),
+`AuthController`. Every upload dispatches `GenerateThumbnail`, the first thing here to use the
+queue: raw GD in `App\Support\Thumbnail`, 480px wide, written beside the original and recorded on
+`photos.thumb_path`. `Photo::gridUrl()` asks for the derivative once there is one and the original
+until then, so an unrun queue degrades to yesterday's behaviour instead of broken images — **but
+production needs a worker process** (DEPLOY.md has the command). `Photo::paths()` is the single
+place that knows a row owns two files, so a session delete and `photobooth:purge-event` cannot
+orphan a derivative. Strip
 **layout/shot-count** and **colour themes** live as data in `Event::TEMPLATES` / `Event::STRIP_THEMES`
 (PHP, for the form + validation) mirrored by geometry/hex in `templates.ts` / `strip-theme.ts` (JS,
 for the canvas) — **keep the keys in sync by hand** (noted in both files).
@@ -82,7 +114,9 @@ falls back to the SQLite default and dies with "database.sqlite does not exist" 
 **redeploy** (so `config:cache` re-reads env), then `php artisan migrate --force`. Also set
 `FILESYSTEM_DISK=s3` (durable photos) and `APP_DEBUG=false`. Production starts with **no data**
 (the demo seed is `local`-only); register, then `php artisan photobooth:make-admin you@example.com`
-to grant yourself admin.
+to grant yourself admin. **New with P1: the environment needs a worker process**
+(`php artisan queue:work`) or no album thumbnail ever gets generated — nothing breaks without
+one, every guest just pays for it in bandwidth. `composer run dev` already runs one locally.
 
 ## Conventions (the user's, follow them)
 
@@ -114,25 +148,13 @@ line plus the git log are where finished work is recorded. Item numbers are stab
 review, so they don't get renumbered when something above them goes; a phase whose items are all
 done disappears with them.
 
-### P1 — Make the pipes safe (before anything that drives more traffic)
-4. Typed upload errors: branch on status in `upload.ts` — 410 → "booth just closed, save your
-   strip" (keep the save affordance alive), 429 → auto-retry honouring `Retry-After`, 422 →
-   terminal. Today every failure says "check your signal" with a Retry that can never succeed.
-5. Longer jittered retry tail in `upload-queue.ts` (≈ 1s/3s/8s/20s) + pause while offline
-   (`navigator.onLine` + the `online` event).
-6. Persist the pending session (shots, strip blob, group UUID) to IndexedDB when Share is
-   tapped; drain the queue on next page load. The server is already idempotent per
-   (group, slot), so resume is nearly free.
-7. Gallery thumbnails: generate a derivative on upload via a queued job (`QUEUE_CONNECTION`
-   is configured and unused), point the grids at it, add a tap-to-enlarge lightbox with a
-   per-photo save.
-8. Image serving: long `Cache-Control` + ETag (or presigned redirects) on
-   `PhotoController::show` / `EventController::logo` — stored files are immutable — and move
-   image routes out of the session-starting middleware group.
-
-**Gate — one combined real-device pass (Android + iPhone) after P1, before P2.** Covers the
-redesign screens (HUD, looks thumbnails, tile code entry), the iOS filter fallback, countdown
-pacing, and the new failure/persistence paths, all in one session.
+### Gate — one combined real-device pass (Android + iPhone), before P2
+Everything below is queued behind one session on real phones. It covers the redesign screens
+(HUD, looks thumbnails, tile code entry), the iOS filter fallback and countdown pacing, and now
+the P1 paths too: each typed failure screen (close the booth from another phone mid-upload), the
+offline hold and its hint, the resume notice after killing the tab mid-upload, IndexedDB in iOS
+Safari **including private mode**, and the album's thumbnails, lightbox and per-photo save on both
+platforms.
 
 ### P2 — Participation engine (the visible payoff)
 9. Live wall: full-screen `/e/{code}/wall` for venue TVs — strips animating in via 3–5s

@@ -50,9 +50,14 @@ event's album. Event owners view the album on the website.
 
 ## Deliberately deferred (v1 non-goals)
 
-Per-shot retakes · back-camera toggle · GIF/boomerang · IndexedDB persistence / offline queue ·
-PWA install · live client-side gallery · file-upload fallback · thumbnails · resumable uploads ·
-multi-language · password reset + email verification (deferred with owner accounts).
+Back-camera toggle · GIF/boomerang · PWA install · live client-side gallery · file-upload
+fallback · resumable uploads · multi-language · password reset + email verification (deferred
+with owner accounts).
+
+Two of these came back in P1 and shipped: **IndexedDB persistence / offline queue** (an
+interrupted share now finishes itself) and **thumbnails** (a queued derivative per photo). And
+**per-shot retakes** left this list for a different reason — it is now an explicit product
+decision not to build it (2026-08-26; see HANDOVER.md "Explicitly not doing").
 
 ## Owner accounts (done)
 
