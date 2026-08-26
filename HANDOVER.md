@@ -15,9 +15,10 @@ album. Hosts create and manage events behind a login; guests just need the event
 Deployed and running on **Laravel Cloud** (Serverless Postgres 18, S3-compatible object storage
 for photos/logos). Feature-complete through: MVP → hardening → richer booth (templates, branding,
 filters) → owner accounts + admin oversight → **full redesign** (every screen rebuilt to the Claude
-Design canvas `Redesign.dc.html`; see PLAN.md "Design system" + "Redesign"). **81 Pest + 56 Vitest
-tests green.** Every feature slice was built red/green and then put through an adversarial review
-(see Conventions).
+Design canvas `Redesign.dc.html`; see PLAN.md "Design system" + "Redesign") → **P0 safety
+hygiene** (noindex/robots, the friendly unknown-code 404, a throttled register).
+**98 Pest + 56 Vitest tests green.** Every feature slice was built red/green and then put
+through an adversarial review (see Conventions).
 
 ## Stack & how to run
 
@@ -48,6 +49,13 @@ tests green.** Every feature slice was built red/green and then put through an a
   toggle-closed, and `DELETE /e/{code}/groups/{group}`. `Event::managedBy($user)` = owner OR admin,
   else 403.
 - **Auth:** register/login/logout (hand-rolled `AuthController`, styled to the design system).
+- **Errors:** every 404 renders `resources/views/errors/404.blade.php`. A render hook in
+  `bootstrap/app.php` fires only when an **`Event`** route binding is what failed and passes the
+  code that was tried, so the page can name it; everything else (a missing photo under a real
+  code, the JSON uploader) falls through untouched. The six-tile join form is
+  `partials/code-entry.blade.php`, shared by that page and the home page — its styles live in
+  `partials/theme.blade.php`, and its submit handler refuses a code that isn't six characters
+  rather than spending a page load to be told the same thing.
 
 **Client (`resources/js/`)** — pure, unit-tested logic vs dumb browser glue:
 - Pure (Vitest): `capture-flow.ts` (the whole booth as a state machine), `strip-layout.ts` (grid
@@ -89,25 +97,90 @@ to grant yourself admin.
 - Verify in the browser (the in-app Browser pane) by reading actual output, not by asserting it
   "should" work — e.g. read a composed strip's pixels, don't assume.
 
-## What's next (open threads)
+## What's next — prioritised work list
 
-Nothing is broken or half-done. Candidate next work, roughly in the order discussed:
-- **Real multi-device event pass** of filters + the 5-second countdown feel (only real phones
-  confirm the iOS filter fallback and countdown pacing).
-- **GIF / boomerang** capture — the last big "richer booth" idea; needs a research pass on encoding
-  + animated upload before building.
-- **Admin impersonation** ("log in as an owner") — deliberately deferred; small add on top of the
-  existing admin oversight (needs an audit log + a visible banner).
-- **Password reset + email verification** — deferred with owner accounts; pair with mail config now
-  that it's deployed.
-- **Gallery thumbnails** for big albums — the album is now a grid of full-size strips, so this
-  matters more than it did.
-- **Event cover photo** — the redesign's booth start screen wants one (see PLAN.md "Deliberate
-  departures"); a gradient stands in for now.
-- **A real-device pass on the redesign** — the booth's HUD, the looks thumbnails, and the tile
-  code entry have only been checked in the desktop browser pane.
-- Deferred v1 non-goals (see PLAN.md): per-shot retakes, back-camera toggle, PWA, IndexedDB
-  session persistence, resumable uploads, multi-language.
+Nothing is broken or half-done. This list came out of the 2026-08-26 competitive review
+("State of the Booth" — https://claude.ai/code/artifact/63d587ad-5a7a-4bd5-9b8e-6a89a1dacca0,
+ask Phill for access; it carries the full rationale and feasibility notes). Work the phases
+top to bottom; **items within a phase are independent and can be picked up in parallel.**
+Each item is a slice: red/green TDD, then an adversarial review pass (see Conventions).
+
+### P0 — Safety hygiene — done (2026-08-26)
+`noindex` on the capture + gallery pages, `X-Robots-Tag: noindex` on the served photos and logos,
+and a tightened `robots.txt` — `/` stays indexable on purpose (see the PLAN.md decision; the
+`Disallow` is what stops a compliant crawler ever *fetching* a guest's face, the meta/header are
+for the ones that skip robots.txt) · the friendly unknown-code 404 (Architecture map, **Errors**) ·
+`throttle:10,1` on `POST /register`, deliberately sharing `/login`'s per-address budget.
+**P1 is the next thing to pick up**; its numbering below is unchanged.
+
+### P1 — Make the pipes safe (before anything that drives more traffic)
+4. Typed upload errors: branch on status in `upload.ts` — 410 → "booth just closed, save your
+   strip" (keep the save affordance alive), 429 → auto-retry honouring `Retry-After`, 422 →
+   terminal. Today every failure says "check your signal" with a Retry that can never succeed.
+5. Longer jittered retry tail in `upload-queue.ts` (≈ 1s/3s/8s/20s) + pause while offline
+   (`navigator.onLine` + the `online` event).
+6. Persist the pending session (shots, strip blob, group UUID) to IndexedDB when Share is
+   tapped; drain the queue on next page load. The server is already idempotent per
+   (group, slot), so resume is nearly free.
+7. Gallery thumbnails: generate a derivative on upload via a queued job (`QUEUE_CONNECTION`
+   is configured and unused), point the grids at it, add a tap-to-enlarge lightbox with a
+   per-photo save.
+8. Image serving: long `Cache-Control` + ETag (or presigned redirects) on
+   `PhotoController::show` / `EventController::logo` — stored files are immutable — and move
+   image routes out of the session-starting middleware group.
+
+**Gate — one combined real-device pass (Android + iPhone) after P1, before P2.** Covers the
+redesign screens (HUD, looks thumbnails, tile code entry), the iOS filter fallback, countdown
+pacing, and the new failure/persistence paths, all in one session.
+
+### P2 — Participation engine (the visible payoff)
+9. Live wall: full-screen `/e/{code}/wall` for venue TVs — strips animating in via 3–5s
+   cursor polling, event QR + code always in a corner, Screen Wake Lock, watchdog reload when
+   polls stall (tab-sleep is the #1 documented live-wall failure).
+10. Moderation shipped WITH the wall: approve/hide per session from the host's phone, pending
+    count visible on the wall page. (Host-uploaded sponsor slides between strips: follow-up.)
+11. Photo missions: host-picked prompt packs; a mission deep-links into capture and stamps
+    the prompt as the strip caption.
+12. "My strips tonight": a localStorage device token groups a returning guest's sessions;
+    optional email-me-my-strip field with separate consent checkboxes (delivery ≠ marketing).
+
+### P3 — Host trust pack (before charging money)
+13. Password reset, then email verification (mail is live on the deploy; reset matters more).
+14. Download-all ZIP: queued job streams S3 → zip, emails a signed expiring link. Never
+    client-side (CORS + mobile memory).
+15. Event delete in the UI, reusing `photobooth:purge-event` logic (and give the command a
+    `--force` flag so it can be scheduled).
+16. Tri-state album privacy (hidden / PIN / open) + a stated retention window with a graceful
+    expired-album page.
+
+### P4 — New output modes (independent slices, in effort order)
+17. 9:16 story-strip variant of every layout from the same frames (share-sheet ready; build
+    the blob before the tap so iOS keeps the user gesture).
+18. Boomerang/GIF: MediaRecorder with `isTypeSupported` probing (iOS was MP4-only pre-18.4),
+    gifenc-in-a-Web-Worker as the universal fallback. The encoding research is done — recipe
+    in the report.
+19. Audio guestbook, then video guestbook (video needs chunked uploads + server transcode).
+
+### P5 — Strategic bets (Phill picks the direction first)
+- **Consumer**: template/frame library as versioned data (not code paths), AI portrait strips
+  (server-side queued jobs; never meterable mid-event), delayed album reveal, event cover photo.
+- **B2B**: data-capture fields at the share step, host analytics dashboard, white-label +
+  iframe embed.
+- **Enablers when needed**: WebGL2/LUT capture pipeline (`ctx.filter` is confirmed never
+  coming to iOS), on-site/mail-order printing via PrintNode/Prodigi (2×6 SKU unverified).
+
+### Anytime fillers (fit between any two phases)
+Filter-change-at-review (keep raw frames, apply the colour matrix at compose) · back-camera
+toggle + higher capture resolution · audio/haptic countdown cue.
+
+### Explicitly not doing
+- **Per-shot retakes** — product decision (2026-08-26): the booth models a real photobooth,
+  and a real booth doesn't let you retake a frame. Don't "fix" the all-or-nothing retake.
+- Face search (AU Privacy Act sensitive-information obligations; low value for a booth).
+- Admin impersonation — revisit only when third-party owners need hands-on support.
+- Event cover photo now — folds into the P5 consumer/branding bet if that direction wins.
+- 360/glambot (hardware), PWA / Web Push as primary delivery, in-gallery comments,
+  multi-language (until a market asks).
 
 ## Handy facts
 - Dev login (local only): `demo@example.com` / `password` (seeded admin).
