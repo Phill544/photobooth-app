@@ -184,6 +184,10 @@
                         </div>
                     </div>
 
+                    {{-- An upload this device had already started; capture.ts
+                         fills this in while it finishes off in the background. --}}
+                    <p class="mono mono--plain tally" id="resume-notice" hidden></p>
+
                     {{-- The strip uploads first, so a partial session can have a strip and no shots. --}}
                     @if ($stripCount > 0 || $photoCount > 0)
                         <p class="mono mono--plain tally">{{ $stripCount }} {{ Str::plural('strip', $stripCount) }} shot · {{ $photoCount }} {{ Str::plural('photo', $photoCount) }}</p>

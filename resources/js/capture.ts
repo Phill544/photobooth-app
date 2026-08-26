@@ -2,10 +2,11 @@ import { cameraIsLive, grabFrame, onCameraLost, startCamera, toJpegBlob } from '
 import { nextState, type FlowEvent, type FlowState } from './capture-flow';
 import { androidChromeIntent, cameraSupported, detectInApp, isIOS } from './in-app';
 import { FILTERS, filterFor, type Filter } from './filters';
+import { dropPendingSession, loadPendingSessions, savePendingSession } from './pending-session';
 import { composeStrip, type Branding } from './strip-compose';
 import { stripTheme } from './strip-theme';
 import { templateFor } from './templates';
-import { UploadError, uploadPhoto, type UploadFailureKind } from './upload';
+import { isTerminal, UploadError, uploadPhoto, type UploadFailureKind } from './upload';
 import { uploadAll, type QueuedUpload } from './upload-queue';
 import { reacquireWakeLock, releaseWakeLock, requestWakeLock } from './wake-lock';
 
@@ -40,6 +41,7 @@ const uploadProgress = $('#upload-progress');
 const errorMessage = $('#error-message');
 const rotateOverlay = $('#rotate-overlay');
 const offlineHint = $('#offline-hint');
+const resumeNotice = $('#resume-notice');
 
 // Every top-level section, flow-driven and takeover alike.
 const sections: Record<string, HTMLElement> = {
@@ -230,6 +232,15 @@ async function shareToAlbum() {
         })))),
     ];
 
+    // Written to the device before the first byte goes up, so a closed tab or a
+    // flat battery mid-upload doesn't cost the guest the strip they just shared.
+    await savePendingSession({
+        group: pendingGroup,
+        eventCode,
+        savedAt: Date.now(),
+        uploads: pendingUploads,
+    }).catch(ignoreStoreFailure);
+
     dispatch({ type: 'share' }); // -> uploading; runEffects kicks off runUpload
 }
 
@@ -243,13 +254,51 @@ async function runUpload() {
             (upload) => sendUpload(pendingGroup!, upload),
             () => dispatch({ type: 'photoUploaded' }),
         );
+        forget(pendingGroup!);
     } catch (error) {
         // Already-sent slots dedup on the server, so a retry only re-sends the failures.
         dispatch({
             type: 'uploadFailed',
             reason: error instanceof UploadError ? error.kind : 'network',
         });
+        // A closed booth or a rejected file will be just as closed and just as
+        // rejected on the next page load; a lost signal won't.
+        if (error instanceof UploadError && isTerminal(error)) forget(pendingGroup!);
     }
+}
+
+// --- Finishing a share the guest already asked for ---
+
+// The store is a safety net, never a dependency: a device that won't give us one
+// (private-mode Safari) must still shoot, share and save exactly as before.
+const ignoreStoreFailure = () => {};
+
+function forget(group: string) {
+    void dropPendingSession(group).catch(ignoreStoreFailure);
+}
+
+// A share interrupted by a closed tab, a flat battery or a walk out of range.
+// The server dedupes per (group, slot), so finishing it costs nothing — the
+// guest already tapped Share, so they are told, not asked.
+async function resumePending() {
+    const pending = await loadPendingSessions(eventCode, Date.now());
+    if (!pending.length) return;
+
+    resumeNotice.hidden = false;
+    resumeNotice.textContent = 'Finishing an earlier upload…';
+
+    for (const session of pending) {
+        try {
+            await uploadAll(session.uploads, (upload) => sendUpload(session.group, upload), () => {});
+            forget(session.group);
+        } catch (error) {
+            if (error instanceof UploadError && isTerminal(error)) forget(session.group);
+            resumeNotice.textContent = "An earlier strip still hasn't made it up.";
+            return;
+        }
+    }
+
+    resumeNotice.textContent = 'Your earlier strip made it to the album.';
 }
 
 // --- Save / share the strip image (built at review, so the tap on either the
@@ -486,3 +535,4 @@ $('#continue-anyway').addEventListener('click', (event) => { event.preventDefaul
 if (detectInApp(navigator.userAgent)) showTakeover('inApp');
 syncOrientation();
 syncSignal();
+void resumePending().catch(ignoreStoreFailure);
