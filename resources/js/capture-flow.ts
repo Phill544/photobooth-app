@@ -1,3 +1,4 @@
+import type { UploadFailureKind } from './upload';
 import type { StripTemplate } from './templates';
 
 // The whole booth flow as a pure state machine. The browser glue dispatches
@@ -10,7 +11,7 @@ export type FlowState =
     | { screen: 'review' }
     | { screen: 'customise' }
     | { screen: 'uploading'; uploaded: number; total: number }
-    | { screen: 'uploadFailed'; total: number }
+    | { screen: 'uploadFailed'; total: number; uploaded: number; reason: UploadFailureKind }
     | { screen: 'done' }
     | { screen: 'cameraLost'; shotIndex: number };
 
@@ -22,7 +23,7 @@ export type FlowEvent =
     | { type: 'retake' }
     | { type: 'share' }
     | { type: 'photoUploaded' }
-    | { type: 'uploadFailed' }
+    | { type: 'uploadFailed'; reason: UploadFailureKind }
     | { type: 'retryUpload' }
     | { type: 'cameraLost' }
     | { type: 'cameraBack' };
@@ -65,7 +66,17 @@ export function nextState(state: FlowState, event: FlowEvent, template: StripTem
             return state;
 
         case 'uploading':
-            if (event.type === 'uploadFailed') return { screen: 'uploadFailed', total: state.total };
+            if (event.type === 'uploadFailed') {
+                // The count comes along: the strip is queued first, so one landed
+                // file already means the strip itself is in the album, and the
+                // screen must not tell the guest otherwise.
+                return {
+                    screen: 'uploadFailed',
+                    total: state.total,
+                    uploaded: state.uploaded,
+                    reason: event.reason,
+                };
+            }
             if (event.type !== 'photoUploaded') return state;
             if (state.uploaded + 1 < state.total) return { ...state, uploaded: state.uploaded + 1 };
             return { screen: 'done' };

@@ -236,6 +236,10 @@
             <div class="inner">
                 <p class="eyebrow">Sending it up</p>
                 <p id="upload-progress">Uploading…</p>
+                {{-- The queue holds for a signal rather than spending its
+                     retries; capture.ts shows this while the phone is offline so
+                     a held upload doesn't read as a stuck one. --}}
+                <p id="offline-hint" class="muted" hidden>No signal right now — this carries on by itself when it's back.</p>
             </div>
         </section>
 
@@ -273,12 +277,17 @@
             </div>
         </section>
 
+        {{-- One screen for every way an upload can fail; capture.ts writes the
+             copy from the reason the server gave and hides Retry when a retry
+             could never work. The strip stays saveable either way — the guest
+             took those photos, and a closed booth shouldn't cost them. --}}
         <section id="upload-failed-screen" class="screen screen--center" hidden>
             <div class="inner">
-                <p class="eyebrow">Almost there</p>
-                <h1>Upload didn't finish</h1>
-                <p class="muted">Some photos didn't make it up — check your signal and try again.</p>
+                <p class="eyebrow" id="upload-failed-eyebrow"></p>
+                <h1 id="upload-failed-title"></h1>
+                <p class="muted" id="upload-failed-detail"></p>
                 <button id="upload-retry">Retry upload</button>
+                <a id="save-failed" class="btn btn--ghost" download aria-disabled="true">Save to phone</a>
             </div>
         </section>
 

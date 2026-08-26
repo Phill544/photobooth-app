@@ -79,22 +79,38 @@ describe('the happy path', () => {
 });
 
 describe('a failed upload', () => {
-    it('parks on the upload-failed screen, keeping the total', () => {
+    it('parks on the upload-failed screen, keeping the total and why it failed', () => {
         const uploading: FlowState = { screen: 'uploading', uploaded: 2, total: 4 };
 
-        expect(walk(uploading, [{ type: 'uploadFailed' }]))
-            .toEqual({ screen: 'uploadFailed', total: 4 });
+        expect(walk(uploading, [{ type: 'uploadFailed', reason: 'network' }]))
+            .toEqual({ screen: 'uploadFailed', total: 4, uploaded: 2, reason: 'network' });
+    });
+
+    it('carries every reason through, so the screen can say what actually happened', () => {
+        const uploading: FlowState = { screen: 'uploading', uploaded: 0, total: 4 };
+
+        for (const reason of ['closed', 'throttled', 'rejected', 'network'] as const) {
+            expect(walk(uploading, [{ type: 'uploadFailed', reason }]))
+                .toEqual({ screen: 'uploadFailed', total: 4, uploaded: 0, reason });
+        }
+    });
+
+    it('remembers that the strip already landed when the booth closed mid-upload', () => {
+        const uploading: FlowState = { screen: 'uploading', uploaded: 1, total: 4 };
+
+        expect(walk(uploading, [{ type: 'uploadFailed', reason: 'closed' }]))
+            .toEqual({ screen: 'uploadFailed', total: 4, uploaded: 1, reason: 'closed' });
     });
 
     it('retries from the start of the upload (dedup makes re-sends cheap)', () => {
-        const failed: FlowState = { screen: 'uploadFailed', total: 4 };
+        const failed: FlowState = { screen: 'uploadFailed', total: 4, uploaded: 2, reason: 'network' };
 
         expect(walk(failed, [{ type: 'retryUpload' }]))
             .toEqual({ screen: 'uploading', uploaded: 0, total: 4 });
     });
 
     it('ignores unrelated events while parked on the failed screen', () => {
-        const failed: FlowState = { screen: 'uploadFailed', total: 4 };
+        const failed: FlowState = { screen: 'uploadFailed', total: 4, uploaded: 1, reason: 'network' };
 
         expect(walk(failed, [{ type: 'photoUploaded' }])).toEqual(failed);
     });

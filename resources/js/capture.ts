@@ -5,7 +5,7 @@ import { FILTERS, filterFor, type Filter } from './filters';
 import { composeStrip, type Branding } from './strip-compose';
 import { stripTheme } from './strip-theme';
 import { templateFor } from './templates';
-import { uploadPhoto } from './upload';
+import { UploadError, uploadPhoto, type UploadFailureKind } from './upload';
 import { uploadAll, type QueuedUpload } from './upload-queue';
 import { reacquireWakeLock, releaseWakeLock, requestWakeLock } from './wake-lock';
 
@@ -39,6 +39,7 @@ const stripPreview = $<HTMLImageElement>('#strip-preview');
 const uploadProgress = $('#upload-progress');
 const errorMessage = $('#error-message');
 const rotateOverlay = $('#rotate-overlay');
+const offlineHint = $('#offline-hint');
 
 // Every top-level section, flow-driven and takeover alike.
 const sections: Record<string, HTMLElement> = {
@@ -78,6 +79,7 @@ const hudTop = $('.hud--top');
 const shotDots = $('#shot-dots');
 const cameraFrame = $('.camera-frame');
 const saveReview = $<HTMLAnchorElement>('#save-review');
+const saveFailed = $<HTMLAnchorElement>('#save-failed');
 
 // Only nag touch devices held sideways — never a landscape desktop.
 const landscape = matchMedia('(orientation: landscape) and (pointer: coarse)');
@@ -92,6 +94,52 @@ for (let i = 0; i < template.cellCount; i++) shotDots.appendChild(document.creat
 // The template owns the shot count, so it also writes the booth's promise.
 $('#promise').textContent =
     `${template.cellCount === 1 ? 'One photo' : `${template.cellCount} photos`}. One strip. Yours to keep.`;
+
+// What the guest is told when an upload doesn't land, and whether Retry is worth
+// offering. A closed booth and a rejected file can't be retried into working.
+const UPLOAD_FAILURE_COPY: Record<UploadFailureKind, { eyebrow: string; title: string; detail: string; retry: boolean }> = {
+    closed: {
+        eyebrow: 'The booth',
+        title: 'The booth just closed',
+        detail: "This event stopped taking photos, so your strip didn't make it to the album — but it's still yours. Save it to your phone.",
+        retry: false,
+    },
+    throttled: {
+        eyebrow: 'Almost there',
+        title: 'The album is busy',
+        detail: 'A lot of strips are going up at once. Give it a moment, then try again.',
+        retry: true,
+    },
+    rejected: {
+        eyebrow: 'Sorry',
+        title: "The album wouldn't take it",
+        detail: "Something about these photos wasn't accepted, and trying again won't change it. Save your strip to your phone.",
+        retry: false,
+    },
+    network: {
+        eyebrow: 'Almost there',
+        title: "Upload didn't finish",
+        detail: "Some photos didn't make it up — check your signal and try again.",
+        retry: true,
+    },
+};
+
+// The strip is queued first (see shareToAlbum), so one landed file means the
+// strip itself is already in the album — and a booth that closed after that only
+// cost the guest the leftover shots. Saying "your strip didn't make it" then is
+// simply untrue, and this is the moment a guest is least willing to be lied to.
+const CLOSED_MID_UPLOAD = {
+    eyebrow: 'The booth',
+    title: 'The booth closed',
+    detail: "Your strip made it to the album — the last few shots didn't. Save the strip to your phone too if you like.",
+    retry: false,
+};
+
+function failureCopy(reason: UploadFailureKind, uploaded: number) {
+    if (reason === 'closed' && uploaded > 0) return CLOSED_MID_UPLOAD;
+
+    return UPLOAD_FAILURE_COPY[reason];
+}
 
 function showOnly(id: string) {
     for (const [name, el] of Object.entries(sections)) el.hidden = name !== id;
@@ -124,6 +172,13 @@ function render() {
     }
     if (state.screen === 'uploading') {
         uploadProgress.textContent = `Uploading ${state.uploaded + 1} of ${state.total}…`;
+    }
+    if (state.screen === 'uploadFailed') {
+        const copy = failureCopy(state.reason, state.uploaded);
+        $('#upload-failed-eyebrow').textContent = copy.eyebrow;
+        $('#upload-failed-title').textContent = copy.title;
+        $('#upload-failed-detail').textContent = copy.detail;
+        $('#upload-retry').hidden = !copy.retry;
     }
 }
 
@@ -174,19 +229,26 @@ async function shareToAlbum() {
             slot: index + 1,
         })))),
     ];
+
     dispatch({ type: 'share' }); // -> uploading; runEffects kicks off runUpload
 }
+
+const sendUpload = (group: string, upload: QueuedUpload) =>
+    uploadPhoto(eventCode, upload.blob, { kind: upload.kind, slot: upload.slot, group }).then(() => {});
 
 async function runUpload() {
     try {
         await uploadAll(
             pendingUploads!,
-            (upload) => uploadPhoto(eventCode, upload.blob, { kind: upload.kind, slot: upload.slot, group: pendingGroup! }).then(() => {}),
+            (upload) => sendUpload(pendingGroup!, upload),
             () => dispatch({ type: 'photoUploaded' }),
         );
-    } catch {
+    } catch (error) {
         // Already-sent slots dedup on the server, so a retry only re-sends the failures.
-        dispatch({ type: 'uploadFailed' });
+        dispatch({
+            type: 'uploadFailed',
+            reason: error instanceof UploadError ? error.kind : 'network',
+        });
     }
 }
 
@@ -207,7 +269,7 @@ function prepareStripShare() {
 
         // Both save affordances are plain download links; where the platform can
         // share a file, a click intercepts and opens the share sheet instead.
-        for (const link of [saveReview, $<HTMLAnchorElement>('#save-download')]) {
+        for (const link of [saveReview, saveFailed, $<HTMLAnchorElement>('#save-download')]) {
             link.href = stripUrl;
             link.download = `${eventName}-strip.jpg`;
             link.removeAttribute('aria-disabled'); // encoding is done; the link is live
@@ -357,6 +419,14 @@ document.addEventListener('visibilitychange', () => {
     if (stream && !cameraIsLive(stream)) dispatch({ type: 'cameraLost' });
 });
 
+// The queue holds while the phone has no signal, so the progress line stops
+// moving. Say why, or a stalled upload reads as a broken booth.
+function syncSignal() {
+    offlineHint.hidden = navigator.onLine;
+}
+addEventListener('online', syncSignal);
+addEventListener('offline', syncSignal);
+
 function syncOrientation() {
     rotateOverlay.hidden = !landscape.matches;
 }
@@ -403,13 +473,16 @@ $('#denied-retry').addEventListener('click', beginQuick);
 $('#save-strip').addEventListener('click', saveStrip);
 // A plain download link by default, upgraded to the share sheet where the
 // platform can take a file — which is what a phone actually wants.
-saveReview.addEventListener('click', (event) => {
-    if (!canShareStrip) return;
-    event.preventDefault();
-    void saveStrip();
-});
+for (const link of [saveReview, saveFailed]) {
+    link.addEventListener('click', (event) => {
+        if (!canShareStrip) return;
+        event.preventDefault();
+        void saveStrip();
+    });
+}
 $('#continue-anyway').addEventListener('click', (event) => { event.preventDefault(); clearTakeover(); showOnly('start'); });
 
 // An in-app browser (Instagram/Facebook/etc.) blocks getUserMedia — warn before the dead camera.
 if (detectInApp(navigator.userAgent)) showTakeover('inApp');
 syncOrientation();
+syncSignal();
