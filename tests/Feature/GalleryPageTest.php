@@ -38,6 +38,21 @@ it('groups a session together with the strip first', function () {
         ->assertSeeInOrder(["photos/$strip", "photos/$first", "photos/$second"]);
 });
 
+// The album header's counts have to agree with what the tabs below them render:
+// the strips tab shows one card per strip, the all-photos tab only originals.
+it('counts strips and shots separately in the album header', function () {
+    $group = fake()->uuid();
+    uploadPhoto('PARTY2', ['group' => $group, 'kind' => 'strip', 'slot' => 0]);
+    uploadPhoto('PARTY2', ['group' => $group, 'slot' => 1]);
+    uploadPhoto('PARTY2', ['group' => $group, 'slot' => 2]);
+
+    // The header stats, not the per-session card, which also says "2 photos".
+    $this->get('/e/PARTY2/gallery')
+        ->assertOk()
+        ->assertSee('<span class="sr-only">1 strip</span>', false)
+        ->assertSee('<span class="sr-only">2 photos</span>', false);
+});
+
 it('404s for an unknown event code', function () {
     $this->get('/e/XXXXXX/gallery')->assertNotFound();
 });

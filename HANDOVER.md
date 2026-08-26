@@ -14,8 +14,10 @@ album. Hosts create and manage events behind a login; guests just need the event
 
 Deployed and running on **Laravel Cloud** (Serverless Postgres 18, S3-compatible object storage
 for photos/logos). Feature-complete through: MVP → hardening → richer booth (templates, branding,
-filters) → owner accounts + admin oversight. **81 Pest + 56 Vitest tests green.** Every feature
-slice was built red/green and then put through an adversarial review (see Conventions).
+filters) → owner accounts + admin oversight → **full redesign** (every screen rebuilt to the Claude
+Design canvas `Redesign.dc.html`; see PLAN.md "Design system" + "Redesign"). **81 Pest + 56 Vitest
+tests green.** Every feature slice was built red/green and then put through an adversarial review
+(see Conventions).
 
 ## Stack & how to run
 
@@ -98,7 +100,12 @@ Nothing is broken or half-done. Candidate next work, roughly in the order discus
   existing admin oversight (needs an audit log + a visible banner).
 - **Password reset + email verification** — deferred with owner accounts; pair with mail config now
   that it's deployed.
-- **Gallery thumbnails** for big albums; a further gallery design pass if wanted.
+- **Gallery thumbnails** for big albums — the album is now a grid of full-size strips, so this
+  matters more than it did.
+- **Event cover photo** — the redesign's booth start screen wants one (see PLAN.md "Deliberate
+  departures"); a gradient stands in for now.
+- **A real-device pass on the redesign** — the booth's HUD, the looks thumbnails, and the tile
+  code entry have only been checked in the desktop browser pane.
 - Deferred v1 non-goals (see PLAN.md): per-shot retakes, back-camera toggle, PWA, IndexedDB
   session persistence, resumable uploads, multi-language.
 

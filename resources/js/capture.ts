@@ -67,15 +67,31 @@ let pendingUploads: QueuedUpload[] | null = null;
 let pendingGroup: string | null = null;
 let stripFile: File | null = null;
 let stripUrl: string | null = null;
+let canShareStrip = false;
 let activeFilter: Filter = filterFor('none');
 
 const filterRail = $('#filter-rail');
 const filterControls = $('#filter-controls');
+const filterBadge = $('#filter-badge');
+const customiseStart = $('#customise-start');
+const hudTop = $('.hud--top');
+const shotDots = $('#shot-dots');
+const cameraFrame = $('.camera-frame');
+const saveReview = $<HTMLAnchorElement>('#save-review');
 
 // Only nag touch devices held sideways — never a landscape desktop.
 const landscape = matchMedia('(orientation: landscape) and (pointer: coarse)');
 
-video.style.aspectRatio = `${template.cellWidth} / ${template.cellHeight}`;
+// The preview is sized from the template's cell aspect, so the guest frames
+// exactly what grabFrame will crop; the black stage around it holds the HUD.
+cameraFrame.style.setProperty('--cell-aspect', String(cellAspect));
+
+// One dash per shot in the run, lit as the guest works through them.
+for (let i = 0; i < template.cellCount; i++) shotDots.appendChild(document.createElement('span'));
+
+// The template owns the shot count, so it also writes the booth's promise.
+$('#promise').textContent =
+    `${template.cellCount === 1 ? 'One photo' : `${template.cellCount} photos`}. One strip. Yours to keep.`;
 
 function showOnly(id: string) {
     for (const [name, el] of Object.entries(sections)) el.hidden = name !== id;
@@ -93,12 +109,18 @@ function render() {
     if (failed || takeover) return;
     const onCamera = state.screen === 'countdown' || state.screen === 'flash' || state.screen === 'customise';
     showOnly(onCamera ? 'camera' : state.screen);
-    filterControls.hidden = state.screen !== 'customise';
-    countdownNumber.hidden = state.screen === 'customise';
+    // Picking a look owns the whole frame — countdown and shot HUD step aside.
+    const customising = state.screen === 'customise';
+    filterControls.hidden = !customising;
+    countdownNumber.hidden = customising;
+    hudTop.hidden = customising;
+    shotDots.hidden = customising;
 
-    if (state.screen === 'countdown') {
-        countdownNumber.textContent = String(state.secondsLeft);
-        shotLabel.textContent = `Photo ${state.shotIndex + 1} of ${template.cellCount}`;
+    if (state.screen === 'countdown') countdownNumber.textContent = String(state.secondsLeft);
+    if (state.screen === 'countdown' || state.screen === 'flash') {
+        const { shotIndex } = state;
+        shotLabel.textContent = `Shot ${shotIndex + 1} / ${template.cellCount}`;
+        [...shotDots.children].forEach((dot, index) => dot.classList.toggle('lit', index <= shotIndex));
     }
     if (state.screen === 'uploading') {
         uploadProgress.textContent = `Uploading ${state.uploaded + 1} of ${state.total}…`;
@@ -107,10 +129,11 @@ function render() {
 
 function runEffects(previous: FlowState) {
     if (state.screen === 'countdown') scheduleTick();
+    if (state.screen === 'customise' && previous.screen !== 'customise') paintLookThumbnails();
     if (state.screen === 'flash' && previous.screen !== 'flash') captureShot();
-    if (state.screen === 'review' && previous.screen !== 'review') showStripPreview();
+    if (state.screen === 'review' && previous.screen !== 'review') { showStripPreview(); prepareStripShare(); }
     if (state.screen === 'uploading' && previous.screen !== 'uploading') void runUpload();
-    if (state.screen === 'done' && previous.screen !== 'done') { void releaseWakeLock(); prepareStripShare(); }
+    if (state.screen === 'done' && previous.screen !== 'done') void releaseWakeLock();
 }
 
 // A single tracked timer: no tap or stale dispatch can spawn a second chain.
@@ -167,7 +190,8 @@ async function runUpload() {
     }
 }
 
-// --- Save / share the strip image (built up-front so the tap keeps its activation) ---
+// --- Save / share the strip image (built at review, so the tap on either the
+// review or the done screen still has its user activation) ---
 function prepareStripShare() {
     if (!strip) return;
     strip.toBlob((blob) => {
@@ -176,15 +200,18 @@ function prepareStripShare() {
         if (stripUrl) URL.revokeObjectURL(stripUrl);
         stripUrl = URL.createObjectURL(blob);
 
-        const canShareFile = !!(navigator.canShare && navigator.canShare({ files: [stripFile] }));
-        $('#save-strip').hidden = !canShareFile;
-
-        const fallback = $('#save-fallback');
-        fallback.hidden = canShareFile;
+        canShareStrip = !!(navigator.canShare && navigator.canShare({ files: [stripFile] }));
+        $('#save-strip').hidden = !canShareStrip;
+        $('#save-fallback').hidden = canShareStrip;
         $<HTMLImageElement>('#save-image').src = stripUrl;
-        const download = $<HTMLAnchorElement>('#save-download');
-        download.href = stripUrl;
-        download.download = `${eventName}-strip.jpg`;
+
+        // Both save affordances are plain download links; where the platform can
+        // share a file, a click intercepts and opens the share sheet instead.
+        for (const link of [saveReview, $<HTMLAnchorElement>('#save-download')]) {
+            link.href = stripUrl;
+            link.download = `${eventName}-strip.jpg`;
+            link.removeAttribute('aria-disabled'); // encoding is done; the link is live
+        }
     }, 'image/jpeg', 0.85);
 }
 
@@ -194,7 +221,11 @@ async function saveStrip() {
         await navigator.share({ files: [stripFile] }); // files only — iOS drops url/text when files are present
     } catch (err) {
         if ((err as DOMException).name === 'AbortError') return; // guest dismissed the sheet
-        $('#save-fallback').hidden = false; // reveal long-press + download
+        // The sheet can't take the file after all — hand every save affordance
+        // back to the download path (a second tap on "Save to phone" downloads).
+        canShareStrip = false;
+        $('#save-strip').hidden = true;
+        $('#save-fallback').hidden = false;
     }
 }
 
@@ -242,9 +273,28 @@ function beginCustomise() {
 
 function setFilter(key: string) {
     activeFilter = filterFor(key);
-    video.style.filter = activeFilter.css === 'none' ? '' : activeFilter.css;
-    for (const chip of filterRail.children) {
-        chip.classList.toggle('selected', (chip as HTMLElement).dataset.filter === activeFilter.key);
+    const filtered = activeFilter.key !== 'none';
+    video.style.filter = filtered ? activeFilter.css : '';
+    filterBadge.hidden = !filtered;
+    filterBadge.textContent = activeFilter.label;
+    customiseStart.textContent = filtered ? `Shoot with ${activeFilter.label}` : 'Start shooting';
+    for (const look of filterRail.children) {
+        look.classList.toggle('selected', (look as HTMLElement).dataset.filter === activeFilter.key);
+    }
+}
+
+// A still of the live preview, mirrored to match it, drawn small behind every
+// look so the guest sees their own face under each filter.
+function paintLookThumbnails() {
+    if (!video.videoWidth) return;
+    const frame = grabFrame(video, true, 4 / 5, filterFor('none'));
+    const thumb = document.createElement('canvas');
+    thumb.width = 128;
+    thumb.height = 160;
+    thumb.getContext('2d')!.drawImage(frame, 0, 0, thumb.width, thumb.height);
+    const url = thumb.toDataURL('image/jpeg', 0.7);
+    for (const shot of filterRail.querySelectorAll<HTMLElement>('.shot')) {
+        shot.style.backgroundImage = `url(${url})`;
     }
 }
 
@@ -315,17 +365,23 @@ landscape.addEventListener('change', syncOrientation);
 window.addEventListener('unhandledrejection', (event) => showError(String(event.reason)));
 window.addEventListener('error', (event) => showError(event.message));
 
-// Build the filter chips from the registry (single source of truth).
+// Build the look picker from the filter registry (single source of truth).
 for (const filter of FILTERS) {
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = 'chip';
-    chip.dataset.filter = filter.key;
-    chip.textContent = filter.label;
-    chip.addEventListener('click', () => setFilter(filter.key));
-    filterRail.appendChild(chip);
+    const look = document.createElement('button');
+    look.type = 'button';
+    look.className = 'look';
+    look.dataset.filter = filter.key;
+    const swatch = document.createElement('span');
+    swatch.className = 'swatch';
+    const shot = document.createElement('span');
+    shot.className = 'shot';
+    if (filter.css !== 'none') shot.style.filter = filter.css;
+    swatch.appendChild(shot);
+    look.append(swatch, filter.label);
+    look.addEventListener('click', () => setFilter(filter.key));
+    filterRail.appendChild(look);
 }
-setFilter('none'); // marks the None chip selected
+setFilter('none'); // marks the None look selected
 
 $('#start').addEventListener('click', beginQuick);
 $('#add-filter').addEventListener('click', beginCustomise);
@@ -345,6 +401,13 @@ $('#camera-retry').addEventListener('click', async () => {
 $('#upload-retry').addEventListener('click', () => dispatch({ type: 'retryUpload' }));
 $('#denied-retry').addEventListener('click', beginQuick);
 $('#save-strip').addEventListener('click', saveStrip);
+// A plain download link by default, upgraded to the share sheet where the
+// platform can take a file — which is what a phone actually wants.
+saveReview.addEventListener('click', (event) => {
+    if (!canShareStrip) return;
+    event.preventDefault();
+    void saveStrip();
+});
 $('#continue-anyway').addEventListener('click', (event) => { event.preventDefault(); clearTakeover(); showOnly('start'); });
 
 // An in-app browser (Instagram/Facebook/etc.) blocks getUserMedia — warn before the dead camera.

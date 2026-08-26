@@ -7,122 +7,201 @@
     @include('partials.theme')
     @vite('resources/js/strip-preview.ts')
     <style>
-        body.ctx-light { display: grid; place-items: center; text-align: center; padding: var(--space-md) var(--page-gutter); }
-        main { width: min(100%, 480px); min-width: 0; max-width: 100%; }
-        .card { display: flex; flex-direction: column; align-items: center; gap: var(--space-xs); padding: var(--space-lg); }
-        .card p { max-width: 100%; overflow-wrap: anywhere; }
-        .card .code { margin: var(--space-2xs) 0; }
-        .host-links { margin-top: var(--space-lg); font-size: var(--text-sm); display: flex; flex-wrap: wrap; gap: var(--space-md); justify-content: center; }
-        .close-form { margin-top: var(--space-md); }
+        /* The poster panel should reach the bottom of the window whatever the
+           topbar measures — so the page is a column and .split takes the rest.
+           Grid, not flex-wrap: the rail is either a 420px column or the whole
+           row, with no in-between width where it strands an empty gutter. */
+        body { display: flex; flex-direction: column; }
+        .split { flex: 1; display: grid; grid-template-columns: 1fr; align-items: stretch; }
+        @media (min-width: 900px) { .split { grid-template-columns: 420px minmax(440px, 1fr); } }
 
-        .edit { margin-top: var(--space-lg); text-align: left; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); }
-        .edit > summary { cursor: pointer; padding: var(--space-md); font-weight: 500; list-style: none; }
+        /* The poster IS the page: this panel is what a host prints and tapes up. */
+        .poster { min-width: 0; display: flex; background: var(--ink); }
+        .poster-body { flex: 1; min-width: 0; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; text-align: center;
+            gap: var(--space-md); padding: var(--space-2xl) var(--space-lg); }
+        .poster h2 { font-size: 2.75rem; margin: 0; }
+        .poster .code { font-size: 2.5rem; }
+        .poster .type-at { margin: 0; color: var(--text-muted); font-size: var(--text-sm);
+            overflow-wrap: anywhere; }
+
+        .pane { min-width: 0; display: flex; flex-direction: column;
+            gap: var(--space-lg); padding: var(--space-xl) var(--page-gutter) var(--space-lg); }
+        .pane-head h1 { font-size: var(--display-md); margin: var(--space-sm) 0 0; }
+        .pane .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--space-sm); }
+        .pane .stat { background: var(--surface); border: 1px solid var(--line);
+            border-radius: var(--r-md); padding: var(--space-md); }
+        .actions { display: flex; flex-direction: column; gap: var(--space-sm); }
+        .actions > .btn, .actions > button { width: 100%; }
+        .foot { margin-top: auto; padding-top: var(--space-lg); border-top: 1px solid var(--line);
+            display: flex; flex-wrap: wrap; gap: var(--space-sm);
+            justify-content: space-between; align-items: center; }
+        .foot p { margin: 0; color: var(--text-muted); font-size: var(--text-sm); }
+        .foot form { margin: 0; }
+
+        /* Edit the look — a host-only panel, folded away until wanted. */
+        /* The panel splits on its own width, not the window's — it lives in a
+           column that is only ever about half the page. */
+        .edit { text-align: right; container-type: inline-size; }
+        .edit > summary { display: inline-flex; list-style: none; }
         .edit > summary::-webkit-details-marker { display: none; }
-        .edit-body { display: grid; gap: var(--space-lg); padding: 0 var(--space-md) var(--space-md); }
-        @media (min-width: 620px) { .edit-body { grid-template-columns: 1fr minmax(160px, 200px); align-items: start; } }
-        .edit form { display: flex; flex-direction: column; gap: var(--space-md); }
-        .edit .field { display: flex; flex-direction: column; gap: var(--space-2xs); }
-        .edit label { font-size: var(--text-sm); color: var(--text-muted); }
-        .edit input, .edit select { width: 100%; font-size: var(--text-lg); padding: .55rem .8rem;
-            color: var(--text); background: var(--bg-elev); border: 1px solid var(--line-strong); border-radius: var(--r-md); }
+        .edit-body { text-align: left; margin-top: var(--space-md);
+            display: grid; gap: var(--space-lg); padding: var(--space-lg);
+            background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); }
+        @container (min-width: 460px) { .edit-body { grid-template-columns: 1fr minmax(150px, 190px); align-items: start; } }
+        .edit form { display: flex; flex-direction: column; gap: var(--space-lg); }
+        /* The remove-logo tick is prose, not a mono field label. */
+        .edit .field > label.muted { display: flex; align-items: center; gap: var(--space-xs);
+            font-family: var(--font-sans); text-transform: none; letter-spacing: 0; }
         .edit-preview { display: flex; flex-direction: column; align-items: center; gap: var(--space-xs); }
-        #preview-strip { max-width: 100%; max-height: 40dvh; border-radius: var(--r-sm); box-shadow: var(--shadow-md); rotate: var(--strip-tilt); background: #111; }
-        .edit .error { color: var(--danger); font-size: var(--text-sm); }
+        .edit-preview .strip-mat { width: 100%; max-width: 160px; }
+
         @media print {
-            body { background: #fff; color: #000; padding: 0; }
-            .no-print, .share { display: none; }
-            .card { box-shadow: none; border: none; }
-            .qr { padding: 0; }
-            .card .code { color: #000; }
+            .no-print { display: none !important; }
+            body { background: #fff; }
+            .split { display: block; }
+            .poster { background: #fff; }
+            .poster-body { color: #000; --text-muted: #444; min-height: 100dvh; }
+            .poster .perf-edge { display: none; }
+            .qr { background: #fff; padding: 0; }
         }
     </style>
 </head>
 <body class="ctx-light">
-    <main>
-        <div class="card">
-            <p class="eyebrow">Scan to join</p>
-            <h1>{{ $event->name }}</h1>
-            <div class="qr">{!! $qrSvg !!}</div>
-            <p class="code">{{ $event->code }}</p>
-            <p class="muted">or enter the code at <strong>{{ url('/') }}</strong></p>
-        </div>
+    <header class="topbar no-print">
+        <a class="wordmark" href="/dashboard">Photobooth</a>
+        <a class="btn btn--ghost btn--small" href="/dashboard">Your events</a>
+    </header>
 
-        <div class="share no-print">
-            <button type="button" class="btn share-btn" data-share-url="{{ url('/e/'.$event->code) }}" data-share-title="{{ $event->name }}">Invite guests</button>
-            <button type="button" class="btn--ghost share-copy" data-copy="{{ url('/e/'.$event->code) }}">Copy link</button>
-            <span class="link-chip">{{ url('/e/'.$event->code) }}</span>
-        </div>
-
-        <div class="no-print">
-            <p class="muted">{{ $photoCount }} {{ Str::plural('photo', $photoCount) }} so far</p>
-            <div class="host-links">
-                <a href="/e/{{ $event->code }}">Open the booth</a>
-                <a href="/e/{{ $event->code }}/gallery">View the album</a>
-                <a href="javascript:print()">Print this page</a>
+    <div class="split">
+        <section class="poster ctx-dark">
+            <div class="perf-edge"></div>
+            <div class="poster-body">
+                <p class="eyebrow">Scan to shoot</p>
+                <h2>{{ $event->name }}</h2>
+                <div class="qr">{!! $qrSvg !!}</div>
+                <p class="code">{{ $event->code }}</p>
+                <p class="type-at">or type it at {{ url('/') }}</p>
             </div>
-            <form class="close-form" method="POST" action="/events/{{ $event->code }}/toggle-closed">
-                @csrf
-                @if ($event->isClosed())
-                    <p class="muted">The booth is closed — guests can view the album but not add photos.</p>
-                    <button>Reopen the booth</button>
-                @else
-                    <button class="secondary">Close the booth</button>
-                @endif
-            </form>
-        </div>
+            <div class="perf-edge"></div>
+        </section>
 
-        <details class="edit no-print" @if ($errors->any()) open @endif>
-            <summary>✏️ Edit the booth look</summary>
-            <div class="edit-body">
-                <form method="POST" action="/events/{{ $event->code }}" enctype="multipart/form-data" data-strip-form
-                      @if ($event->logo_path) data-logo-url="{{ url('/e/'.$event->code.'/logo') }}" @endif>
-                    @csrf
-                    @method('PATCH')
-                    <div class="field">
-                        <label for="name">Event name</label>
-                        <input id="name" name="name" maxlength="100" value="{{ old('name', $event->name) }}" required>
-                    </div>
-                    <div class="field">
-                        <label for="template">Strip layout</label>
-                        <select id="template" name="template">
-                            @foreach ($templates as $key => $label)
-                                <option value="{{ $key }}" @selected(old('template', $event->template) === $key)>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="field">
-                        <label for="theme">Strip colour</label>
-                        <select id="theme" name="theme">
-                            @foreach ($themes as $key => $label)
-                                <option value="{{ $key }}" @selected(old('theme', $event->theme) === $key)>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="field">
-                        <label for="caption">Strip caption <span class="muted">(optional)</span></label>
-                        <input id="caption" name="caption" maxlength="60" placeholder="defaults to the event name" value="{{ old('caption', $event->caption) }}">
-                    </div>
-                    <div class="field">
-                        <label for="logo">Logo <span class="muted">(optional — replaces the caption)</span></label>
-                        <input id="logo" name="logo" type="file" accept="image/png,image/jpeg,image/webp">
-                        @if ($event->logo_path)
-                            <label class="muted"><input type="checkbox" name="remove_logo" value="1"> Remove the current logo</label>
-                        @endif
-                    </div>
-                    <button>Save changes</button>
-                    @error('name') <p class="error">{{ $message }}</p> @enderror
-                    @error('template') <p class="error">{{ $message }}</p> @enderror
-                    @error('theme') <p class="error">{{ $message }}</p> @enderror
-                    @error('caption') <p class="error">{{ $message }}</p> @enderror
-                    @error('logo') <p class="error">{{ $message }}</p> @enderror
-                </form>
-                <div class="edit-preview">
-                    <p class="eyebrow">Preview</p>
-                    <img id="preview-strip" data-strip-preview alt="A preview of your photo strip">
+        <div class="pane no-print">
+            <div class="pane-head">
+                <p class="eyebrow">{{ $event->isClosed() ? 'Closed' : 'Live now' }}</p>
+                <h1>{{ $event->name }}</h1>
+            </div>
+
+            <div class="stats">
+                <x-stat :figure="$stripCount" :label="Str::plural('strip', $stripCount)" />
+                <x-stat :figure="$photoCount" :label="Str::plural('photo', $photoCount)"
+                        :say="$photoCount.' '.Str::plural('photo', $photoCount)" />
+                <x-stat :figure="$lastStripAt?->format('H:i') ?? '—'" label="last strip"
+                        :say="$lastStripAt ? 'Last strip at '.$lastStripAt->format('H:i') : 'No strips yet'" />
+            </div>
+
+            <div class="actions">
+                <a class="btn" href="javascript:print()">Print the poster</a>
+                {{-- .btn-row is a pair; the copy affordance goes with the URL below it. --}}
+                <div class="btn-row">
+                    <button type="button" class="btn--ghost share-btn" data-share-url="{{ url('/e/'.$event->code) }}" data-share-title="{{ $event->name }}">Share the link</button>
+                    <a class="btn btn--ghost" href="/e/{{ $event->code }}/gallery">Open the album</a>
+                </div>
+                <div class="share">
+                    <button type="button" class="btn--ghost btn--small share-copy" data-copy="{{ url('/e/'.$event->code) }}">Copy link</button>
+                    <span class="link-chip">{{ url('/e/'.$event->code) }}</span>
                 </div>
             </div>
-        </details>
-    </main>
+
+            <details class="edit" @if ($errors->any()) open @endif>
+                <summary class="btn btn--ghost btn--small">Edit the look</summary>
+                <div class="edit-body">
+                    <form method="POST" action="/events/{{ $event->code }}" enctype="multipart/form-data" data-strip-form
+                          @if ($event->logo_path) data-logo-url="{{ url('/e/'.$event->code.'/logo') }}" @endif>
+                        @csrf
+                        @method('PATCH')
+                        <div class="field">
+                            <label for="name">Event name</label>
+                            <input id="name" name="name" maxlength="100" value="{{ old('name', $event->name) }}" required>
+                        </div>
+
+                        <fieldset class="field">
+                            <legend class="field-label">Layout</legend>
+                            <div class="swatches">
+                                @foreach ($templates as $key => $label)
+                                    <label>
+                                        <input type="radio" class="sr-only" name="template" value="{{ $key }}"
+                                               @checked(old('template', $event->template) === $key)>
+                                        <span class="layout-swatch" data-layout="{{ $key }}"></span>
+                                        <span class="sr-only">{{ $label }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </fieldset>
+
+                        <fieldset class="field">
+                            <legend class="field-label">Strip colour</legend>
+                            <div class="swatches">
+                                @foreach ($themes as $key => $label)
+                                    <label>
+                                        <input type="radio" class="sr-only" name="theme" value="{{ $key }}"
+                                               @checked(old('theme', $event->theme) === $key)>
+                                        <span class="colour-swatch" data-theme="{{ $key }}"></span>
+                                        <span class="sr-only">{{ $label }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </fieldset>
+
+                        <div class="field">
+                            <label for="caption">Caption</label>
+                            <input id="caption" name="caption" maxlength="60" placeholder="defaults to the event name" value="{{ old('caption', $event->caption) }}">
+                        </div>
+                        <div class="field">
+                            <label for="logo">Logo</label>
+                            <input id="logo" name="logo" type="file" accept="image/png,image/jpeg,image/webp">
+                            @if ($event->logo_path)
+                                <label class="muted"><input type="checkbox" name="remove_logo" value="1"> Remove the current logo</label>
+                            @else
+                                <p class="hint">Replaces the caption on the strip.</p>
+                            @endif
+                        </div>
+
+                        <button>Save changes</button>
+                        @error('name') <p class="error">{{ $message }}</p> @enderror
+                        @error('template') <p class="error">{{ $message }}</p> @enderror
+                        @error('theme') <p class="error">{{ $message }}</p> @enderror
+                        @error('caption') <p class="error">{{ $message }}</p> @enderror
+                        @error('logo') <p class="error">{{ $message }}</p> @enderror
+                    </form>
+
+                    <div class="edit-preview">
+                        <p class="eyebrow">Preview</p>
+                        <div class="strip-mat strip-mat--tilt">
+                            <img data-strip-preview alt="A preview of your photo strip">
+                        </div>
+                        <p class="mono mono--plain" data-strip-summary></p>
+                    </div>
+                </div>
+            </details>
+
+            <div class="foot">
+                @if ($event->isClosed())
+                    <p><a href="/e/{{ $event->code }}">The booth</a> is closed — guests can still see the album.</p>
+                    <form method="POST" action="/events/{{ $event->code }}/toggle-closed">
+                        @csrf
+                        <button class="btn--small">Reopen the booth</button>
+                    </form>
+                @else
+                    <p><a href="/e/{{ $event->code }}">The booth</a> is open to anyone with the code.</p>
+                    <form method="POST" action="/events/{{ $event->code }}/toggle-closed">
+                        @csrf
+                        <button class="btn--danger">Close the booth</button>
+                    </form>
+                @endif
+            </div>
+        </div>
+    </div>
     @include('partials.share-script')
 </body>
 </html>

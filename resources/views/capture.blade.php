@@ -10,151 +10,317 @@
         @vite('resources/js/capture.ts')
     @endunless
     <style>
-        body.ctx-dark { display: grid; place-items: center; text-align: center; padding: var(--space-lg); }
-        main { width: min(100%, 480px); min-width: 0; max-width: 100%; }
-        .eyebrow { margin-bottom: var(--space-2xs); }
+        /* One screen at a time, each one the whole viewport — the booth is a
+           kiosk, not a document. capture.ts toggles [hidden] on these sections. */
+        .screen {
+            position: fixed; inset: 0; overflow-y: auto; overscroll-behavior: contain;
+            display: flex; flex-direction: column;
+            padding: calc(var(--space-xl) + env(safe-area-inset-top)) var(--space-lg)
+                     calc(var(--space-lg) + env(safe-area-inset-bottom));
+        }
+        /* `safe` matters: these screens scroll, and plain `center` pushes half of
+           any overflow above the block-start edge where scrollTop can't reach it
+           (a long event name on a short landscape phone). */
+        .screen--center { justify-content: safe center; text-align: center; }
+        .inner { width: min(100%, 440px); margin: 0 auto; display: flex; flex-direction: column; }
+        .screen--center .inner { align-items: center; }
+        .bottom { margin-top: auto; }
+        h1 { font-size: var(--display-lg); margin: 0; }
 
-        .camera-frame { position: relative; margin-top: var(--space-md); }
+        /* --- 02 · the booth --- */
+        #start-screen {
+            background:
+                radial-gradient(120% 70% at 50% -10%, rgba(58,134,255,.22), transparent 60%),
+                radial-gradient(90% 55% at 85% 12%, rgba(131,56,236,.20), transparent 65%),
+                var(--ink);
+        }
+        #start-screen .inner { flex: 1; }
+        .event-logo { max-width: 120px; max-height: 56px; object-fit: contain; margin-bottom: var(--space-md); }
+        .promise { margin: var(--space-sm) 0 0; color: var(--text-muted); font-size: var(--text-base); }
+        .cta { margin-top: var(--space-lg); display: flex; flex-direction: column; gap: var(--space-sm); }
+        .cta .btn--hero, .cta button.btn--hero { width: 100%; }
+        .rec-dot { width: 12px; height: 12px; border-radius: 50%; background: #fff; }
+        .tally { margin: var(--space-lg) 0 0; text-align: center; }
+        .invite { margin-top: var(--space-md); justify-content: center; }
+
+        /* --- 03 · shooting --- */
+        #camera-screen { padding: 0; background: var(--ink); display: grid; place-items: center; }
+        /* The frame keeps the template's cell aspect, so what the guest sees
+           framed is exactly what grabFrame crops into the strip. capture.ts
+           sets --cell-aspect from the event's template. */
+        .camera-frame { position: relative; width: min(100%, calc(100dvh * var(--cell-aspect, 1.3333))); }
         /* Mirror the live preview so guests frame like a mirror; the saved frame
            is grabbed un-mirrored (see captureShot) so text reads the right way. */
-        #preview { width: 100%; border-radius: var(--r-md); object-fit: cover; background: #000; transform: scaleX(-1); }
-        #countdown-number { position: absolute; inset: 0; display: grid; place-items: center;
-            font-family: var(--font-display); font-size: 8rem; font-weight: 600; color: #fff;
-            text-shadow: 0 2px 12px rgba(0, 0, 0, .6); }
-        #flash-overlay { position: absolute; inset: 0; background: #fff; border-radius: var(--r-md); opacity: 0; pointer-events: none; }
+        #preview { display: block; width: 100%; height: auto; aspect-ratio: var(--cell-aspect, 1.3333);
+            object-fit: cover; background: #000; transform: scaleX(-1); }
+        #countdown-number {
+            position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none;
+            font-family: var(--font-display); font-size: clamp(9rem, 52vw, 16rem); line-height: 1;
+            color: #fff; text-shadow: 0 6px 60px rgba(0, 0, 0, .55);
+        }
+        #flash-overlay { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
         #flash-overlay.flashing { opacity: 1; }
 
-        #strip-preview { max-width: 62%; max-height: 55dvh; border-radius: var(--r-sm);
-            box-shadow: var(--shadow-lg); rotate: var(--strip-tilt); }
-
-        .chips { display: flex; gap: var(--space-xs); overflow-x: auto; padding: var(--space-sm) var(--space-2xs);
-            justify-content: safe center; -webkit-overflow-scrolling: touch; }
-        .chip {
-            flex: 0 0 auto; min-height: 40px; margin: 0; padding: .4rem 1rem;
-            font-size: var(--text-sm); border-radius: var(--r-pill);
-            background: transparent; color: var(--btn-ghost-text); border: 1px solid var(--btn-ghost-border);
+        .hud { position: fixed; left: 0; right: 0; display: flex; gap: var(--space-xs);
+            padding: 0 var(--space-lg); pointer-events: none; }
+        .hud--top { top: calc(var(--space-lg) + env(safe-area-inset-top)); justify-content: space-between; }
+        .hud-chip {
+            font-family: var(--font-mono); font-size: var(--text-2xs);
+            letter-spacing: .18em; text-transform: uppercase; color: var(--ivory);
+            background: rgba(11, 11, 16, .55); padding: .5rem .75rem; border-radius: var(--r-pill);
         }
-        .chip.selected { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-        .settings-steps { text-align: left; color: var(--text-muted); font-size: var(--text-sm);
-            margin: var(--space-md) auto; max-width: 320px; }
-        .settings-steps li { margin-bottom: var(--space-2xs); }
+        .hud-chip--filter { color: var(--yellow); }
+        #shot-dots { position: fixed; left: 0; right: 0;
+            bottom: calc(var(--space-xl) + env(safe-area-inset-bottom));
+            display: flex; justify-content: center; gap: 10px; pointer-events: none; }
+        #shot-dots span { width: 44px; height: 5px; border-radius: var(--r-pill); background: rgba(244, 242, 237, .28); }
+        #shot-dots span.lit { background: var(--pink); }
 
-        /* Rotate overlay: covers everything while the phone is sideways. */
+        /* --- 04 · pick a look --- */
+        #filter-controls {
+            position: fixed; inset: auto 0 0 0; padding: 80px 0 calc(var(--space-lg) + env(safe-area-inset-bottom));
+            background: linear-gradient(to top, var(--ink) 34%, rgba(11, 11, 16, 0));
+        }
+        #filter-rail {
+            display: flex; gap: 10px; flex-wrap: nowrap;
+            padding: 0 var(--space-lg) var(--space-md);
+            overflow-x: auto; -webkit-overflow-scrolling: touch; justify-content: safe center;
+            scrollbar-width: none; /* the peeking last look is the scroll cue */
+        }
+        #filter-rail::-webkit-scrollbar { display: none; }
+        .look {
+            flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 6px;
+            min-height: 0; padding: 0; margin: 0; background: none; border: 0; box-shadow: none;
+            font-family: var(--font-mono); font-size: var(--text-2xs); letter-spacing: .04em;
+            color: var(--text-muted); cursor: pointer;
+        }
+        .look:hover { transform: none; }
+        .look .swatch {
+            width: 64px; height: 80px; border-radius: 10px; border: 2px solid transparent;
+            overflow: hidden; background: #1C1C24;
+        }
+        /* The filter lives on the inner shot so the selected border keeps its colour. */
+        .look .shot { display: block; width: 100%; height: 100%;
+            background: #1C1C24 center / cover no-repeat; }
+        .look.selected { color: var(--yellow); }
+        .look.selected .swatch { border-color: var(--yellow); }
+        #customise-start { margin: 0 var(--space-lg); width: calc(100% - 2 * var(--space-lg));
+            background: var(--yellow); color: #20180A; box-shadow: 0 14px 40px rgba(255, 190, 11, .35); }
+
+        /* --- 05 · your strip --- */
+        #review-screen .inner { flex: 1; align-items: center; }
+        #review-screen .strip-mat { width: min(58%, 210px); margin-top: var(--space-lg); }
+        .consent-note { text-align: center; margin: 0 0 var(--space-sm); }
+        #review-screen .bottom { width: 100%; display: flex; flex-direction: column; gap: var(--space-sm); }
+        #share { width: 100%; }
+        /* The strip is still encoding: capture.ts clears this once there's a blob. */
+        [aria-disabled="true"] { opacity: .45; pointer-events: none; }
+
+        /* --- 06 · shared --- */
+        #done-screen {
+            background: var(--purple); color: #fff;
+            --text: #FFFFFF; --text-muted: rgba(255, 255, 255, .72); --text-faint: rgba(255, 255, 255, .72);
+            --line: rgba(255, 255, 255, .28); --line-strong: rgba(255, 255, 255, .45);
+            --mat: #F4F2ED; --mat-hole: #DAD7CF;
+            --btn-bg: #FFFFFF; --btn-text: #4B0F91; --btn-glow: none;
+            --ok: #FFFFFF; /* the accent blue is 1.6:1 on this purple */
+        }
+        #done-screen h1 { font-size: var(--display-xl); margin: var(--space-md) 0 0; }
+        #done-screen h1 em { font-style: italic; }
+        /* Tilted the other way from the review screen — one rule owns every tilt. */
+        #done-screen .strip-mat { width: min(42%, 156px); margin: var(--space-xl) auto 0; --strip-tilt: 3deg; }
+        #done-screen .bottom { display: flex; flex-direction: column; gap: var(--space-sm); }
+        #save-strip { width: 100%; }
+        #save-fallback img { max-width: 60%; border-radius: var(--r-sm); }
+        #done-screen .invite { justify-content: center; }
+        #done-screen .link-chip { background: rgba(255, 255, 255, .14); border-color: transparent; color: rgba(255, 255, 255, .82); }
+
+        /* --- uploading / recovery screens --- */
+        #uploading-screen .inner, #upload-failed-screen .inner,
+        #camera-lost-screen .inner, #denied-screen .inner,
+        #in-app-screen .inner, #error-screen .inner { gap: var(--space-md); }
+        #upload-progress { font-family: var(--font-mono); font-size: var(--text-base);
+            letter-spacing: .08em; color: var(--text-muted); margin: 0; }
+        .settings-steps { text-align: left; color: var(--text-muted); font-size: var(--text-sm); }
+
+        /* Covers everything while the phone is sideways. */
         #rotate-overlay { position: fixed; inset: 0; z-index: 50; background: var(--bg);
-            display: grid; place-items: center; padding: var(--space-lg); }
-        #rotate-overlay .rot { font-size: 3rem; }
+            display: grid; place-items: center; padding: var(--space-lg); text-align: center; }
+        #rotate-overlay svg { display: block; margin: 0 auto var(--space-md); color: var(--text-faint); }
     </style>
 </head>
 <body class="ctx-dark" data-event-code="{{ $event->code }}" data-event-name="{{ $event->name }}" data-template="{{ $event->template }}" data-theme="{{ $event->theme }}" data-caption="{{ $event->caption }}" data-logo="{{ $event->logo_path ? url('/e/'.$event->code.'/logo') : '' }}">
     @if ($event->isClosed())
-    <main>
-        <h1>{{ $event->name }}</h1>
-        <p class="muted">This event's photobooth has closed. 📷✨</p>
-        <p><a href="/e/{{ $event->code }}/gallery">See the album</a></p>
+    <main class="screen screen--center">
+        <div class="inner">
+            <p class="eyebrow">The booth</p>
+            <h1>{{ $event->name }}</h1>
+            <p class="muted">This booth is closed — the album is still open.</p>
+            <a class="btn btn--ghost" href="/e/{{ $event->code }}/gallery">See the album</a>
+        </div>
     </main>
     @else
     <main>
-        <section id="start-screen">
-            <p class="eyebrow">Photobooth</p>
-            <h1>{{ $event->name }}</h1>
-            <button id="start" class="btn--hero">📸 Quick shoot</button>
-            <br>
-            <button id="add-filter" class="btn--ghost">🎨 Add a filter</button>
-            <p><a href="/e/{{ $event->code }}/gallery">View the album</a></p>
-            <div class="share">
-                <button type="button" class="btn--ghost share-btn" data-share-url="{{ url('/e/'.$event->code) }}" data-share-title="{{ $event->name }}">Invite others</button>
-                <button type="button" class="btn--ghost share-copy" data-copy="{{ url('/e/'.$event->code) }}">Copy link</button>
-                <span class="link-chip">{{ url('/e/'.$event->code) }}</span>
+        <section id="start-screen" class="screen">
+            <div class="inner">
+                <div class="bottom">
+                    @if ($event->logo_path)
+                        <img class="event-logo" src="/e/{{ $event->code }}/logo" alt="">
+                    @endif
+                    <p class="eyebrow">Tonight</p>
+                    <h1>{{ $event->name }}</h1>
+                    {{-- capture.ts fills this in: the shot count comes from the event's template. --}}
+                    <p class="promise" id="promise"></p>
+
+                    <div class="cta">
+                        <button id="start" class="btn--hero"><span class="rec-dot"></span>Start shooting</button>
+                        <div class="btn-row">
+                            <button id="add-filter" class="btn--ghost">Pick a look</button>
+                            <a class="btn btn--ghost" href="/e/{{ $event->code }}/gallery">The album</a>
+                        </div>
+                    </div>
+
+                    {{-- The strip uploads first, so a partial session can have a strip and no shots. --}}
+                    @if ($stripCount > 0 || $photoCount > 0)
+                        <p class="mono mono--plain tally">{{ $stripCount }} {{ Str::plural('strip', $stripCount) }} shot · {{ $photoCount }} {{ Str::plural('photo', $photoCount) }}</p>
+                    @endif
+
+                    <div class="share invite">
+                        <button type="button" class="btn--ghost btn--small share-btn" data-share-url="{{ url('/e/'.$event->code) }}" data-share-title="{{ $event->name }}">Invite others</button>
+                        <button type="button" class="btn--ghost btn--small share-copy" data-copy="{{ url('/e/'.$event->code) }}">Copy link</button>
+                        <span class="link-chip">{{ url('/e/'.$event->code) }}</span>
+                    </div>
+                </div>
             </div>
         </section>
 
-        <section id="camera-screen" hidden>
-            <p id="shot-label" class="eyebrow"></p>
+        <section id="camera-screen" class="screen" hidden>
             <div class="camera-frame">
                 <video id="preview" playsinline autoplay muted></video>
-                <div id="countdown-number"></div>
                 <div id="flash-overlay"></div>
             </div>
+            <div id="countdown-number"></div>
+            <div class="hud hud--top">
+                <span id="shot-label" class="hud-chip"></span>
+                <span id="filter-badge" class="hud-chip hud-chip--filter" hidden></span>
+            </div>
+            <div id="shot-dots"></div>
             <div id="filter-controls" hidden>
-                <div id="filter-rail" class="chips"></div>
-                <button id="customise-start" class="btn--hero">Start with this look</button>
+                <div id="filter-rail"></div>
+                <button id="customise-start" class="btn--hero">Start shooting</button>
             </div>
         </section>
 
-        <section id="review-screen" hidden>
-            <img id="strip-preview" alt="Your photo strip">
-            <p class="consent-note">Sharing adds your strip and photos to the event album,<br>visible to everyone with the event link.</p>
-            <button id="share">Share to the album</button>
-            <br>
-            <button id="retake" class="secondary">Retake</button>
-        </section>
-
-        <section id="uploading-screen" hidden>
-            <p id="upload-progress">Uploading…</p>
-        </section>
-
-        <section id="done-screen" hidden>
-            <h1 class="celebrate-title">Shared! 🎉</h1>
-            <p class="muted">Your strip is in the event album.</p>
-            <button id="save-strip" hidden>Save / share my strip</button>
-            <div id="save-fallback" hidden>
-                <p class="muted">Long-press the photo to save it</p>
-                <img id="save-image" alt="Your photo strip" style="max-width:60%;border-radius:var(--r-sm)">
-                <br>
-                <a id="save-download" class="btn--ghost">Download strip</a>
+        <section id="review-screen" class="screen" hidden>
+            <div class="inner">
+                <p class="eyebrow" style="text-align:center">Fresh out of the booth</p>
+                <div class="strip-mat strip-mat--tilt">
+                    <img id="strip-preview" alt="Your photo strip">
+                </div>
+                <div class="bottom">
+                    <p class="consent-note">Sharing puts your strip in the event album — anyone with the link can see it.</p>
+                    <button id="share" class="btn--hero">Share to the album</button>
+                    <div class="btn-row">
+                        <a id="save-review" class="btn btn--ghost" download aria-disabled="true">Save to phone</a>
+                        <button id="retake" class="secondary">Retake</button>
+                    </div>
+                </div>
             </div>
-            <p><a href="/e/{{ $event->code }}/gallery">See the album</a></p>
-            <div class="share">
-                <button type="button" class="btn--ghost share-btn" data-share-url="{{ url('/e/'.$event->code) }}" data-share-title="{{ $event->name }}">Invite others</button>
-                <button type="button" class="btn--ghost share-copy" data-copy="{{ url('/e/'.$event->code) }}">Copy link</button>
-                <span class="link-chip">{{ url('/e/'.$event->code) }}</span>
+        </section>
+
+        <section id="uploading-screen" class="screen screen--center" hidden>
+            <div class="inner">
+                <p class="eyebrow">Sending it up</p>
+                <p id="upload-progress">Uploading…</p>
             </div>
-            <br>
-            <button id="again" class="secondary">Take another</button>
         </section>
 
-        <section id="camera-lost-screen" hidden>
-            <h1>The camera stopped 😢</h1>
-            <button id="camera-retry">Turn it back on</button>
-        </section>
-
-        <section id="upload-failed-screen" hidden>
-            <h1>Upload didn't finish</h1>
-            <p class="muted">Some photos didn't make it up — check your signal and try again.</p>
-            <button id="upload-retry">Retry upload</button>
-        </section>
-
-        <section id="denied-screen" hidden>
-            <h1>Camera access is off</h1>
-            <div class="settings-steps">
-                <p id="denied-ios" hidden>Tap the <strong>aA</strong> (or ••• ) button by the address bar → <strong>Website Settings</strong> → set <strong>Camera</strong> to Allow, then tap below.</p>
-                <p id="denied-android" hidden>Tap the icon left of the address bar → <strong>Site settings</strong> → <strong>Camera</strong> → Allow, then tap below.</p>
+        <section id="done-screen" class="screen" hidden>
+            <div class="inner" style="flex:1">
+                <p class="eyebrow">In the album</p>
+                <h1>That's a<br><em>keeper.</em></h1>
+                <div class="strip-mat strip-mat--tilt">
+                    <img id="save-image" alt="Your photo strip">
+                </div>
+                <div class="bottom">
+                    <button id="save-strip" class="btn--hero" hidden>Save my strip</button>
+                    <div id="save-fallback" hidden>
+                        <p class="muted">Long-press the strip above to save it, or:</p>
+                        <a id="save-download" class="btn btn--light" download>Download my strip</a>
+                    </div>
+                    <div class="btn-row">
+                        <button id="again" class="secondary">Take another</button>
+                        <a class="btn btn--ghost" href="/e/{{ $event->code }}/gallery">See the album</a>
+                    </div>
+                    <div class="share invite">
+                        <button type="button" class="btn--ghost btn--small share-btn" data-share-url="{{ url('/e/'.$event->code) }}" data-share-title="{{ $event->name }}">Invite others</button>
+                        <button type="button" class="btn--ghost btn--small share-copy" data-copy="{{ url('/e/'.$event->code) }}">Copy link</button>
+                        <span class="link-chip">{{ url('/e/'.$event->code) }}</span>
+                    </div>
+                </div>
             </div>
-            <button id="denied-retry">I've enabled it — try again</button>
         </section>
 
-        <section id="in-app-screen" hidden>
-            <h1>Open in your browser</h1>
-            <p class="muted">The camera doesn't work inside this app's browser.</p>
-            <a id="open-chrome" class="btn" hidden>Open in Chrome</a>
-            <p id="open-safari" class="muted" hidden>Tap the ••• or share menu, then <strong>Open in Safari</strong> — or copy the link:</p>
-            <div class="share">
-                <button type="button" class="btn--ghost share-copy" data-copy="{{ url('/e/'.$event->code) }}">Copy link</button>
-                <span class="link-chip">{{ url('/e/'.$event->code) }}</span>
+        <section id="camera-lost-screen" class="screen screen--center" hidden>
+            <div class="inner">
+                <p class="eyebrow">Hold on</p>
+                <h1>The camera stopped</h1>
+                <button id="camera-retry">Turn it back on</button>
             </div>
-            <p><a id="continue-anyway" href="#">Continue anyway</a></p>
         </section>
 
-        <section id="error-screen" hidden>
-            <h1>Something broke</h1>
-            <p id="error-message" class="muted"></p>
-            <button onclick="location.reload()" class="secondary">Reload</button>
+        <section id="upload-failed-screen" class="screen screen--center" hidden>
+            <div class="inner">
+                <p class="eyebrow">Almost there</p>
+                <h1>Upload didn't finish</h1>
+                <p class="muted">Some photos didn't make it up — check your signal and try again.</p>
+                <button id="upload-retry">Retry upload</button>
+            </div>
+        </section>
+
+        <section id="denied-screen" class="screen screen--center" hidden>
+            <div class="inner">
+                <p class="eyebrow">Permission</p>
+                <h1>Camera access is off</h1>
+                <div class="settings-steps">
+                    <p id="denied-ios" hidden>Tap the <strong>aA</strong> (or ••• ) button by the address bar → <strong>Website Settings</strong> → set <strong>Camera</strong> to Allow, then tap below.</p>
+                    <p id="denied-android" hidden>Tap the icon left of the address bar → <strong>Site settings</strong> → <strong>Camera</strong> → Allow, then tap below.</p>
+                </div>
+                <button id="denied-retry">I've enabled it — try again</button>
+            </div>
+        </section>
+
+        <section id="in-app-screen" class="screen screen--center" hidden>
+            <div class="inner">
+                <p class="eyebrow">One step first</p>
+                <h1>Open in your browser</h1>
+                <p class="muted">The camera doesn't work inside this app's browser.</p>
+                <a id="open-chrome" class="btn" hidden>Open in Chrome</a>
+                <p id="open-safari" class="muted" hidden>Tap the ••• or share menu, then <strong>Open in Safari</strong> — or copy the link:</p>
+                <div class="share invite">
+                    <button type="button" class="btn--ghost btn--small share-copy" data-copy="{{ url('/e/'.$event->code) }}">Copy link</button>
+                    <span class="link-chip">{{ url('/e/'.$event->code) }}</span>
+                </div>
+                <p><a id="continue-anyway" href="#">Continue anyway</a></p>
+            </div>
+        </section>
+
+        <section id="error-screen" class="screen screen--center" hidden>
+            <div class="inner">
+                <p class="eyebrow">Sorry</p>
+                <h1>Something broke</h1>
+                <p id="error-message" class="muted"></p>
+                <button onclick="location.reload()" class="secondary">Reload</button>
+            </div>
         </section>
     </main>
 
     <div id="rotate-overlay" hidden>
         <div>
-            <div class="rot">📱</div>
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <rect x="7" y="2" width="10" height="20" rx="2.5"></rect>
+                <path d="M10.5 19h3"></path>
+            </svg>
             <p>Turn your phone upright</p>
         </div>
     </div>

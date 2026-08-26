@@ -6,76 +6,157 @@
     <title>{{ $event->name }} — Album</title>
     @include('partials.theme')
     <style>
-        body.ctx-light { padding: var(--space-xl) var(--page-gutter) var(--space-3xl); }
+        .topbar { flex-wrap: wrap; }
+        .topbar .code { font-size: var(--text-xs); color: var(--text-muted); }
 
-        .album-head { max-width: var(--measure); margin: 0 auto var(--space-2xl);
-            padding-bottom: var(--space-lg); border-bottom: 1px solid var(--line); text-align: center; }
-        .album-head h1 { font-size: var(--text-4xl); }
-        .album-head .count { margin-top: var(--space-xs); }
-
-        .feed { max-width: var(--measure); margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-2xl); }
-
-        .session { display: grid; grid-template-columns: 1fr; gap: var(--space-lg); justify-items: center; }
-        .session > .strip { width: min(64%, 220px); height: auto; border-radius: var(--r-sm);
-            box-shadow: var(--shadow-lg); background: #111; rotate: var(--strip-tilt); }
-        .session > .originals { width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-xs); }
-        .session > .originals img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--r-sm); background: var(--bg); }
-        .session > .delete { justify-self: end; }
-
-        @media (min-width: 720px) {
-            .session { grid-template-columns: minmax(190px, 230px) 1fr;
-                grid-template-areas: "strip originals" "strip delete";
-                align-items: start; justify-items: stretch; column-gap: var(--space-xl); row-gap: var(--space-md); }
-            .session > .strip { grid-area: strip; width: 100%; max-width: 230px; align-self: start; }
-            .session > .originals { grid-area: originals; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-                gap: var(--space-sm); align-content: start; }
-            .session > .delete { grid-area: delete; justify-self: end; }
+        .album-head {
+            max-width: var(--measure); margin: 0 auto;
+            padding: var(--space-2xl) var(--page-gutter) var(--space-lg);
+            display: flex; flex-wrap: wrap; gap: var(--space-xl);
+            align-items: flex-end; justify-content: space-between;
         }
-        @media (min-width: 1024px) { .session { column-gap: var(--space-2xl); } }
+        .album-head h1 { font-size: var(--display-2xl); margin: var(--space-sm) 0 0; }
+        .album-head .stats { gap: var(--space-xl); }
 
-        .feed .empty { text-align: center; color: var(--text-muted); font-family: var(--font-display);
-            font-size: var(--text-xl); padding: var(--space-3xl) 0; }
-        .back { display: block; max-width: var(--measure); margin: 0 auto var(--space-lg);
-            font-size: var(--text-sm); }
+        .tabs {
+            max-width: var(--measure); margin: 0 auto;
+            padding: 0 var(--page-gutter) var(--space-lg);
+            border-bottom: 1px solid var(--line);
+        }
+        .feed { max-width: var(--measure); margin: 0 auto; padding: var(--space-xl) var(--page-gutter) var(--space-3xl); }
+
+        /* A wall of strips. They sit square here — the tilt is for the one strip
+           a guest just shot, not for a grid of them. */
+        .strips { display: grid; gap: var(--space-xl) var(--space-lg);
+            grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr)); }
+        /* In a narrow card the timestamp keeps its line and Delete drops below it. */
+        .strips .card-foot { display: flex; flex-wrap: wrap; justify-content: space-between;
+            align-items: baseline; gap: var(--space-xs); margin-top: var(--space-sm); }
+        .strips .card-foot p { margin: 0; white-space: nowrap; }
+
+        .photos { display: grid; gap: var(--space-sm);
+            grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr)); }
+        @media (min-width: 720px) {
+            .strips { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+            .photos { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+        }
+        .photos img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover;
+            border-radius: var(--r-sm); background: var(--surface-sunk); }
+
+        .empty { text-align: center; color: var(--text-muted); font-family: var(--font-display);
+            font-size: var(--display-sm); padding: var(--space-3xl) 0; }
     </style>
 </head>
 <body class="ctx-light">
-    <a class="back" href="/e/{{ $event->code }}">← Back to the booth</a>
-    <header class="album-head">
-        <p class="eyebrow">Event album</p>
-        <h1>{{ $event->name }}</h1>
-        <p class="count muted">{{ $sessions->count() }} {{ Str::plural('session', $sessions->count()) }}</p>
-        <div class="share">
-            <button type="button" class="btn share-btn" data-share-url="{{ url('/e/'.$event->code) }}" data-share-title="{{ $event->name }}">Invite others</button>
-            <button type="button" class="btn--ghost share-copy" data-copy="{{ url('/e/'.$event->code) }}">Copy link</button>
+    <header class="topbar">
+        <a class="wordmark" href="/e/{{ $event->code }}">Photobooth</a>
+        <div class="topbar-right share">
+            <span class="code">{{ $event->code }}</span>
+            <button type="button" class="btn--small share-btn" data-share-url="{{ url('/e/'.$event->code) }}" data-share-title="{{ $event->name }}">Share the album</button>
+            <button type="button" class="btn--ghost btn--small share-copy" data-copy="{{ url('/e/'.$event->code) }}">Copy link</button>
             <span class="link-chip">{{ url('/e/'.$event->code) }}</span>
         </div>
     </header>
 
+    <div class="album-head">
+        <div>
+            <p class="eyebrow">Event album</p>
+            <h1>{{ $event->name }}</h1>
+        </div>
+        <div class="stats">
+            <x-stat :figure="$stripCount" :label="Str::plural('strip', $stripCount)" />
+            <x-stat :figure="$photoCount" :label="Str::plural('photo', $photoCount)" />
+            <x-stat
+                :figure="$event->isClosed() ? 'shut' : 'live'"
+                :label="$event->isClosed() ? 'booth closed' : 'booth open'"
+                :say="$event->isClosed() ? 'The booth is closed' : 'The booth is open'" />
+        </div>
+    </div>
+
+    @if ($sessions->isNotEmpty())
+        <div class="tabs chips">
+            <button type="button" id="tab-strips" class="chip selected">Strips</button>
+            <button type="button" id="tab-photos" class="chip">All photos</button>
+            <button type="button" id="tab-order" class="chip">Latest first ⇅</button>
+        </div>
+    @endif
+
     <main class="feed">
-        @forelse ($sessions as $session)
-            <section class="session card">
-                @foreach ($session->where('kind', 'strip') as $photo)
-                    <img class="strip" src="/e/{{ $event->code }}/photos/{{ $photo->id }}" alt="Photo strip" loading="lazy">
+        @if ($sessions->isEmpty())
+            <p class="empty">No photos yet — be the first.</p>
+        @else
+            {{-- Strips: one card per session, newest first. --}}
+            <div class="strips" id="panel-strips">
+                @foreach ($sessions as $session)
+                    @php($originals = $session->where('kind', 'original'))
+                    <article data-group="{{ $session->first()->group_uuid }}">
+                        @foreach ($session->where('kind', 'strip') as $photo)
+                            <div class="strip-mat">
+                                <img src="/e/{{ $event->code }}/photos/{{ $photo->id }}" alt="Photo strip" loading="lazy">
+                            </div>
+                        @endforeach
+                        <div class="card-foot">
+                            <p class="mono mono--plain">{{ $session->first()->created_at->format('H:i') }} · {{ $originals->count() }} {{ Str::plural('photo', $originals->count()) }}</p>
+                            @if ($event->managedBy(auth()->user()))
+                                <form class="delete" method="POST" action="/e/{{ $event->code }}/groups/{{ $session->first()->group_uuid }}"
+                                      onsubmit="return confirm('Delete this session and its photos?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button>Delete</button>
+                                </form>
+                            @endif
+                        </div>
+                    </article>
                 @endforeach
-                <div class="originals">
-                    @foreach ($session->where('kind', 'original') as $photo)
-                        <img src="/e/{{ $event->code }}/photos/{{ $photo->id }}" alt="Event photo" loading="lazy">
-                    @endforeach
-                </div>
-                @if ($event->managedBy(auth()->user()))
-                    <form class="delete" method="POST" action="/e/{{ $event->code }}/groups/{{ $session->first()->group_uuid }}"
-                          onsubmit="return confirm('Delete this session and its photos?')">
-                        @csrf
-                        @method('DELETE')
-                        <button>Delete session</button>
-                    </form>
-                @endif
-            </section>
-        @empty
-            <p class="empty">No photos yet — be the first!</p>
-        @endforelse
+            </div>
+
+            {{-- All photos: every original, sessions newest first. --}}
+            <div class="photos" id="panel-photos" hidden>
+                @foreach ($sessions->flatMap->where('kind', 'original') as $photo)
+                    <img src="/e/{{ $event->code }}/photos/{{ $photo->id }}" data-group="{{ $photo->group_uuid }}" alt="Event photo" loading="lazy">
+                @endforeach
+            </div>
+        @endif
     </main>
+
+    @if ($sessions->isNotEmpty())
+    <script>
+        // Two views of the same album, and one ordering toggle over both grids.
+        (function () {
+            const panels = { strips: document.querySelector('#panel-strips'), photos: document.querySelector('#panel-photos') };
+            const tabs = { strips: document.querySelector('#tab-strips'), photos: document.querySelector('#tab-photos') };
+
+            for (const [name, tab] of Object.entries(tabs)) {
+                tab.addEventListener('click', () => {
+                    for (const [other, panel] of Object.entries(panels)) {
+                        panel.hidden = other !== name;
+                        tabs[other].classList.toggle('selected', other === name);
+                    }
+                });
+            }
+
+            // Reorder whole sessions, never the shots inside one — a strip's three
+            // frames always read in the order they were taken.
+            const flipSessions = (panel) => {
+                const groups = [];
+                for (const child of panel.children) {
+                    const last = groups.at(-1);
+                    if (last?.group === child.dataset.group) last.items.push(child);
+                    else groups.push({ group: child.dataset.group, items: [child] });
+                }
+                panel.append(...groups.reverse().flatMap((g) => g.items));
+            };
+
+            let oldestFirst = false;
+            const order = document.querySelector('#tab-order');
+            order.addEventListener('click', () => {
+                oldestFirst = !oldestFirst;
+                order.textContent = (oldestFirst ? 'Oldest first' : 'Latest first') + ' ⇅';
+                for (const panel of Object.values(panels)) flipSessions(panel);
+            });
+        })();
+    </script>
+    @endif
     @include('partials.share-script')
 </body>
 </html>
