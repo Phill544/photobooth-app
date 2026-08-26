@@ -94,6 +94,11 @@ to grant yourself admin.
   Workflow that fans out review "lenses" and has a second agent try to *refute* each finding before
   it's accepted, then fix the confirmed ones. It has caught a real bug in almost every slice — keep
   it up for anything non-trivial.
+- **Keep the work list honest**: strike an item from "What's next" as soon as it ships, in the
+  same change — that list is only what's left. Finished work lives in the Status line, the
+  Architecture map and the git log.
+- **Never commit unless Phill asks**, and ask again next time — permission for one batch doesn't
+  carry. Finish the slice, leave it in the working tree, and offer a commit split.
 - Verify in the browser (the in-app Browser pane) by reading actual output, not by asserting it
   "should" work — e.g. read a composed strip's pixels, don't assume.
 
@@ -104,14 +109,10 @@ Nothing is broken or half-done. This list came out of the 2026-08-26 competitive
 ask Phill for access; it carries the full rationale and feasibility notes). Work the phases
 top to bottom; **items within a phase are independent and can be picked up in parallel.**
 Each item is a slice: red/green TDD, then an adversarial review pass (see Conventions).
-
-### P0 — Safety hygiene — done (2026-08-26)
-`noindex` on the capture + gallery pages, `X-Robots-Tag: noindex` on the served photos and logos,
-and a tightened `robots.txt` — `/` stays indexable on purpose (see the PLAN.md decision; the
-`Disallow` is what stops a compliant crawler ever *fetching* a guest's face, the meta/header are
-for the ones that skip robots.txt) · the friendly unknown-code 404 (Architecture map, **Errors**) ·
-`throttle:10,1` on `POST /register`, deliberately sharing `/login`'s per-address budget.
-**P1 is the next thing to pick up**; its numbering below is unchanged.
+**Delete an item from this list when it ships** — the list is only what's left, and the Status
+line plus the git log are where finished work is recorded. Item numbers are stable IDs from the
+review, so they don't get renumbered when something above them goes; a phase whose items are all
+done disappears with them.
 
 ### P1 — Make the pipes safe (before anything that drives more traffic)
 4. Typed upload errors: branch on status in `upload.ts` — 410 → "booth just closed, save your
