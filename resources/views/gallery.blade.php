@@ -47,6 +47,27 @@
         .photos img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover;
             border-radius: var(--r-sm); background: var(--surface-sunk); }
 
+        /* Every grid image is a link to the full-size file: without JS it just
+           opens, with JS the overlay below intercepts it. */
+        a.tile { display: block; min-width: 0; cursor: zoom-in; }
+
+        #lightbox {
+            position: fixed; inset: 0; z-index: 60; background: rgba(11, 11, 16, .93);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: var(--space-lg);
+            padding: calc(var(--space-2xl) + env(safe-area-inset-top)) var(--space-lg)
+                     calc(var(--space-lg) + env(safe-area-inset-bottom));
+        }
+        #lightbox[hidden] { display: none; }
+        #lightbox-image { max-width: min(100%, 520px); max-height: 70dvh; object-fit: contain;
+            border-radius: var(--r-sm); box-shadow: var(--shadow-lg); }
+        #lightbox-close {
+            position: absolute; top: calc(var(--space-md) + env(safe-area-inset-top)); right: var(--space-md);
+            min-height: 0; padding: .4rem .8rem; background: rgba(244, 242, 237, .14);
+            color: var(--ivory); box-shadow: none; font-size: var(--text-lg); line-height: 1;
+        }
+        #lightbox-close:hover { transform: none; }
+
         .empty { text-align: center; color: var(--text-muted); font-family: var(--font-display);
             font-size: var(--display-sm); padding: var(--space-3xl) 0; }
     </style>
@@ -95,9 +116,11 @@
                     @php($originals = $session->where('kind', 'original'))
                     <article data-group="{{ $session->first()->group_uuid }}">
                         @foreach ($session->where('kind', 'strip') as $photo)
-                            <div class="strip-mat">
-                                <img src="/e/{{ $event->code }}/photos/{{ $photo->id }}" alt="Photo strip" loading="lazy">
-                            </div>
+                            <a class="tile" href="{{ $photo->url($event->code) }}" data-name="Photo strip">
+                                <div class="strip-mat">
+                                    <img src="{{ $photo->gridUrl($event->code) }}" alt="Photo strip" loading="lazy">
+                                </div>
+                            </a>
                         @endforeach
                         <div class="card-foot">
                             <p class="mono mono--plain">{{ $session->first()->created_at->format('H:i') }} · {{ $originals->count() }} {{ Str::plural('photo', $originals->count()) }}</p>
@@ -117,11 +140,27 @@
             {{-- All photos: every original, sessions newest first. --}}
             <div class="photos" id="panel-photos" hidden>
                 @foreach ($sessions->flatMap->where('kind', 'original') as $photo)
-                    <img src="/e/{{ $event->code }}/photos/{{ $photo->id }}" data-group="{{ $photo->group_uuid }}" alt="Event photo" loading="lazy">
+                    <a class="tile" href="{{ $photo->url($event->code) }}" data-group="{{ $photo->group_uuid }}"
+                       data-name="Event photo">
+                        <img src="{{ $photo->gridUrl($event->code) }}" alt="Event photo" loading="lazy">
+                    </a>
                 @endforeach
             </div>
         @endif
     </main>
+
+    {{-- Tap-to-enlarge. The grids show derivatives; this is where the full-size
+         file gets loaded, and where a guest saves the one photo they want. --}}
+    @if ($sessions->isNotEmpty())
+    <div id="lightbox" hidden>
+        <button type="button" id="lightbox-close" aria-label="Close">&times;</button>
+        <img id="lightbox-image" alt="">
+        {{-- Bare `download`: the filename comes from the server's
+             Content-Disposition (Photo::downloadName), which a browser prefers
+             over anything stated here anyway. --}}
+        <a id="lightbox-save" class="btn btn--light" download>Save this photo</a>
+    </div>
+    @endif
 
     @if ($sessions->isNotEmpty())
     <script>
@@ -157,6 +196,50 @@
                 oldestFirst = !oldestFirst;
                 order.textContent = (oldestFirst ? 'Oldest first' : 'Latest first') + ' ⇅';
                 for (const panel of Object.values(panels)) flipSessions(panel);
+            });
+        })();
+    </script>
+
+    <script>
+        // Enlarging a photo: the grid links to the full-size file, and this
+        // intercepts the tap. Without JS the link still opens the image.
+        (function () {
+            const box = document.querySelector('#lightbox');
+            const image = document.querySelector('#lightbox-image');
+            const save = document.querySelector('#lightbox-save');
+            const closeButton = document.querySelector('#lightbox-close');
+            let opener = null;
+
+            const open = (tile) => {
+                opener = tile;
+                image.src = tile.href;
+                image.alt = tile.dataset.name;
+                save.href = tile.href;
+                box.hidden = false;
+                document.body.style.overflow = 'hidden'; // the album must not scroll behind it
+                closeButton.focus();
+            };
+
+            const close = () => {
+                box.hidden = true;
+                image.removeAttribute('src'); // stop a big file downloading into a closed overlay
+                document.body.style.overflow = '';
+                opener?.focus();
+            };
+
+            document.addEventListener('click', (event) => {
+                const tile = event.target.closest('a.tile');
+                if (tile) {
+                    event.preventDefault();
+                    open(tile);
+                    return;
+                }
+                if (event.target === box) close(); // the backdrop, not the image or the buttons
+            });
+
+            closeButton.addEventListener('click', close);
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && !box.hidden) close();
             });
         })();
     </script>

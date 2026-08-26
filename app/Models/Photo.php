@@ -8,13 +8,32 @@ use Illuminate\Support\Str;
 
 class Photo extends Model
 {
-    protected $fillable = ['kind', 'group_uuid', 'slot', 'path'];
+    protected $fillable = ['kind', 'group_uuid', 'slot', 'path', 'thumb_path'];
 
     protected $casts = ['slot' => 'integer'];
 
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
+    }
+
+    // Every file this row owns: the original, and the derivative once the queued
+    // job has written one. Deleting a photo means deleting both.
+    public function paths(): array
+    {
+        return array_filter([$this->path, $this->thumb_path]);
+    }
+
+    public function url(string $eventCode): string
+    {
+        return "/e/{$eventCode}/photos/{$this->id}";
+    }
+
+    // What an album grid asks for: the derivative once there is one, the
+    // original until the queue catches up. Enlarging always shows the original.
+    public function gridUrl(string $eventCode): string
+    {
+        return $this->url($eventCode).($this->thumb_path ? '/thumb' : '');
     }
 
     // What a phone should call this file once it's saved. The stored path is a

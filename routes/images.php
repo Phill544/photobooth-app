@@ -10,3 +10,4 @@ use Illuminate\Support\Facades\Route;
 // worth setting on a photo.
 Route::get('/e/{event:code}/logo', [EventController::class, 'logo']);
 Route::get('/e/{event:code}/photos/{photo}', [PhotoController::class, 'show'])->scopeBindings();
+Route::get('/e/{event:code}/photos/{photo}/thumb', [PhotoController::class, 'thumb'])->scopeBindings();

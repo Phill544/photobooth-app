@@ -26,7 +26,7 @@ class PurgeEvent extends Command
             return self::SUCCESS;
         }
 
-        Storage::delete($event->photos()->pluck('path')->all());
+        Storage::delete($event->photos()->get()->flatMap->paths()->all());
         $event->delete(); // photo rows cascade
 
         $this->info("Purged '{$event->name}'.");

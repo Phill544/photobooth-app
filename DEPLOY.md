@@ -57,6 +57,37 @@ php artisan config:cache && php artisan route:cache && php artisan view:cache
 Do **not** run `php artisan db:seed` in production — the demo seed is guarded to `local` and will
 no-op, but there's no reason to invoke it.
 
+## The queue worker (album thumbnails)
+
+Every upload dispatches a `GenerateThumbnail` job onto the `database` queue: it writes a
+480px-wide derivative beside the original and records it on the photo row. The album grids ask
+for that derivative instead of the full file. A composed strip is a fixed size whatever the phone
+took it on — 648px wide for the single-column templates, 1272px for the 2x2 grid — so the saving
+there runs from about half the bytes to a fair bit more; a camera frame is as large as the phone's
+camera made it, and shrinks much further. Across a busy album's two tabs that is tens of megabytes
+a guest doesn't download.
+
+Photos that were uploaded **before** this shipped have no derivative, and their grid tiles serve
+the original (that's the designed degradation, not a failure). To generate the backlog once, on the
+environment's command runner:
+
+```
+php artisan tinker --execute="App\Models\Photo::whereNull('thumb_path')->each(fn (\$p) => App\Jobs\GenerateThumbnail::dispatch(\$p));"
+```
+
+**Laravel Cloud needs a worker to run them.** Add a **Worker** process on the environment:
+
+```
+php artisan queue:work --tries=3 --timeout=60
+```
+
+It needs the same env as the web process (it reads and writes object storage). Nothing breaks
+without a worker — uploads still succeed and the grids serve full-size originals — but every
+guest pays for that in bandwidth, so treat it as required.
+
+> The `jobs` and `failed_jobs` tables already exist in the migrations, so there's nothing to
+> create. Check `failed_jobs` if thumbnails stop appearing.
+
 ## First deploy: create your admin
 
 Registration can't grant admin (by design — no self-escalation), and the demo seed is local-only,
@@ -77,4 +108,5 @@ You're now an admin and can see/manage every event.
 | "could not find driver" / "table not found" | DB not attached / `DB_CONNECTION` wrong / migrations not run | Attach Postgres, `DB_CONNECTION=pgsql`, run `migrate --force` |
 | A booth link 404s in production (e.g. `/e/party2`) | `PARTY2` is the **local** demo event; the seed is local-only, so production has no data yet | Register at `/register`, create a real event, then `photobooth:make-admin you@…` |
 | Uploads work but photos disappear after a redeploy | Writing to ephemeral local disk | `FILESYSTEM_DISK=s3` + attach object storage |
+| Album grids are slow and load full-size strips | No queue worker, so no thumbnails were generated | Add the worker process above; it picks up the backlog on its own |
 | QR codes / invite links point at the wrong host | `APP_URL` wrong | Set `APP_URL` to the real domain |

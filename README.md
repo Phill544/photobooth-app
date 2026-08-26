@@ -48,10 +48,14 @@ SQLite database, runs migrations, and builds the frontend.
 ## Daily development
 
 ```
-composer run dev      # app server + vite + logs, all in one
+composer run dev      # app server + vite + queue worker + logs, all in one
 php artisan test      # server tests (Pest)
 npm test              # client unit tests (Vitest)
 ```
+
+`composer run dev` includes a queue worker, which is what generates the album's gallery
+thumbnails. Without one running, uploads still work and the album falls back to serving the
+full-size originals in its grids.
 
 ## Testing on a real phone
 
