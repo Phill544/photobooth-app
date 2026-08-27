@@ -2,7 +2,7 @@ import { cameraIsLive, grabFrame, onCameraLost, startCamera, toJpegBlob } from '
 import { nextState, type FlowEvent, type FlowState } from './capture-flow';
 import { androidChromeIntent, cameraSupported, detectInApp, isIOS } from './in-app';
 import { FILTERS, filterFor, type Filter } from './filters';
-import { dropPendingSession, loadPendingSessions, savePendingSession } from './pending-session';
+import { dropPendingSession, isStale, loadPendingSessions, savePendingSession } from './pending-session';
 import { composeStrip, type Branding } from './strip-compose';
 import { stripTheme } from './strip-theme';
 import { templateFor } from './templates';
@@ -42,6 +42,7 @@ const errorMessage = $('#error-message');
 const rotateOverlay = $('#rotate-overlay');
 const offlineHint = $('#offline-hint');
 const resumeNotice = $('#resume-notice');
+const shareError = $('#share-error');
 
 // Every top-level section, flow-driven and takeover alike.
 const sections: Record<string, HTMLElement> = {
@@ -220,8 +221,17 @@ function showStripPreview() {
     stripPreview.src = strip.toDataURL('image/jpeg', 0.85);
 }
 
+// Encoding five JPEGs can fail on a phone that is low on memory, and until they
+// are encoded the strip exists only as a canvas on the review screen. That must
+// never reach the global handler: showError() hides this screen and with it the
+// only Save link the guest has.
+function shareFailed() {
+    shareError.hidden = false;
+}
+
 async function shareToAlbum() {
     if (state.screen !== 'review') return;
+    shareError.hidden = true;
     pendingGroup = crypto.randomUUID();
     pendingUploads = [
         { blob: await toJpegBlob(strip!), kind: 'strip', slot: 0 },
@@ -281,7 +291,8 @@ function forget(group: string) {
 // The server dedupes per (group, slot), so finishing it costs nothing — the
 // guest already tapped Share, so they are told, not asked.
 async function resumePending() {
-    const pending = await loadPendingSessions(eventCode, Date.now());
+    const now = Date.now();
+    const pending = await loadPendingSessions(eventCode, now);
     if (!pending.length) return;
 
     resumeNotice.hidden = false;
@@ -292,7 +303,11 @@ async function resumePending() {
             await uploadAll(session.uploads, (upload) => sendUpload(session.group, upload), () => {});
             forget(session.group);
         } catch (error) {
-            if (error instanceof UploadError && isTerminal(error)) forget(session.group);
+            // A closed booth or a rejected file won't be fixed by trying later;
+            // and a session past its window has just had the last go it was
+            // being kept for.
+            const done = (error instanceof UploadError && isTerminal(error)) || isStale(session, now);
+            if (done) forget(session.group);
             resumeNotice.textContent = "An earlier strip still hasn't made it up.";
             return;
         }
@@ -507,7 +522,7 @@ $('#add-filter').addEventListener('click', beginCustomise);
 // Re-ensure the camera first: a guest can linger on the customise screen long
 // enough for the phone to lock and kill the stream (like retake).
 $('#customise-start').addEventListener('click', () => void enterCamera(() => dispatch({ type: 'start' })));
-$('#share').addEventListener('click', shareToAlbum);
+$('#share').addEventListener('click', () => void shareToAlbum().catch(shareFailed));
 $('#retake').addEventListener('click', retake); // same guest, same run — keep their filter
 $('#again').addEventListener('click', () => { setFilter('none'); retake(); }); // fresh run — drop the last guest's look
 $('#camera-retry').addEventListener('click', async () => {

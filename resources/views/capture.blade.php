@@ -227,6 +227,10 @@
                 </div>
                 <div class="bottom">
                     <p class="consent-note">Sharing puts your strip in the event album — anyone with the link can see it.</p>
+                    {{-- Shown when the strip can't be encoded for sending (a phone
+                         low on memory). Staying on this screen matters: it holds
+                         the only copy and the only Save link. --}}
+                    <p class="error" id="share-error" hidden>That didn't send — save your strip to your phone, then try again.</p>
                     <button id="share" class="btn--hero">Share to the album</button>
                     <div class="btn-row">
                         <a id="save-review" class="btn btn--ghost" download aria-disabled="true">Save to phone</a>

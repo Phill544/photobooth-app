@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
     dropPendingSession,
+    isStale,
     loadPendingSessions,
     savePendingSession,
     STALE_AFTER_MS,
@@ -67,12 +68,17 @@ describe('the pending session store', () => {
         expect((await loadPendingSessions('PARTY2', NOW)).map((s) => s.group)).toEqual(['first', 'second']);
     });
 
-    it('forgets a session nobody came back for within a day', async () => {
+    it('still offers a stale session for the booth the guest is standing in', async () => {
         await savePendingSession(session({ group: 'ancient', savedAt: NOW - STALE_AFTER_MS - 1 }));
 
-        expect(await loadPendingSessions('PARTY2', NOW)).toEqual([]);
-        // Dropped for good, not just skipped — the event is long over.
-        expect(await loadPendingSessions('PARTY2', NOW - STALE_AFTER_MS)).toEqual([]);
+        // Deleting it unsent would throw away a strip that is sitting right
+        // there on a phone that has just found signal again. It gets one last go.
+        expect((await loadPendingSessions('PARTY2', NOW)).map((s) => s.group)).toEqual(['ancient']);
+    });
+
+    it('knows which sessions are past their window', async () => {
+        expect(isStale(session({ savedAt: NOW - STALE_AFTER_MS - 1 }), NOW)).toBe(true);
+        expect(isStale(session({ savedAt: NOW - STALE_AFTER_MS + 1 }), NOW)).toBe(false);
     });
 
     it('still offers a session saved hours ago', async () => {
@@ -81,12 +87,14 @@ describe('the pending session store', () => {
         expect(await loadPendingSessions('PARTY2', NOW)).toHaveLength(1);
     });
 
-    it('clears a stale session belonging to another event too', async () => {
+    it('clears a stale session from an event the guest is not at', async () => {
         await savePendingSession(session({ group: 'ancient', eventCode: 'OTHER2', savedAt: NOW - STALE_AFTER_MS - 1 }));
+        await savePendingSession(session({ group: 'recent', eventCode: 'OTHER2', savedAt: NOW }));
 
         await loadPendingSessions('PARTY2', NOW);
 
-        expect(await loadPendingSessions('OTHER2', NOW)).toEqual([]);
+        // A day old and they are somewhere else entirely; the fresh one stays.
+        expect((await loadPendingSessions('OTHER2', NOW)).map((s) => s.group)).toEqual(['recent']);
     });
 
     it('drops a session once it has landed', async () => {

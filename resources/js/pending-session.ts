@@ -16,6 +16,10 @@ const STORE = 'pending-sessions';
 // A strip nobody has come back for in a day belongs to an event that has ended.
 export const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 
+export function isStale(session: PendingSession, now: number): boolean {
+    return now - session.savedAt >= STALE_AFTER_MS;
+}
+
 export async function savePendingSession(session: PendingSession): Promise<void> {
     const db = await openDb();
     try {
@@ -25,21 +29,24 @@ export async function savePendingSession(session: PendingSession): Promise<void>
     }
 }
 
-// Everything still worth sending for this event, oldest first — and stale
-// records are cleared out on the way past, whichever event they belong to.
+// Everything held for this event, oldest first — including sessions past their
+// window, which get one last attempt rather than being deleted unsent: a guest
+// opening the booth link a day later is a phone that has just found signal, with
+// the strip still on it. Only sessions belonging to events the guest is NOT at
+// are swept here; the caller drops a stale one once it has had its go.
 export async function loadPendingSessions(eventCode: string, now: number): Promise<PendingSession[]> {
     const db = await openDb();
     try {
         const all = await run<PendingSession[]>(db, 'readonly', (store) => store.getAll());
-        const stale = all.filter((session) => now - session.savedAt >= STALE_AFTER_MS);
-        if (stale.length) {
+        const abandoned = all.filter((session) => session.eventCode !== eventCode && isStale(session, now));
+        if (abandoned.length) {
             await run(db, 'readwrite', (store) => {
-                for (const session of stale) store.delete(session.group);
+                for (const session of abandoned) store.delete(session.group);
             });
         }
 
         return all
-            .filter((session) => session.eventCode === eventCode && !stale.includes(session))
+            .filter((session) => session.eventCode === eventCode)
             .sort((a, b) => a.savedAt - b.savedAt);
     } finally {
         db.close();
