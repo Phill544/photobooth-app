@@ -20,7 +20,7 @@ hygiene** (noindex/robots, the friendly unknown-code 404, a throttled register) 
 pipes** (typed upload failures, a jittered offline-aware retry tail, an interrupted share that
 resumes itself from IndexedDB, queued album thumbnails + a tap-to-enlarge lightbox, immutably
 cached session-free image routes).
-**136 Pest + 82 Vitest tests green.** Every feature slice was built red/green and then put
+**157 Pest + 83 Vitest tests green.** Every feature slice was built red/green and then put
 through an adversarial review (see Conventions).
 
 ## Stack & how to run
@@ -84,6 +84,12 @@ through an adversarial review (see Conventions).
   the one screen with no way to save a strip, so the queue must always be able to end. The failed
   screen's copy comes from the reason **and** the landed count: the strip is queued first, so one
   landed file means it is already in the album and the screen must not say otherwise.
+- **The booth holds the only copy until it lands**, so two things it must never do: reach a screen
+  that hides the Save link while holding an unsaved strip (a `toJpegBlob` rejection used to escape
+  to the global handler and the terminal error screen — `shareToAlbum` now catches its own
+  failures and stays on review), and delete a pending session it has not tried to send (a session
+  past its 24h window still gets one last attempt when the guest opens that booth again; only
+  sessions from events they are *not* at are swept).
 - **An interrupted share finishes itself:** tapping Share writes the session (blobs, group uuid,
   event code) to IndexedDB before the first byte goes up; the next load of that booth drains
   whatever is left in the background and narrates it in `#resume-notice`. Records expire after 24h,
@@ -93,6 +99,23 @@ through an adversarial review (see Conventions).
   Chrome `ctx.filter` fast path) AND a 4×5 colour matrix. iOS Safari ships `ctx.filter` disabled, so
   `grabFrame` feature-detects it and falls back to a `getImageData` colour-matrix pass — verified to
   match the CSS path within 1–2/255.
+
+**Durability (the app's most expensive lesson).** Photos live in Laravel Cloud object storage;
+the container's own filesystem is wiped on every deploy. Before a bucket was attached the default
+disk silently fell back to `local` and every photo written was lost, with no error anywhere — so
+two guards now exist, and neither is optional. `App\Support\Durability::diskIsEphemeral()` is asked
+**per upload request** (a bucket can be detached, a preview environment gets none, a worker
+container can lack the injected config) and refuses the write with a 503, which the client retries
+and the phone survives. `php artisan photobooth:check-storage` asks the same question as a **deploy
+command**, plus a write/read round trip, so a release configured that way should not go live at all;
+`--photos` adds the after-the-fact question (how many photo rows point at a file that isn't there),
+which is the only way anyone would find out that something had already gone.
+Two related traps, both found by the audit and both now covered: the disk is built with
+`'throw' => false, 'report' => false`, so a refused write returns a bare `false` with nothing logged
+— `PhotoController::store`, `applyLogo` and `GenerateThumbnail` all check that return rather
+than recording it (a
+`false` path would mean a 201 for bytes that do not exist, and the booth drops its own copy on a
+201); and the logo is written before the old one is deleted, never the other way round.
 
 **Server** — `EventController` (create/manage/dashboard/logo/QR), `PhotoController` (upload +
 idempotent per `(event_id, group_uuid, slot)`, serve, serve derivative, session delete),
@@ -114,9 +137,10 @@ falls back to the SQLite default and dies with "database.sqlite does not exist" 
 **redeploy** (so `config:cache` re-reads env), then `php artisan migrate --force`. Also set
 `FILESYSTEM_DISK=s3` (durable photos) and `APP_DEBUG=false`. Production starts with **no data**
 (the demo seed is `local`-only); register, then `php artisan photobooth:make-admin you@example.com`
-to grant yourself admin. **New with P1: the environment needs a worker process**
-(`php artisan queue:work`) or no album thumbnail ever gets generated — nothing breaks without
-one, every guest just pays for it in bandwidth. `composer run dev` already runs one locally.
+to grant yourself admin. **New with P1: the environment needs something running the thumbnail
+jobs** — production uses a Laravel Cloud managed queue (which is why `aws/aws-sdk-php` is a
+dependency); nothing breaks without one, every guest just pays for it in bandwidth.
+`composer run dev` runs a worker locally.
 
 ## Conventions (the user's, follow them)
 

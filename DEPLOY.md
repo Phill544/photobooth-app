@@ -1,10 +1,17 @@
 # Deploying to Laravel Cloud
 
 The app is portable by construction (standard Laravel, all file writes through the `Storage`
-facade, plain Postgres, no serverless code). Deployment is almost entirely **platform config** —
-there are no code changes needed to run on Laravel Cloud.
+facade, plain Postgres, no serverless code). Deployment is almost entirely **platform config**.
+
+Two Composer packages exist purely for this platform and must stay in `composer.json`:
+`league/flysystem-aws-s3-v3` (Laravel's S3 driver, which Cloud's object storage speaks) and
+`aws/aws-sdk-php` (required by Cloud's managed queues — a deploy that provisions one without it
+fails outright). Neither is used directly by any app code.
 
 ## Environment variables (Laravel Cloud dashboard)
+
+Most of what this app needs is **injected by attaching a resource**, not typed in by hand. Set
+only these yourself, under the environment's *Environment variables*:
 
 ```
 APP_NAME=Photobooth
@@ -12,27 +19,38 @@ APP_ENV=production
 APP_DEBUG=false            # flip to true briefly if you need to read a real error
 APP_KEY=                   # generate one (Cloud can, or `php artisan key:generate --show`)
 APP_URL=https://your-domain   # important: QR codes + invite links use this / the request host
-
-# Database — attach a Postgres database in Cloud; it injects these. Just ensure:
-DB_CONNECTION=pgsql
-
-# Sessions, cache (throttle state), queue — DB-backed so they're shared across containers.
-# The `sessions` and `cache` tables already exist in the migrations.
-SESSION_DRIVER=database
-CACHE_STORE=database
-QUEUE_CONNECTION=database
-
-# Object storage — attach Cloud object storage; it injects the AWS_* vars. Then:
-FILESYSTEM_DISK=s3
-# (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_DEFAULT_REGION / AWS_BUCKET /
-#  AWS_ENDPOINT / AWS_USE_PATH_STYLE_ENDPOINT are provided by the attached bucket.)
+CACHE_STORE=database       # throttle state must be shared across containers, so not `array`
 ```
 
-Photos and logos are written to the default disk and served **through the app**
-(`Storage::response()`), so a **private** bucket is correct — nothing needs to be publicly
-readable. With `FILESYSTEM_DISK=local` (the default) uploads land on the container's ephemeral
-disk and vanish on redeploy, so `FILESYSTEM_DISK=s3` is the one that actually matters for keeping
-guests' photos.
+Everything else arrives on its own, and **is not worth setting by hand — a custom variable
+overrides an injected one**, which is how you end up with a live app pointed at the wrong place:
+
+| Injected | By | Notes |
+|---|---|---|
+| `DB_CONNECTION=pgsql`, `DB_HOST`, … | attaching a Postgres database | |
+| `FILESYSTEM_DISK=<your disk name>` + `LARAVEL_CLOUD_DISK_CONFIG` | attaching an object storage bucket | see below |
+| `QUEUE_CONNECTION=cloud` + `LARAVEL_CLOUD_MANAGED_QUEUES_CONFIG` | creating a managed queue | see below |
+| `LOG_CHANNEL=laravel-cloud-socket` | the platform | |
+
+`SESSION_DRIVER` is whatever you choose; production runs `cookie`, which suits serverless (no
+shared store to reach, nothing to clean up). `database` works too — the `sessions` table exists.
+
+### Object storage — the one that keeps guests' photos
+
+Attach a bucket from the environment's canvas ("Add bucket"), choose **Laravel Object Storage**,
+and give it a **disk name** — that name is what lands in `FILESYSTEM_DISK`, so a bucket named
+`private` yields `FILESYSTEM_DISK=private`. Mark it the **default** disk and choose **Private**
+visibility: every photo and logo is served through the app (`Storage::response()`), so nothing
+needs to be publicly readable. Redeploy afterwards.
+
+The app never names a disk — every write is `Storage::put()` / `->store()` on the default — so the
+disk name is entirely yours to pick and no code changes with it.
+
+> **This is the setting that matters most.** Laravel Cloud's filesystem is ephemeral: it resets on
+> every deploy and each replica has its own. With no bucket attached, `config/filesystems.php`
+> falls back to `local` and **every photo a guest takes is written to disk that dies with the
+> container** — silently, with no error anywhere. That is not a hypothetical; it is how this app
+> ran until a bucket was attached. Never run an environment without one.
 
 ## Build + deploy commands
 
@@ -46,22 +64,56 @@ npm ci && npm run build          # MUST run — produces public/build/manifest.j
 Deploy (run on every release, after build):
 
 ```
+php artisan photobooth:check-storage
 php artisan migrate --force
 php artisan config:cache && php artisan route:cache && php artisan view:cache
 ```
 
+`photobooth:check-storage` runs first and exits non-zero if the default disk is a local one on a
+deployed environment, or if the bucket won't return bytes it was just handed. It exists because the
+alternative — writing every guest's photos to a disk that dies with the container — produces no
+error at all, and you find out weeks later. Deploy commands run on the real infrastructure just
+before a release goes live, so it sees the same disk the app will.
+
+> Laravel Cloud's docs don't say whether a failing deploy command aborts the release, so verify
+> that once. Either way the failure is loud in the deployment log, and the command can be run
+> any time from the environment's **Commands** tab.
+
+The upload path asks the same question on **every request** and answers 503 rather than writing a
+photo somewhere that dies — a refused upload is retried by the phone and costs nothing, a silent
+201 costs the guest their strip. The deploy gate alone isn't enough: a bucket can be detached long
+after a release went out.
+
+To ask whether anything has *already* gone missing (one lookup per photo, so run it by hand rather
+than on deploy):
+
+```
+php artisan photobooth:check-storage --photos
+```
+
+It reports how many photo rows point at a file the disk doesn't have, names the first ten, and
+exits non-zero if there are any.
+
 > **`config:cache` captures env at cache time.** If you change env vars (e.g. attach the database
 > or set `DB_CONNECTION`) you must **redeploy** (or `php artisan config:clear`) so the cache picks
 > them up — otherwise the app keeps running with the stale/default values.
+>
+> Laravel Cloud's own docs prefer `config:cache` in the **build** step rather than the deploy step.
+> Either works here: the disk and queue that matter are configured at *runtime* by the framework
+> from `LARAVEL_CLOUD_DISK_CONFIG` / `LARAVEL_CLOUD_MANAGED_QUEUES_CONFIG`, so they override
+> whatever a cached config says.
+
+Do **not** add `php artisan optimize:clear` or `storage:link` to either list — Cloud's docs call
+both out as harmful or pointless there (the symlink cannot persist on an ephemeral filesystem).
 
 Do **not** run `php artisan db:seed` in production — the demo seed is guarded to `local` and will
 no-op, but there's no reason to invoke it.
 
-## The queue worker (album thumbnails)
+## The queue (album thumbnails)
 
-Every upload dispatches a `GenerateThumbnail` job onto the `database` queue: it writes a
-480px-wide derivative beside the original and records it on the photo row. The album grids ask
-for that derivative instead of the full file. A composed strip is a fixed size whatever the phone
+Every upload dispatches a `GenerateThumbnail` job: it writes a 480px-wide derivative beside the
+original and records it on the photo row, and the album grids ask for that instead of the full
+file. A composed strip is a fixed size whatever the phone
 took it on — 648px wide for the single-column templates, 1272px for the 2x2 grid — so the saving
 there runs from about half the bytes to a fair bit more; a camera frame is as large as the phone's
 camera made it, and shrinks much further. Across a busy album's two tabs that is tens of megabytes
@@ -75,18 +127,31 @@ environment's command runner:
 php artisan tinker --execute="App\Models\Photo::whereNull('thumb_path')->each(fn (\$p) => App\Jobs\GenerateThumbnail::dispatch(\$p));"
 ```
 
-**Laravel Cloud needs a worker to run them.** Add a **Worker** process on the environment:
+(Run it from the environment's **Commands** tab.)
 
-```
-php artisan queue:work --tries=3 --timeout=60
-```
+**Something has to run the jobs.** Production uses a Laravel Cloud **managed queue**: create one
+from the environment canvas ("Add compute" → "Managed queue") and deploy. Cloud provisions it,
+injects `QUEUE_CONNECTION=cloud`, and runs and autoscales the workers itself — there is no worker
+process to configure and no `queue:restart` to run. The queue's name only matters if the app
+dispatches to a named queue, which it doesn't: it dispatches to the environment's default.
 
-It needs the same env as the web process (it reads and writes object storage). Nothing breaks
-without a worker — uploads still succeed and the grids serve full-size originals — but every
-guest pays for that in bandwidth, so treat it as required.
+Two things worth knowing when you create it:
 
-> The `jobs` and `failed_jobs` tables already exist in the migrations, so there's nothing to
-> create. Check `failed_jobs` if thumbnails stop appearing.
+- **Give it more than the default 256 MiB.** GD decodes a photo before it resizes it, so a 4000×3000
+  camera frame briefly costs ~48 MB of bitmap plus overhead. If thumbnails stop appearing and the
+  logs say "allowed memory size exhausted", that's this — the queue's Memory chart confirms it.
+- The Flex class caps a job at 90 seconds, which these jobs (~40 ms) never approach.
+
+Failed jobs appear in the environment's **Queues** dashboard under Monitoring, with retry and
+delete — the `queue:failed` / `queue:retry` commands don't work against managed queues.
+
+Nothing breaks without a queue: uploads still succeed and the grids serve full-size originals,
+which is the designed degradation. Every guest just pays for it in bandwidth.
+
+> **If you'd rather not use a managed queue**, leave `QUEUE_CONNECTION` at its `database` default
+> (the `jobs` and `failed_jobs` tables already exist) and add a background process running
+> `php artisan queue:work --tries=3` on the App cluster. It shares CPU with web traffic and gives
+> you no failed-job visibility, which is why production doesn't do this.
 
 ## First deploy: create your admin
 
@@ -107,6 +172,8 @@ You're now an admin and can see/manage every event.
 | 500 on **every** page | `APP_KEY` unset, or migrations haven't run | Set `APP_KEY`; confirm `php artisan migrate --force` is in the deploy commands (temporarily set `APP_DEBUG=true` to read the exact error) |
 | "could not find driver" / "table not found" | DB not attached / `DB_CONNECTION` wrong / migrations not run | Attach Postgres, `DB_CONNECTION=pgsql`, run `migrate --force` |
 | A booth link 404s in production (e.g. `/e/party2`) | `PARTY2` is the **local** demo event; the seed is local-only, so production has no data yet | Register at `/register`, create a real event, then `photobooth:make-admin you@…` |
-| Uploads work but photos disappear after a redeploy | Writing to ephemeral local disk | `FILESYSTEM_DISK=s3` + attach object storage |
-| Album grids are slow and load full-size strips | No queue worker, so no thumbnails were generated | Add the worker process above; it picks up the backlog on its own |
+| Uploads work but photos disappear after a redeploy | No bucket attached, so the default disk fell back to the ephemeral `local` disk | Attach an object storage bucket and mark it default, then redeploy. **Photos written before that are gone.** |
+| A deploy fails complaining about `aws/aws-sdk-php` | A managed queue is being provisioned and the package isn't in `composer.lock` | It's a required dependency of this app — don't remove it |
+| `Class "League\Flysystem\AwsS3V3\..." not found` | `league/flysystem-aws-s3-v3` missing while the disk is `s3` | Same: it's a required dependency |
+| Album grids are slow and load full-size strips | Nothing is running the thumbnail jobs | Create the managed queue above; it picks up the backlog on its own |
 | QR codes / invite links point at the wrong host | `APP_URL` wrong | Set `APP_URL` to the real domain |
