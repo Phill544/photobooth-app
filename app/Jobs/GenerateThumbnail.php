@@ -24,7 +24,14 @@ class GenerateThumbnail implements ShouldQueue
     {
         $path = dirname($this->photo->path).'/thumbs/'.basename($this->photo->path);
 
-        Storage::put($path, Thumbnail::fromImage(Storage::get($this->photo->path)));
+        // The disk answers a refused write with `false`, not an exception, so
+        // recording the path regardless would point every album tile at a file
+        // that was never written. Failing the job puts it in the queue's failed
+        // list instead, where someone can see it.
+        throw_unless(
+            Storage::put($path, Thumbnail::fromImage(Storage::get($this->photo->path))),
+            new \RuntimeException("Could not write the derivative for photo {$this->photo->id}."),
+        );
 
         $this->photo->update(['thumb_path' => $path]);
     }

@@ -104,11 +104,18 @@ class EventController extends Controller
             return;
         }
 
-        if ($event->logo_path) {
-            Storage::delete($event->logo_path);
-        }
+        // Write the replacement before dropping the old one, and check that it
+        // landed: the disk returns false rather than throwing when it refuses a
+        // write, and deleting first would leave the host with neither logo.
+        $path = $request->file('logo')?->store('logos');
+        abort_if($path === false, 503, 'The logo could not be stored.');
 
-        $event->update(['logo_path' => $request->file('logo')?->store('logos')]);
+        $replaced = $event->logo_path;
+        $event->update(['logo_path' => $path]);
+
+        if ($replaced) {
+            Storage::delete($replaced);
+        }
     }
 
     private function qrSvg(string $url): string

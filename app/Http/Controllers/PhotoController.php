@@ -58,11 +58,18 @@ class PhotoController extends Controller
             return response()->json(['id' => $existing->id]);
         }
 
+        // The object-storage disk is built with 'throw' => false and 'report' =>
+        // false, so a refused write comes back as a plain false with nothing
+        // logged. Storing that as the path would tell the guest 201 while their
+        // strip went nowhere — and the booth drops its own copy on a 201.
+        $path = $request->file('photo')->store("events/{$event->id}");
+        abort_if($path === false, 503, 'The photo could not be stored.');
+
         $photo = $event->photos()->create([
             'kind' => $validated['kind'],
             'group_uuid' => $validated['group'],
             'slot' => $validated['slot'],
-            'path' => $request->file('photo')->store("events/{$event->id}"),
+            'path' => $path,
         ]);
 
         GenerateThumbnail::dispatch($photo);
