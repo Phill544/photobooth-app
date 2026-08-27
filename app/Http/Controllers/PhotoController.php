@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Jobs\GenerateThumbnail;
 use App\Models\Event;
 use App\Models\Photo;
+use App\Support\Durability;
 use App\Support\ImageResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -57,6 +58,11 @@ class PhotoController extends Controller
         if ($existing) {
             return response()->json(['id' => $existing->id]);
         }
+
+        // Checked per request, not just at deploy: a bucket detached mid-life, a
+        // preview environment, or a container missing the injected disk config
+        // all fall back to the local disk long after the deploy gate passed.
+        abort_if(Durability::diskIsEphemeral(), 503, 'Photo storage is not configured durably.');
 
         // The object-storage disk is built with 'throw' => false and 'report' =>
         // false, so a refused write comes back as a plain false with nothing
