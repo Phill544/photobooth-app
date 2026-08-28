@@ -175,6 +175,18 @@ dependency); nothing breaks without one, every guest just pays for it in bandwid
   Architecture map and the git log.
 - **Never commit unless Phill asks**, and ask again next time — permission for one batch doesn't
   carry. Finish the slice, leave it in the working tree, and offer a commit split.
+- **When he does ask, branch first — feature work never lands straight on `main`.** Cut a branch
+  named for the slice (`p3-event-delete`), commit there, and hand back the fast-forward, so
+  whether it reaches main stays his call and he makes it having already seen the commits:
+  `git checkout main && git merge --ff-only p3-event-delete`.
+  Shape the commits the same way each time. **One commit per slice** — not one per file, and not
+  one for everything: the git log is this project's per-slice narrative, so a commit is a thing
+  that shipped, and the message explains the *why* rather than restating the diff. **Check each
+  commit is green on its own** by checking the intermediate out and running the suite; a split
+  nobody can bisect to is worth less than no split at all. And **split the `HANDOVER.md` edits
+  across the commits** so each one's doc describes only its own code — the test count included,
+  which means the earlier commit reads the lower number. Write messages with
+  `git commit -F <file>` (see Windows gotchas).
 - Verify in the browser (the in-app Browser pane) by reading actual output, not by asserting it
   "should" work — e.g. read a composed strip's pixels, don't assume.
 
