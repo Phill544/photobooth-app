@@ -277,5 +277,13 @@ toggle + higher capture resolution · audio/haptic countdown cue.
 
 ## Handy facts
 - Dev login (local only): `demo@example.com` / `password` (seeded admin).
+- **`php artisan db:seed` gives you albums to look at**, not just the login: an empty booth to
+  shoot into (`PARTY2`), one session (`BREKKY`), and a normal closed night of twelve (`GARDEN`).
+  `--class=BigEventSeeder` adds the two that are worth measuring against — `SUNSET` (750 photos)
+  and `NEWYRS` (4000, the night that stalled a dev server) — in ~15s and ~280MB. Seeded photos
+  are real JPEGs with real derivatives, written where `PhotoController::store` and
+  `GenerateThumbnail` write theirs, because an album's cost is the files it asks for; only a
+  dozen images are ever drawn and the rest are copies of those (`SeedsAlbums`). It skips any
+  event that already has photos, so re-running it is safe.
 - Event codes: 6 chars from an unambiguous alphabet (no O/0/1/I), case-insensitive.
 - Recent git history is the best per-slice narrative — each commit message explains the why.

@@ -45,6 +45,28 @@ composer run setup
 That installs PHP + npm dependencies, creates `.env`, generates the app key, creates the
 SQLite database, runs migrations, and builds the frontend.
 
+Then seed a host account and a few events to look at:
+
+```
+php artisan db:seed
+```
+
+That creates the dev login (`demo@example.com` / `password`, an admin) and three events: an
+empty booth to shoot into (`PARTY2`), a one-session album (`BREKKY`) and a normal small night
+of twelve (`GARDEN`, closed). Every seeded photo is a real JPEG on the disk with a real
+derivative beside it, because an album's cost is the number of files it asks for.
+
+For the sizes worth measuring against — a 750-photo launch and the 4000-photo New Year's that
+album pagination exists for — add:
+
+```
+php artisan db:seed --class=BigEventSeeder
+```
+
+That one writes ~9,500 files (~280MB, about 15 seconds — the images come from a small pool, so
+only a dozen of them are ever drawn). It is safe to re-run: it skips any event that already has
+photos.
+
 ## Daily development
 
 ```
