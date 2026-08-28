@@ -16,6 +16,11 @@ use Illuminate\Validation\ValidationException;
 
 class EventController extends Controller
 {
+    // Sessions, not photos: one page is 24 cards — 24 strips on the wall, and
+    // their ~72 originals in the second panel, which starts hidden. Every tile
+    // is lazy, so a page costs the strips a guest can actually see.
+    public const SESSIONS_PER_PAGE = 24;
+
     public function dashboard(Request $request)
     {
         $user = $request->user();
@@ -66,15 +71,17 @@ class EventController extends Controller
 
         // "Photos" always means the shots a guest took; the composed strip is a
         // separate artifact with its own count, so it never joins that total.
-        $photos = $event->photos()->get();
-        $strips = $photos->where('kind', 'strip');
+        // Counted in the database, not in PHP: this page shows three numbers,
+        // and hydrating a busy night's four thousand rows to reach them is the
+        // same load the album was just cured of.
+        $strips = fn () => $event->photos()->where('kind', 'strip');
 
         return view('owner', [
             'event' => $event,
             'qrSvg' => $this->qrSvg(url("/e/{$event->code}")),
-            'photoCount' => $photos->where('kind', 'original')->count(),
-            'stripCount' => $strips->count(),
-            'lastStripAt' => $strips->max('created_at'),
+            'photoCount' => $event->photos()->where('kind', 'original')->count(),
+            'stripCount' => $strips()->count(),
+            'lastStripAt' => $strips()->latest()->first()?->created_at,
             'templates' => Event::TEMPLATES,
             'themes' => Event::STRIP_THEMES,
         ]);
@@ -167,19 +174,53 @@ class EventController extends Controller
         ]);
     }
 
-    public function gallery(Event $event)
+    public function gallery(Request $request, Event $event)
     {
-        $photos = $event->photos()->orderBy('slot')->get();
-        $sessions = $photos
+        $oldestFirst = $request->query('order') === 'oldest';
+
+        // A page is a page of *sessions*. A strip and the shots it was composed
+        // from are one card, so half a session is not a thing the album can
+        // render — and the cursor rides on MAX(id), a session's place in the
+        // night, rather than a row offset: a guest sharing while another guest
+        // scrolls would otherwise push a card onto their second page as well,
+        // and they'd see it twice. MAX() and HAVING are the portable spelling
+        // of that in both SQLite and Postgres.
+        $after = $request->integer('after');
+        $sessions = $event->photos()->toBase()
+            ->select('group_uuid')
+            ->selectRaw('MAX(id) as last_id')
             ->groupBy('group_uuid')
-            ->sortByDesc(fn ($photos) => $photos->max('id'))
-            ->values();
+            ->when($after, fn ($query) => $query->havingRaw('MAX(id) '.($oldestFirst ? '>' : '<').' ?', [$after]))
+            ->orderBy('last_id', $oldestFirst ? 'asc' : 'desc')
+            ->limit(self::SESSIONS_PER_PAGE + 1) // one over the page: is there another?
+            ->get();
+
+        $hasMore = $sessions->count() > self::SESSIONS_PER_PAGE;
+        $page = $sessions->take(self::SESSIONS_PER_PAGE);
+
+        $photos = $event->photos()
+            ->whereIn('group_uuid', $page->pluck('group_uuid'))
+            ->orderBy('slot')
+            ->get()
+            ->groupBy('group_uuid');
 
         return view('gallery', [
             'event' => $event,
-            'sessions' => $sessions,
-            'stripCount' => $photos->where('kind', 'strip')->count(),
-            'photoCount' => $photos->where('kind', 'original')->count(),
+            'sessions' => $page->map(fn ($session) => $photos[$session->group_uuid]),
+            'nextPage' => $hasMore ? $this->galleryUrl($event, $oldestFirst, $page->last()->last_id) : null,
+            'flipUrl' => $this->galleryUrl($event, ! $oldestFirst),
+            'oldestFirst' => $oldestFirst,
+            // The header speaks for the whole album, so it asks the database to
+            // count rather than counting a page it can see.
+            'stripCount' => $event->photos()->where('kind', 'strip')->count(),
+            'photoCount' => $event->photos()->where('kind', 'original')->count(),
         ]);
+    }
+
+    private function galleryUrl(Event $event, bool $oldestFirst, ?int $after = null): string
+    {
+        $query = array_filter(['order' => $oldestFirst ? 'oldest' : null, 'after' => $after]);
+
+        return "/e/{$event->code}/gallery".($query ? '?'.http_build_query($query) : '');
     }
 }

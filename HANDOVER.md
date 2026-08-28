@@ -20,8 +20,10 @@ hygiene** (noindex/robots, the friendly unknown-code 404, a throttled register) 
 pipes** (typed upload failures, a jittered offline-aware retry tail, an interrupted share that
 resumes itself from IndexedDB, queued album thumbnails + a tap-to-enlarge lightbox, immutably
 cached session-free image routes) → the first of **P3 host trust** (a host can delete an event,
-and everything behind it, without an SSH session).
-**179 Pest + 83 Vitest tests green.** Every feature slice was built red/green and then put
+and everything behind it, without an SSH session) → **a paged album** (the 4000-photo event that
+used to render 3997 `<img>` tags into one page now arrives 24 sessions at a time, and the dev
+seed can produce that event on demand).
+**194 Pest + 83 Vitest tests green.** Every feature slice was built red/green and then put
 through an adversarial review (see Conventions).
 
 ## Stack & how to run
@@ -29,7 +31,8 @@ through an adversarial review (see Conventions).
 - **Laravel 13 + Pest 5** (PHP 8.4), **vanilla TypeScript + Vite** (no UI framework, no Tailwind —
   a hand-rolled design system lives in `resources/views/partials/theme.blade.php`).
 - **SQLite locally, Postgres in production.** The code is DB-agnostic (Eloquent + portable
-  migrations, no raw SQL).
+  migrations; the one raw fragment is the album cursor's `MAX(id)` / `HAVING`, which is ANSI and
+  runs the same on both).
 - Dev commands: `composer run setup` (first run), `composer run dev`, `php artisan test`,
   `npm test` (Vitest), `npm run build`.
 - **Phone testing needs HTTPS** (camera APIs require a secure context): run a cloudflared tunnel at
@@ -48,6 +51,21 @@ through an adversarial review (see Conventions).
 **Routing** splits cleanly across two files:
 - **Guest, public (no login), `routes/web.php`:** `GET /e/{code}` (capture), `/e/{code}/gallery`,
   `POST /e/{code}/photos` (throttled, CSRF-exempt). The event code is the credential.
+  **The album is paged, and a page is a page of *sessions*** (`EventController::SESSIONS_PER_PAGE`,
+  24) — a strip and the shots it was composed from are one card, so half a session is not a thing
+  the page can render. The cursor is `?after=<MAX(id)>`, the session's place in the night, rather
+  than a row offset: offsets would hand a guest scrolling a live album the same card twice as soon
+  as somebody else shared. `MAX()` + `HAVING` is the portable spelling of that in both SQLite and
+  Postgres, and the grouped query is the only aggregate SQL in the app. `?order=oldest` reverses
+  it (the flip is a link now — a client-side one could only reorder the page it can see), and the
+  header's counts come from two `count()` queries, because they speak for the whole album. The
+  empty state answers *is this album empty*, never *is this page* — a cursor can outlive the sessions
+  behind it (a host deleting the last one), and that page is the end of the album, not an empty
+  one. The page's foot is a real `<a id="more">` to the next cursor, which the album's own script follows
+  on approach (`IntersectionObserver`, 600px early) and on tap, appending both panels out of the
+  fetched page. With no JS it is simply a link. **Measured on the 4000-photo event: 97 `<img>`
+  tags and 69KB against 3997 and 1.6MB, 96 rows hydrated against 3996 (50MB peak), 3ms of query
+  against 92ms.**
 - **Images, `routes/images.php`:** `/e/{code}/logo`, `/e/{code}/photos/{photo}` and `.../thumb`,
   registered from the `then:` closure in `bootstrap/app.php` with **only `SubstituteBindings`** --
   deliberately outside the `web` group, because an album asks for dozens of immutable files at once
@@ -209,16 +227,6 @@ the P1 paths too: each typed failure screen (close the booth from another phone 
 offline hold and its hint, the resume notice after killing the tab mid-upload, IndexedDB in iOS
 Safari **including private mode**, and the album's thumbnails, lightbox and per-photo save on both
 platforms.
-
-### Found in the field (not from the review, so no stable ID)
-- **The album has no pagination.** It renders every strip *and* every original in one page:
-  measured on a 4000-photo event, 3997 `<img>` tags and 1.6MB of HTML, against 42 tags and 46KB
-  for a normal one. The tiles are `loading="lazy"`, so this is a request-count problem rather
-  than a bandwidth one — but on serverless, one album view is thousands of invocations, and it
-  is what made a local dev server (single worker by default; `PHP_CLI_SERVER_WORKERS` is
-  commented out in `.env`) stop answering for ~45s on 2026-08-28. Worth a slice before an event
-  gets big enough to hit it: paginate or window `EventController::gallery`, which currently
-  does `$event->photos()->orderBy('slot')->get()` with no limit.
 
 ### P2 — Participation engine (the visible payoff)
 9. Live wall: full-screen `/e/{code}/wall` for venue TVs — strips animating in via 3–5s

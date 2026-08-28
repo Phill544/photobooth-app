@@ -27,6 +27,9 @@
             padding: 0 var(--page-gutter) var(--space-lg);
             border-bottom: 1px solid var(--line);
         }
+        /* The order flip is a link now (it reorders the album, not the page),
+           so it has to be talked back into looking like the chips beside it. */
+        a.chip { display: inline-flex; align-items: center; text-decoration: none; }
         .feed { max-width: var(--measure); margin: 0 auto; padding: var(--space-xl) var(--page-gutter) var(--space-3xl); }
 
         /* A wall of strips. They sit square here — the tilt is for the one strip
@@ -70,6 +73,11 @@
 
         .empty { text-align: center; color: var(--text-muted); font-family: var(--font-display);
             font-size: var(--display-sm); padding: var(--space-3xl) 0; }
+
+        /* The foot of the album: a real link to the next page of sessions, which
+           the script below follows on approach instead of waiting for a tap. */
+        .more { display: flex; justify-content: center; padding-top: var(--space-2xl); }
+        .more p { margin: 0; color: var(--text-muted); }
     </style>
 </head>
 <body class="ctx-light">
@@ -98,16 +106,23 @@
         </div>
     </div>
 
-    @if ($sessions->isNotEmpty())
+    {{-- Whether the album has anything in it, which is not the same question as
+         whether this page of it does: a cursor can outlive the sessions behind
+         it, and "No photos yet" would be a lie on an album of a thousand. --}}
+    @php($hasPhotos = $stripCount + $photoCount > 0)
+
+    @if ($hasPhotos)
         <div class="tabs chips">
             <button type="button" id="tab-strips" class="chip selected">Strips</button>
             <button type="button" id="tab-photos" class="chip">All photos</button>
-            <button type="button" id="tab-order" class="chip">Latest first ⇅</button>
+            {{-- A link, not a toggle: only one page of sessions is here, so
+                 flipping the DOM would reorder a slice and call it the album. --}}
+            <a id="tab-order" class="chip" href="{{ $flipUrl }}">{{ $oldestFirst ? 'Oldest first' : 'Latest first' }} ⇅</a>
         </div>
     @endif
 
     <main class="feed">
-        @if ($sessions->isEmpty())
+        @if (! $hasPhotos)
             <p class="empty">No photos yet — be the first.</p>
         @else
             {{-- Strips: one card per session, newest first. --}}
@@ -146,12 +161,22 @@
                     </a>
                 @endforeach
             </div>
+
+            @if ($nextPage)
+                <div class="more">
+                    <a id="more" class="btn btn--ghost" href="{{ $nextPage }}" rel="next">Load more</a>
+                </div>
+            @elseif ($sessions->isEmpty())
+                {{-- Nothing left behind this cursor — the sessions it named were
+                     deleted after the page that linked here was rendered. --}}
+                <div class="more"><p class="mono mono--plain">That's the whole album.</p></div>
+            @endif
         @endif
     </main>
 
     {{-- Tap-to-enlarge. The grids show derivatives; this is where the full-size
          file gets loaded, and where a guest saves the one photo they want. --}}
-    @if ($sessions->isNotEmpty())
+    @if ($hasPhotos)
     <div id="lightbox" hidden>
         <button type="button" id="lightbox-close" aria-label="Close">&times;</button>
         <img id="lightbox-image" alt="">
@@ -162,9 +187,10 @@
     </div>
     @endif
 
-    @if ($sessions->isNotEmpty())
+    @if ($hasPhotos)
     <script>
-        // Two views of the same album, and one ordering toggle over both grids.
+        // Two views of the same album. (Ordering is the server's job now — one
+        // page of sessions is here, and flipping it would reorder a slice.)
         (function () {
             const panels = { strips: document.querySelector('#panel-strips'), photos: document.querySelector('#panel-photos') };
             const tabs = { strips: document.querySelector('#tab-strips'), photos: document.querySelector('#tab-photos') };
@@ -177,26 +203,73 @@
                     }
                 });
             }
+        })();
+    </script>
 
-            // Reorder whole sessions, never the shots inside one — a strip's three
-            // frames always read in the order they were taken.
-            const flipSessions = (panel) => {
-                const groups = [];
-                for (const child of panel.children) {
-                    const last = groups.at(-1);
-                    if (last?.group === child.dataset.group) last.items.push(child);
-                    else groups.push({ group: child.dataset.group, items: [child] });
-                }
-                panel.append(...groups.reverse().flatMap((g) => g.items));
+    <script>
+        // The album arrives a page of sessions at a time; this fetches the next
+        // one as the guest nears the bottom and pours both panels into the ones
+        // already on screen. The link it follows is the same one it replaces, so
+        // a browser with no JS — or a fetch that fails — still has a tap that
+        // works, and a page that stalls is one the guest can nudge by hand.
+        (function () {
+            const more = document.querySelector('#more');
+            if (!more) return;
+
+            const panels = ['strips', 'photos'];
+            let loading = false;
+
+            const observer = new IntersectionObserver((entries) => {
+                if (entries.some((entry) => entry.isIntersecting)) load();
+            }, { rootMargin: '600px' }); // start fetching before the foot is reached
+
+            const finish = () => {
+                observer.disconnect();
+                more.closest('.more').innerHTML = '<p class="mono mono--plain">That\'s the whole album.</p>';
             };
 
-            let oldestFirst = false;
-            const order = document.querySelector('#tab-order');
-            order.addEventListener('click', () => {
-                oldestFirst = !oldestFirst;
-                order.textContent = (oldestFirst ? 'Oldest first' : 'Latest first') + ' ⇅';
-                for (const panel of Object.values(panels)) flipSessions(panel);
+            async function load() {
+                if (loading) return;
+                loading = true;
+                more.textContent = 'Loading…';
+
+                try {
+                    const response = await fetch(more.getAttribute('href'));
+                    if (!response.ok) throw new Error(response.status);
+                    const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+
+                    // A page with no panels at all is an album that emptied out
+                    // under us — a host can delete the last session while this
+                    // one is still holding a link to it. Nothing to append, and
+                    // no #more below, so it ends the scroll rather than throwing.
+                    for (const name of panels) {
+                        const arrived = page.querySelector('#panel-' + name);
+                        if (arrived) document.querySelector('#panel-' + name).append(...arrived.children);
+                    }
+
+                    // The page just appended names the one after it, or the
+                    // album ends here.
+                    const next = page.querySelector('#more');
+                    if (next) more.setAttribute('href', next.getAttribute('href'));
+                    else finish();
+                } catch {
+                    // Nothing was appended, so the link still points at the page
+                    // that failed: leave it be, and a tap tries again.
+                }
+
+                if (more.isConnected) more.textContent = 'Load more';
+                loading = false;
+            }
+
+            // A tap has to append too, not follow the link: the guest who
+            // reaches the foot before the observer does would otherwise be
+            // navigated off the album they just scrolled through.
+            more.addEventListener('click', (event) => {
+                event.preventDefault();
+                load();
             });
+
+            observer.observe(more);
         })();
     </script>
 

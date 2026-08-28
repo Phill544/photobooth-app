@@ -181,10 +181,14 @@ has exactly one obvious thing to do. (Imported from the Claude Design canvas `Re
 - The canvas shows a **full-bleed** camera preview. The preview keeps the template's cell aspect
   (`--cell-aspect`) instead, because `grabFrame` crops the stream to that aspect — a cover-cropped
   preview would stop being WYSIWYG. The HUD chips and shot dashes live in the surrounding black.
-- The canvas's album tabs (Strips / All photos / order) are **real** client-side controls, not
-  decoration. Per-session grouping of originals is now implicit in the ordering rather than
-  rendered as stacked session cards. The order toggle flips whole **sessions** (grouped by
-  `data-group`), never the shots inside one — a strip's frames always read in capture order.
+- The canvas's album tabs (Strips / All photos / order) are **real** controls, not decoration —
+  but they are not all the same kind. Strips / All photos toggle two panels that are both already
+  on the page; **order is a link the server answers** (`?order=oldest`), because the album arrives
+  a page of sessions at a time and a client-side flip could only reorder the page it can see.
+  Per-session grouping of originals is implicit in that ordering rather than rendered as stacked
+  session cards, and the ordering moves whole **sessions**, never the shots inside one — a strip's
+  frames always read in capture order (the server sorts sessions by `MAX(id)` and their photos by
+  `slot`).
 - The swatch pickers need JS to paint their shapes and hues; without it they are blank boxes and
   circles (the labels are still in the DOM, sr-only). Accepted, because the live strip preview that
   those pages exist for needs JS anyway — but it *is* a regression from the old `<select>`s.
