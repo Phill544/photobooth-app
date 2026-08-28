@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class Event extends Model
 {
@@ -60,6 +61,29 @@ class Event extends Model
     public function managedBy(?User $user): bool
     {
         return $user !== null && ($user->is_admin || $user->id === $this->owner_id);
+    }
+
+    // Rows cascade, bytes never do, so both the owner's delete button and
+    // photobooth:purge-event come through here; a second place that knew an
+    // event's files would drift from this one.
+    //
+    // The photos go by prefix, not one path at a time. Storage::delete() spends
+    // an object-store round trip per file and a busy night is thousands of them
+    // — a request that would still be deleting when the gateway gives up, where
+    // clearing the prefix is a handful of batched calls. It is also the only way
+    // to catch a derivative GenerateThumbnail wrote but never recorded, since no
+    // row names that file. Correct only while every photo is written under this
+    // prefix, which PhotoController::store does and EventDeleteTest pins.
+    //
+    // The logo is separate: logos are not per-event, so it goes by path.
+    public function purge(): void
+    {
+        Storage::deleteDirectory("events/{$this->id}");
+        if ($this->logo_path) {
+            Storage::delete($this->logo_path);
+        }
+
+        $this->delete(); // photo rows cascade
     }
 
     protected static function booted(): void

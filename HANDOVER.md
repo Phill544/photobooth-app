@@ -19,8 +19,9 @@ Design canvas `Redesign.dc.html`; see PLAN.md "Design system" + "Redesign") → 
 hygiene** (noindex/robots, the friendly unknown-code 404, a throttled register) → **P1 safe
 pipes** (typed upload failures, a jittered offline-aware retry tail, an interrupted share that
 resumes itself from IndexedDB, queued album thumbnails + a tap-to-enlarge lightbox, immutably
-cached session-free image routes).
-**157 Pest + 83 Vitest tests green.** Every feature slice was built red/green and then put
+cached session-free image routes) → the first of **P3 host trust** (a host can delete an event,
+and everything behind it, without an SSH session).
+**176 Pest + 83 Vitest tests green.** Every feature slice was built red/green and then put
 through an adversarial review (see Conventions).
 
 ## Stack & how to run
@@ -56,9 +57,12 @@ through an adversarial review (see Conventions).
   an ETag over the stored path, `X-Robots-Tag: noindex`, and a 304 when the phone already has the
   bytes. Verified to survive the `route:cache` the deploy runs, and the unknown-code 404 still
   names the code from these session-free routes.
-- **Owner, auth-gated:** `/dashboard`, `/new`, `POST /events`, `GET|PATCH /events/{code}`,
+- **Owner, auth-gated:** `/dashboard`, `/new`, `POST /events`, `GET|PATCH|DELETE /events/{code}`,
   toggle-closed, and `DELETE /e/{code}/groups/{group}`. `Event::managedBy($user)` = owner OR admin,
-  else 403.
+  else 403. The delete asks for the event code **in the request body**, not a browser `confirm()`:
+  it is the one action that destroys every guest's photos, and a dialog guards nothing a request
+  can skip. A rejected code redirects to `#delete` — the panel is the last thing on a long page,
+  and the error was measured 270px below the fold without it.
 - **Auth:** register/login/logout (hand-rolled `AuthController`, styled to the design system).
 - **Errors:** every 404 renders `resources/views/errors/404.blade.php`. A render hook in
   `bootstrap/app.php` fires only when an **`Event`** route binding is what failed and passes the
@@ -124,8 +128,17 @@ queue: raw GD in `App\Support\Thumbnail`, 480px wide, written beside the origina
 `photos.thumb_path`. `Photo::gridUrl()` asks for the derivative once there is one and the original
 until then, so an unrun queue degrades to yesterday's behaviour instead of broken images — **but
 production needs a worker process** (DEPLOY.md has the command). `Photo::paths()` is the single
-place that knows a row owns two files, so a session delete and `photobooth:purge-event` cannot
-orphan a derivative. Strip
+place that knows a row owns two files, so a **session** delete cannot orphan a derivative.
+Deleting a whole **event** goes through `Event::purge()` instead — the one place that knows an
+event's files, shared by the owner's delete button and `photobooth:purge-event` (which now takes
+`--force`, so it can be scheduled). It sweeps `events/{id}/` by prefix rather than a path at a
+time, for two reasons: `Storage::delete()` costs an object-store round trip **per file** and a
+busy night is thousands of them (measured: a 4000-photo event, ~4000 sequential calls, against a
+request that has a gateway timeout — the prefix goes in batches of a thousand); and it is the only
+way to catch a derivative `GenerateThumbnail` wrote before it recorded the column, which no row
+names. That is correct only while every photo is written under that prefix, which
+`PhotoController::store` does and `EventDeleteTest` pins with a test. The logo is deleted by
+path — logos are not per-event, and `photobooth:purge-event` used to leave every one behind. Strip
 **layout/shot-count** and **colour themes** live as data in `Event::TEMPLATES` / `Event::STRIP_THEMES`
 (PHP, for the form + validation) mirrored by geometry/hex in `templates.ts` / `strip-theme.ts` (JS,
 for the canvas) — **keep the keys in sync by hand** (noted in both files).
@@ -192,13 +205,19 @@ platforms.
     optional email-me-my-strip field with separate consent checkboxes (delivery ≠ marketing).
 
 ### P3 — Host trust pack (before charging money)
-13. Password reset, then email verification (mail is live on the deploy; reset matters more).
+> **Mail is not set up.** An earlier draft of this list said it was live on the deploy; Phill
+> confirmed on 2026-08-28 that nothing in production handles it. `config/mail.php` defaults to
+> `MAIL_MAILER=log`, DEPLOY.md documents no `MAIL_*` vars, and Laravel Cloud does not inject a
+> mailer the way it injects Postgres, storage and queues. **13 and 14 both need a real transport
+> attached and documented first** — shipping either onto the `log` mailer is worse than not
+> shipping it, because the UI says "check your email" and nothing ever arrives.
+
+13. Password reset, then email verification (reset matters more). Needs the mailer above.
 14. Download-all ZIP: queued job streams S3 → zip, emails a signed expiring link. Never
-    client-side (CORS + mobile memory).
-15. Event delete in the UI, reusing `photobooth:purge-event` logic (and give the command a
-    `--force` flag so it can be scheduled).
+    client-side (CORS + mobile memory). Needs the mailer above.
 16. Tri-state album privacy (hidden / PIN / open) + a stated retention window with a graceful
-    expired-album page.
+    expired-album page. `photobooth:purge-event --force` exists now, so the retention sweep has
+    something to schedule.
 
 ### P4 — New output modes (independent slices, in effort order)
 17. 9:16 story-strip variant of every layout from the same frames (share-sheet ready; build

@@ -28,6 +28,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/events', [EventController::class, 'store']);
     Route::get('/events/{event:code}', [EventController::class, 'show']);
     Route::patch('/events/{event:code}', [EventController::class, 'update']);
+    Route::delete('/events/{event:code}', [EventController::class, 'destroy']);
     Route::post('/events/{event:code}/toggle-closed', [EventController::class, 'toggleClosed']);
     Route::delete('/e/{event:code}/groups/{group}', [PhotoController::class, 'destroyGroup']);
 });

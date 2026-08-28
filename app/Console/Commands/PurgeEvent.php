@@ -4,11 +4,10 @@ namespace App\Console\Commands;
 
 use App\Models\Event;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Storage;
 
 class PurgeEvent extends Command
 {
-    protected $signature = 'photobooth:purge-event {code}';
+    protected $signature = 'photobooth:purge-event {code} {--force : Delete without asking, for scheduled runs}';
 
     protected $description = 'Delete an event, its photos, and their files';
 
@@ -22,12 +21,11 @@ class PurgeEvent extends Command
         }
 
         $photoCount = $event->photos()->count();
-        if (! $this->confirm("Delete '{$event->name}' and its {$photoCount} photos?")) {
+        if (! $this->option('force') && ! $this->confirm("Delete '{$event->name}' and its {$photoCount} photos?")) {
             return self::SUCCESS;
         }
 
-        Storage::delete($event->photos()->get()->flatMap->paths()->all());
-        $event->delete(); // photo rows cascade
+        $event->purge();
 
         $this->info("Purged '{$event->name}'.");
 

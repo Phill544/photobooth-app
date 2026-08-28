@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class EventController extends Controller
 {
@@ -95,6 +96,28 @@ class EventController extends Controller
         $this->applyLogo($request, $event);
 
         return redirect("/events/{$event->code}");
+    }
+
+    public function destroy(Request $request, Event $event)
+    {
+        abort_unless($event->managedBy($request->user()), 403);
+
+        // Typing the code is the confirmation, and it is checked here rather
+        // than in a browser confirm(): this is the one action that destroys
+        // every guest's photos, and a dialog guards nothing a request can skip.
+        // Case-insensitive like every other place a human types a code.
+        if (strtoupper((string) $request->input('confirm_code')) !== $event->code) {
+            // Straight back to the panel: it is the last thing on a long page, so
+            // a plain redirect lands the host at the poster with the error a
+            // screen and a half below them, and nothing to say it went wrong.
+            throw ValidationException::withMessages([
+                'confirm_code' => "Type {$event->code} to delete this event.",
+            ])->redirectTo("/events/{$event->code}#delete");
+        }
+
+        $event->purge();
+
+        return redirect('/dashboard');
     }
 
     // Stores a newly uploaded logo (replacing any old one), or removes it.

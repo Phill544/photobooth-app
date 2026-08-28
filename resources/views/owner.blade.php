@@ -56,6 +56,20 @@
         .edit-preview { display: flex; flex-direction: column; align-items: center; gap: var(--space-xs); }
         .edit-preview .strip-mat { width: 100%; max-width: 160px; }
 
+        /* The one irreversible control on the page: reached deliberately, and
+           given room of its own rather than a slot in the footer row. */
+        .danger { margin-top: var(--space-lg); }
+        .danger > summary { display: inline-flex; list-style: none; }
+        .danger > summary::-webkit-details-marker { display: none; }
+        .danger-body { margin-top: var(--space-md); padding: var(--space-lg);
+            display: grid; gap: var(--space-lg);
+            background: var(--surface); border: 1px solid var(--danger); border-radius: var(--r-md); }
+        .danger-body > p { margin: 0; color: var(--text-muted); font-size: var(--text-sm); }
+        .danger-body form { display: flex; flex-direction: column;
+            gap: var(--space-lg); align-items: flex-start; }
+        .danger-body input { text-transform: uppercase; font-family: var(--font-mono);
+            letter-spacing: var(--tracking-mono); max-width: 12ch; }
+
         @media print {
             .no-print { display: none !important; }
             body { background: #fff; }
@@ -113,7 +127,9 @@
                 </div>
             </div>
 
-            <details class="edit" @if ($errors->any()) open @endif>
+            {{-- Its own fields only: the delete panel below has an error too,
+                 and it must not fling this one open behind it. --}}
+            <details class="edit" @if ($errors->hasAny(['name', 'template', 'theme', 'caption', 'logo'])) open @endif>
                 <summary class="btn btn--ghost btn--small">Edit the look</summary>
                 <div class="edit-body">
                     <form method="POST" action="/events/{{ $event->code }}" enctype="multipart/form-data" data-strip-form
@@ -200,6 +216,30 @@
                     </form>
                 @endif
             </div>
+
+            {{-- Closing a booth is reversible; this is not, so it sits apart from
+                 the controls above, folded away, and asks for the code by hand.
+                 The server checks that code — the fold is only manners. --}}
+            <details class="danger" id="delete" {{ $errors->has('confirm_code') ? 'open' : '' }}>
+                <summary class="btn btn--ghost btn--small">Delete this event</summary>
+                <div class="danger-body">
+                    <p>Deletes the booth, the album, and every file behind
+                        {{ $stripCount }} {{ Str::plural('strip', $stripCount) }} and
+                        {{ $photoCount }} {{ Str::plural('photo', $photoCount) }}. Guests keep
+                        anything they already saved to their phone. Nothing else can be undone.</p>
+                    <form method="POST" action="/events/{{ $event->code }}">
+                        @csrf
+                        @method('DELETE')
+                        <div class="field">
+                            <label for="confirm_code">Type {{ $event->code }} to confirm</label>
+                            <input id="confirm_code" name="confirm_code" maxlength="6" required
+                                   autocomplete="off" autocapitalize="characters" spellcheck="false">
+                        </div>
+                        <button class="btn--danger">Delete this event forever</button>
+                        @error('confirm_code') <p class="error">{{ $message }}</p> @enderror
+                    </form>
+                </div>
+            </details>
         </div>
     </div>
     @include('partials.share-script')

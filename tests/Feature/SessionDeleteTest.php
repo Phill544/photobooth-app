@@ -34,16 +34,3 @@ it('cannot delete a session through a different event', function () {
 
     expect(Photo::where('group_uuid', $group)->count())->toBe(1);
 });
-
-it('purges a whole event with its photos and files via artisan', function () {
-    uploadPhoto('PARTY2');
-    $path = Photo::sole()->path;
-
-    $this->artisan('photobooth:purge-event PARTY2')
-        ->expectsConfirmation("Delete 'Summer Party' and its 1 photos?", 'yes')
-        ->assertSuccessful();
-
-    expect(Event::count())->toBe(0)
-        ->and(Photo::count())->toBe(0);
-    Storage::assertMissing($path);
-});
