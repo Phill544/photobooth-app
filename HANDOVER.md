@@ -21,7 +21,7 @@ pipes** (typed upload failures, a jittered offline-aware retry tail, an interrup
 resumes itself from IndexedDB, queued album thumbnails + a tap-to-enlarge lightbox, immutably
 cached session-free image routes) → the first of **P3 host trust** (a host can delete an event,
 and everything behind it, without an SSH session).
-**176 Pest + 83 Vitest tests green.** Every feature slice was built red/green and then put
+**179 Pest + 83 Vitest tests green.** Every feature slice was built red/green and then put
 through an adversarial review (see Conventions).
 
 ## Stack & how to run
@@ -56,7 +56,12 @@ through an adversarial review (see Conventions).
   album is only as private as its code, and a deleted session must not live on in a shared cache),
   an ETag over the stored path, `X-Robots-Tag: noindex`, and a 304 when the phone already has the
   bytes. Verified to survive the `route:cache` the deploy runs, and the unknown-code 404 still
-  names the code from these session-free routes.
+  names the code from these session-free routes. **A row that outlives its file answers 404, not
+  500** — Flysystem raises `UnableToRetrieveMetadata` from `Storage::response()` while sizing the
+  body, and an album asks this route once per tile, so the wrong answer multiplies: measured at
+  1.2s/902KB per tile against 0.44s/21KB once it 404s. That state is reachable in production
+  (DEPLOY.md's detached-bucket row) and is also the deliberate intermediate state of
+  `Event::purge()`, which drops bytes before rows.
 - **Owner, auth-gated:** `/dashboard`, `/new`, `POST /events`, `GET|PATCH|DELETE /events/{code}`,
   toggle-closed, and `DELETE /e/{code}/groups/{group}`. `Event::managedBy($user)` = owner OR admin,
   else 403. The delete asks for the event code **in the request body**, not a browser `confirm()`:
@@ -192,6 +197,16 @@ the P1 paths too: each typed failure screen (close the booth from another phone 
 offline hold and its hint, the resume notice after killing the tab mid-upload, IndexedDB in iOS
 Safari **including private mode**, and the album's thumbnails, lightbox and per-photo save on both
 platforms.
+
+### Found in the field (not from the review, so no stable ID)
+- **The album has no pagination.** It renders every strip *and* every original in one page:
+  measured on a 4000-photo event, 3997 `<img>` tags and 1.6MB of HTML, against 42 tags and 46KB
+  for a normal one. The tiles are `loading="lazy"`, so this is a request-count problem rather
+  than a bandwidth one — but on serverless, one album view is thousands of invocations, and it
+  is what made a local dev server (single worker by default; `PHP_CLI_SERVER_WORKERS` is
+  commented out in `.env`) stop answering for ~45s on 2026-08-28. Worth a slice before an event
+  gets big enough to hit it: paginate or window `EventController::gallery`, which currently
+  does `$event->photos()->orderBy('slot')->get()` with no limit.
 
 ### P2 — Participation engine (the visible payoff)
 9. Live wall: full-screen `/e/{code}/wall` for venue TVs — strips animating in via 3–5s

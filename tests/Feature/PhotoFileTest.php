@@ -38,3 +38,33 @@ it('404s for a derivative belonging to a different event', function () {
 it('404s for an unknown photo id', function () {
     $this->get('/e/PARTY2/photos/999')->assertNotFound();
 });
+
+// A row can outlive its file: a bucket detached mid-life, a release that ran
+// before storage was attached (DEPLOY.md documents exactly that state), or an
+// event purge that cleared the prefix and then failed to drop the rows. That is
+// a missing file, not a broken server — and it matters which one the app says,
+// because an album asks this route once per tile. Answering 500 turns one bad
+// row into a wall of the most expensive page the app can render: measured at
+// 1.2s and 902KB each against 0.40s and 79KB for a photo that is really there.
+
+it('404s when a photo row outlives its file', function () {
+    $id = uploadPhoto('PARTY2')->json('id');
+    Storage::delete(Photo::find($id)->path);
+
+    $this->get("/e/PARTY2/photos/$id")->assertNotFound();
+});
+
+it('404s when a thumbnail row outlives its file', function () {
+    $id = uploadPhoto('PARTY2')->json('id');
+    Storage::delete(Photo::find($id)->thumb_path);
+
+    $this->get("/e/PARTY2/photos/$id/thumb")->assertNotFound();
+});
+
+it('404s when an event logo outlives its file', function () {
+    Storage::put('logos/party.png', 'bytes');
+    $this->event->update(['logo_path' => 'logos/party.png']);
+    Storage::delete('logos/party.png');
+
+    $this->get('/e/PARTY2/logo')->assertNotFound();
+});
