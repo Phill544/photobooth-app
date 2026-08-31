@@ -22,10 +22,16 @@ return [
         'key' => env('RESEND_API_KEY'),
     ],
 
+    // Deliberately NOT the AWS_* variables the framework ships here. Those are
+    // the object-storage bucket's on this app, and Laravel Cloud configures that
+    // disk at runtime from its own injected config — so pointing mail at the same
+    // pair means one credential rotation silently takes out either photos or
+    // password resets, and the region that suits the bucket is not necessarily
+    // one where a sending domain is verified. Two services, two sets of keys.
     'ses' => [
-        'key' => env('AWS_ACCESS_KEY_ID'),
-        'secret' => env('AWS_SECRET_ACCESS_KEY'),
-        'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
+        'key' => env('SES_KEY'),
+        'secret' => env('SES_SECRET'),
+        'region' => env('SES_REGION', 'ap-southeast-2'),
     ],
 
     'slack' => [

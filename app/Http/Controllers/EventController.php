@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Event;
+use App\Support\Deliverability;
 use App\Support\ImageResponse;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
@@ -34,6 +35,9 @@ class EventController extends Controller
         return view('dashboard', [
             'events' => $events,
             'isAdmin' => $user->is_admin,
+            // Only worth nagging about while it actually gates something, which
+            // it does not when the app has no mailer to send the link with.
+            'emailIsVerified' => $user->hasVerifiedEmail() || Deliverability::mailerIsFake(),
             // Live means taking photos, which a finished event is not, however
             // its closed_at reads.
             'liveCount' => $events->filter(fn (Event $event) => $event->status() === 'live')->count(),

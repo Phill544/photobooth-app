@@ -32,6 +32,9 @@ overrides an injected one**, which is how you end up with a live app pointed at 
 | `QUEUE_CONNECTION=cloud` + `LARAVEL_CLOUD_MANAGED_QUEUES_CONFIG` | creating a managed queue | see below |
 | `LOG_CHANNEL=laravel-cloud-socket` | the platform | |
 
+**Nothing injects a mailer** — `MAIL_MAILER` and its credentials are yours to set by hand, and
+`photobooth:check-mail` fails the deploy until they are. See **Mail (password reset)** below.
+
 `SESSION_DRIVER` is whatever you choose; production runs `cookie`, which suits serverless (no
 shared store to reach, nothing to clean up). `database` works too — the `sessions` table exists.
 
@@ -65,6 +68,7 @@ Deploy (run on every release, after build):
 
 ```
 php artisan photobooth:check-storage
+php artisan photobooth:check-mail
 php artisan migrate --force
 php artisan config:cache && php artisan route:cache && php artisan view:cache
 ```
@@ -78,6 +82,19 @@ before a release goes live, so it sees the same disk the app will.
 > Laravel Cloud's docs don't say whether a failing deploy command aborts the release, so verify
 > that once. Either way the failure is loud in the deployment log, and the command can be run
 > any time from the environment's **Commands** tab.
+
+`photobooth:check-mail` is the same idea for the mailer, and exists for the same reason: the
+framework's default mailer is `log`, which accepts everything and delivers nothing, so a host is
+told "check your email" and waits for a link that was written to a file. It fails a release whose
+mailer is `log` or `array`, or whose `MAIL_FROM_ADDRESS` is still the framework's `@example.com`
+placeholder — an address on a domain the transport cannot send from bounces, which from the host's
+side is indistinguishable from having no mailer. `--to=you@example.com` also sends a real message,
+which is the only way to tell working configuration from working credentials.
+
+The password-reset pages ask the same question at **request** time: with no real mailer the
+forgot-password page says so plainly instead of offering a form, the endpoint behind it answers
+503, and the login page stops linking to it at all. Nothing else in the app sends mail, so nothing
+else changes.
 
 The upload path asks the same question on **every request** and answers 503 rather than writing a
 photo somewhere that dies — a refused upload is retried by the phone and costs nothing, a silent
@@ -152,6 +169,55 @@ which is the designed degradation. Every guest just pays for it in bandwidth.
 > (the `jobs` and `failed_jobs` tables already exist) and add a background process running
 > `php artisan queue:work --tries=3` on the App cluster. It shares CPU with web traffic and gives
 > you no failed-job visibility, which is why production doesn't do this.
+
+## Mail (password reset)
+
+**Laravel Cloud has no mail service to attach and injects nothing** — unlike Postgres, object
+storage and queues, this one is entirely yours to configure. Until it is, `config/mail.php`
+defaults to `MAIL_MAILER=log`.
+
+Production uses **Amazon SES**, chosen because `aws/aws-sdk-php` is already a dependency (Cloud's
+managed queues require it), so the transport costs no new package at all. Setup, once:
+
+1. **Verify a sending domain** in the SES console, in the region you intend to send from, and add
+   the DKIM records it gives you to that domain's DNS. A verified *address* also works and is
+   quicker, but then every host sees mail from that one address and nothing else on the domain is
+   authenticated.
+2. **Leave the sandbox.** A new SES account can only send to addresses it has verified, which means
+   password reset works for you and silently fails for every real host. Request production access
+   from the console; it is a form and usually same-day.
+3. **Create an IAM user** with permission to `ses:SendRawEmail`, and take its access key and secret.
+4. Set these in the environment (Cloud dashboard → environment → variables), then **redeploy** so
+   `config:cache` re-reads them:
+
+```
+MAIL_MAILER=ses
+MAIL_FROM_ADDRESS=hello@your-verified-domain
+MAIL_FROM_NAME=Photobooth
+SES_KEY=...
+SES_SECRET=...
+SES_REGION=ap-southeast-2      # must be the region the identity was verified in
+```
+
+> **`SES_*`, not `AWS_*`.** Laravel ships `config/services.php` pointing SES at
+> `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`, which on this app are the object-storage bucket's.
+> They are deliberately separated here: one rotation would otherwise take out either photos or
+> password resets with no obvious connection between the two, and the region that suits a bucket is
+> not necessarily one where a sending domain is verified.
+
+Then prove it end to end from the environment's **Commands** tab — configuration being right and
+credentials working are different questions:
+
+```
+php artisan photobooth:check-mail --to=you@example.com
+```
+
+It has to actually arrive. SES will accept a message and drop it if the from-domain is not
+verified, and the command cannot see that.
+
+**Locally, leave `MAIL_MAILER=log`.** The reset link is written to `storage/logs/laravel.log`;
+grep it out and paste it into the browser. The guard exempts `local` and `testing` precisely so a
+dev with no SES credentials can still work on these pages.
 
 ## The scheduler (the retention sweep)
 

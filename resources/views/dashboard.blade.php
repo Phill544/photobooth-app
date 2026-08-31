@@ -49,6 +49,16 @@
         .empty { max-width: var(--measure); margin: 0 auto;
             padding: 0 var(--page-gutter); color: var(--text-muted); }
 
+        /* The one thing an unverified host cannot do is the button beside this,
+           so the notice sits with it rather than at the top of the page. */
+        .verify {
+            max-width: var(--measure); margin: var(--space-lg) auto 0;
+            padding: var(--space-md) var(--page-gutter); display: flex; flex-wrap: wrap;
+            gap: var(--space-sm); align-items: baseline; justify-content: space-between;
+        }
+        .verify p { margin: 0; font-size: var(--text-sm); color: var(--text-muted); }
+        .verify strong { color: var(--text); font-weight: 500; }
+        .verify form { margin: 0; }
     </style>
 </head>
 <body class="ctx-dark">
@@ -77,6 +87,17 @@
         </div>
         <a href="/new" class="btn btn--accent btn--hero">New event</a>
     </div>
+
+    @unless ($emailIsVerified)
+        <div class="verify">
+            <p><strong>Confirm your email</strong> to open a new booth. We sent a link to
+                {{ auth()->user()->email }} — the events you already have are unaffected.</p>
+            <form method="POST" action="/email/resend">
+                @csrf
+                <button class="btn--ghost btn--small">Send it again</button>
+            </form>
+        </div>
+    @endunless
 
     @if ($events->isEmpty())
         <p class="empty">Create your first booth and you'll get a code and a QR poster to print.</p>

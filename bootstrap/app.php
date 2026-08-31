@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureEmailIsVerified;
 use App\Models\Event;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
@@ -22,6 +23,18 @@ return Application::configure(basePath: dirname(__DIR__))
             ->group(base_path('routes/images.php')),
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // A password change ends every session that account had open, not just
+        // the remember cookie. The usual reason for a reset is that somebody
+        // else has the old password — and that somebody is typically already
+        // signed in, where the session guard would otherwise keep
+        // re-authenticating them from the user id it holds and never look at
+        // the hash again. This is what makes the reset actually revoke.
+        $middleware->authenticateSessions();
+
+        // Ours, not the framework's: it steps aside when there is no mailer to
+        // send a verification link with. See the class for why.
+        $middleware->alias(['verified' => EnsureEmailIsVerified::class]);
+
         // Where auth middleware sends people: guests -> login, logged-in -> dashboard.
         $middleware->redirectGuestsTo('/login');
         $middleware->redirectUsersTo('/dashboard');

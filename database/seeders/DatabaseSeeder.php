@@ -26,9 +26,9 @@ class DatabaseSeeder extends Seeder
         );
         // is_admin is intentionally not mass-assignable (no register-time escalation),
         // so grant it explicitly here.
-        // is_admin is intentionally not mass-assignable (no register-time escalation),
-        // so grant it explicitly here.
-        $host->forceFill(['is_admin' => true])->save();
+        // is_admin and email_verified_at are both intentionally not mass-assignable
+        // (no register-time escalation, no self-declared address), so set them here.
+        $host->forceFill(['is_admin' => true, 'email_verified_at' => now()])->save();
 
         // The booth to shoot into, and the empty album that goes with it.
         Event::firstOrCreate(['code' => 'PARTY2'], [

@@ -3,8 +3,11 @@
 namespace App\Providers;
 
 use App\Models\Event;
+use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -18,6 +21,26 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // The one email this app sends, and it goes to somebody who may not
+        // remember signing up — so it says which app it is, in this app's voice,
+        // rather than the framework's stock copy. The layout stays Laravel's.
+        ResetPassword::toMailUsing(fn ($notifiable, string $token) => (new MailMessage)
+            ->subject('Reset your Photobooth password')
+            ->greeting('Photobooth')
+            ->line('Someone asked to reset the password for the host account on '.$notifiable->getEmailForPasswordReset().'.')
+            ->action('Set a new password', url('/reset-password/'.$token.'?email='.urlencode($notifiable->getEmailForPasswordReset())))
+            ->line('The link works once, and expires in '.config('auth.passwords.users.expire').' minutes.')
+            ->line('If this was not you, nothing has changed and you can ignore this email.')
+            ->salutation('— Photobooth'));
+
+        VerifyEmail::toMailUsing(fn ($notifiable, string $url) => (new MailMessage)
+            ->subject('Confirm your Photobooth address')
+            ->greeting('Photobooth')
+            ->line('Confirm this address and you can open your first booth.')
+            ->action('Confirm my address', $url)
+            ->line('If you did not sign up, ignore this and no account will be used.')
+            ->salutation('— Photobooth'));
+
         // Keyed on the event code, not the IP: every guest at a venue shares
         // one NAT IP, and X-Forwarded-For is client-spoofable behind our
         // trusted proxy — either would make an IP key useless. The code comes

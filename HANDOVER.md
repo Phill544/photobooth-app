@@ -24,8 +24,10 @@ and everything behind it, without an SSH session) → **a paged album** (the 400
 used to render 3997 `<img>` tags into one page now arrives 24 sessions at a time, and the dev
 seed can produce that event on demand) → **an album a host controls**: tri-state privacy
 (open / PIN / hidden) and a stated retention window that expires the album, then sweeps its photos
-thirty days later on a schedule.
-**253 Pest + 83 Vitest tests green.** Every feature slice was built red/green and then put
+thirty days later on a schedule → **a host account that can look after itself**: password reset
+and email verification over a real mail transport (SES), behind the same kind of deploy gate the
+storage disk has.
+**290 Pest + 83 Vitest tests green.** Every feature slice was built red/green and then put
 through an adversarial review (see Conventions).
 
 ## Stack & how to run
@@ -104,7 +106,40 @@ through an adversarial review (see Conventions).
   it is the one action that destroys every guest's photos, and a dialog guards nothing a request
   can skip. A rejected code redirects to `#delete` — the panel is the last thing on a long page,
   and the error was measured 270px below the fold without it.
-- **Auth:** register/login/logout (hand-rolled `AuthController`, styled to the design system).
+- **Auth:** register/login/logout, forgotten-password and address-verification, all hand-rolled in
+  `AuthController` and styled to the design system. **Reset**: a one-hour, single-use token; the
+  request form gives one answer for an address it knows and one it does not, or it becomes a way of
+  asking which addresses have accounts; a completed reset **ends every session that account had
+  open**, because the usual reason for resetting is that somebody else has the old password — and
+  that somebody is typically already signed in, where the session guard would otherwise keep
+  re-authenticating them from the user id it holds and never look at the hash again. That is
+  `$middleware->authenticateSessions()` in `bootstrap/app.php`, which compares a hash carried in the
+  session rather than deleting session rows — so it works on the `cookie` driver production runs as
+  well as on `database`. Rolling the remember token alone only revoked the cookie an intruder who
+  simply logged in never used. The reset lands on `/login` rather than logging the host straight in.
+  The reset pair also has **its own throttle bucket** (`throttle:6,1,reset`): an unnamed throttle
+  keys on the IP, not the route, so without it six failed logins would 429 the one form that lets a
+  host who has forgotten their password back in. **Verification** gates exactly one thing — `/new` and
+  `POST /events` — so a typo'd address never costs a host the event they are already running, and
+  the link is checked against the signed-in account rather than trusted for whoever opens it. Every
+  host who existed before it shipped is grandfathered by a migration; only new registrations prove
+  their address.
+  **The mailer is the disk trap again** (`App\Support\Deliverability::mailerIsFake()`). Laravel's
+  default is `log`, which accepts everything and delivers nothing, and Laravel Cloud injects a
+  database, a disk and a queue but has no mail service to inject — so a page saying "check your
+  email" over that default is the same silent failure that cost this app its first photos. Two
+  guards, same shape as storage: `photobooth:check-mail` is a **deploy command** that fails a
+  release whose mailer is fake or whose from-address is still the framework's `@example.com`
+  placeholder (`--to=` also sends a real message, the only way to tell working config from working
+  credentials), and at **request** time the forgot-password page says so plainly instead of offering
+  a form, the endpoint behind it answers 503, and login stops linking to it. The verification gate
+  lifts entirely when the mailer is fake — requiring a link nothing can send is a locked door with
+  no key cut for it, and DEPLOY.md is explicit that a failing deploy command may not abort a
+  release. `local` and `testing` are exempt from all of it, so a dev with no SES credentials still
+  works: the link lands in `storage/logs/laravel.log`. **SES reads `SES_*`, deliberately not the
+  `AWS_*` pair** the framework ships in `config/services.php` — those are this app's bucket, and one
+  rotation should not be able to take out either photos or password resets with no visible
+  connection between them.
 - **Errors:** every 404 renders `resources/views/errors/404.blade.php`. A render hook in
   `bootstrap/app.php` fires only when an **`Event`** route binding is what failed and passes the
   code that was tried, so the page can name it; everything else (a missing photo under a real
@@ -284,6 +319,17 @@ dev seed now carries every state (see Handy facts), so this is a walk through fi
   the `type="date"` field — iOS renders its own picker and this is the app's first date input.
   Check the summary line still reads as a state ("Photos · kept until 29 Nov 2026") at 375px.
 
+And from the mail slice — small, but every one of these screens is reached **from a mail app**, so
+the phone is where they are actually used:
+
+- **The reset link opening in the phone's in-app browser.** That is a different browser from the
+  one the host logs in with, so the form has to stand alone — which it does, but it has never been
+  opened that way. Check the password managers offer to save the new one.
+- **The verify link**, same journey, and that it lands on `/new` rather than the dashboard.
+- The **`log` mailer means neither link will arrive at a phone** until SES is configured: grep
+  `storage/logs/laravel.log` on the dev machine and open the URL on the phone by hand (the tunnel
+  host will differ from `APP_URL`, so edit the host in the URL).
+
 ### P2 — Participation engine (the visible payoff)
 9. Live wall: full-screen `/e/{code}/wall` for venue TVs — strips animating in via 3–5s
    cursor polling, event QR + code always in a corner, Screen Wake Lock, watchdog reload when
@@ -296,22 +342,23 @@ dev seed now carries every state (see Handy facts), so this is a walk through fi
     optional email-me-my-strip field with separate consent checkboxes (delivery ≠ marketing).
 
 ### P3 — Host trust pack (before charging money)
-> **Mail is not set up.** An earlier draft of this list said it was live on the deploy; Phill
-> confirmed on 2026-08-28 that nothing in production handles it. `config/mail.php` defaults to
-> `MAIL_MAILER=log`, DEPLOY.md documents no `MAIL_*` vars, and Laravel Cloud does not inject a
-> mailer the way it injects Postgres, storage and queues. **13 and 14 both need a real transport
-> attached and documented first** — shipping either onto the `log` mailer is worse than not
-> shipping it, because the UI says "check your email" and nothing ever arrives.
+> **Mail is wired but not yet credentialled.** The transport, the guards, the deploy gate and the
+> SES setup steps all exist now (see the Auth entry in the architecture map, and DEPLOY.md's "Mail"
+> section). What is still outstanding is **Phill's**: verify a sending domain in SES, leave the
+> sandbox, and set `MAIL_MAILER=ses` + `SES_KEY`/`SES_SECRET`/`SES_REGION` +
+> `MAIL_FROM_ADDRESS` on the environment. Until that is done `photobooth:check-mail` fails the
+> deploy, the reset pages say so honestly rather than promising an email, and verification gates
+> nothing — so production is safe, it just cannot send.
 
-13. Password reset, then email verification (reset matters more). Needs the mailer above.
 14. Download-all ZIP: queued job streams S3 → zip, emails a signed expiring link. Never
-    client-side (CORS + mobile memory). Needs the mailer above.
+    client-side (CORS + mobile memory). **Strips and originals in one archive, foldered**
+    (Phill, 2026-08-31).
 20. Warn hosts before their retention window closes — a mail at, say, 14 days and 1 day out, and
     one when the photos have actually gone. **Phill's, 2026-08-31, not from the review**, and the
     reason the 90-day default is safe to ship without it only for as long as nobody has had an
     album swept: right now the window is stated on three screens and nowhere else, so a host who
-    never opens the app never hears about it. Needs the mailer above, and `photos_purged_at`
-    already records the fact the last of those three mails would report.
+    never opens the app never hears about it. `photos_purged_at` already records the fact the last
+    of those three mails would report.
 
 ### P4 — New output modes (independent slices, in effort order)
 17. 9:16 story-strip variant of every layout from the same frames (share-sheet ready; build
@@ -355,5 +402,9 @@ toggle + higher capture resolution · audio/haptic countdown cue.
   that are otherwise a chore to reach by hand, because none of them can be produced by shooting
   into a booth: `SECRET` (PIN `bridesmaids`), `LAPSED` (expired, still inside its grace period, so
   the host sees the countdown) and `SWEPT2` (photos already deleted — empty on purpose).
+- **Mail locally goes to `storage/logs/laravel.log`** (`MAIL_MAILER=log`, and `local` is exempt
+  from the mailer guard). A reset or verification link is one grep away:
+  `grep -o 'http://localhost:8000/[a-z/-]*verify[^"< ]*' storage/logs/laravel.log`. Clear the log
+  first or you will find an older one.
 - Event codes: 6 chars from an unambiguous alphabet (no O/0/1/I), case-insensitive.
 - Recent git history is the best per-slice narrative — each commit message explains the why.
