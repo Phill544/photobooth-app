@@ -181,9 +181,9 @@ it('sends an email that says who it is from and where to go', function () {
     $mail = (new ResetPassword('a-token'))->toMail($this->host);
     $rendered = (string) $mail->render();
 
-    expect($mail->subject)->toContain('Photobooth')
+    expect($mail->subject)->toContain('Quikbooth')
         ->and($rendered)->toContain('/reset-password/a-token')
-        ->and($rendered)->toContain('Photobooth');
+        ->and($rendered)->toContain('Quikbooth');
 });
 
 it('does not let a logged-in host wander back into the reset flow', function () {

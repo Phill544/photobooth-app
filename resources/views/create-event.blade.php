@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>New Event — Photobooth</title>
+    <title>New Event — Quikbooth</title>
     @include('partials.theme')
     @vite('resources/js/strip-preview.ts')
     <style>
@@ -36,7 +36,7 @@
 </head>
 <body class="ctx-light">
     <header class="topbar">
-        <a class="wordmark" href="/dashboard">Photobooth</a>
+        <a class="wordmark" href="/dashboard">Quikbooth</a>
         <a class="btn--ghost btn--small btn" href="/dashboard">Your events</a>
     </header>
 

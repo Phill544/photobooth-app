@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Your events — Photobooth</title>
+    <title>Your events — Quikbooth</title>
     @include('partials.theme')
     <style>
         .topbar-right { font-size: var(--text-sm); color: var(--text-muted); }
@@ -63,7 +63,7 @@
 </head>
 <body class="ctx-dark">
     <header class="topbar">
-        <a class="wordmark" href="/dashboard">Photobooth</a>
+        <a class="wordmark" href="/dashboard">Quikbooth</a>
         <div class="topbar-right">
             <span>{{ auth()->user()->name }}</span>
             <span aria-hidden="true">·</span>

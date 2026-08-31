@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Photobooth</title>
+    <title>Quikbooth</title>
     @include('partials.theme')
     <style>
         .room { display: flex; min-height: 100dvh; }
@@ -28,7 +28,7 @@
     <div class="room">
         <div class="perf-edge"></div>
         <main>
-            <p class="eyebrow">Photobooth</p>
+            <p class="eyebrow">Quikbooth</p>
             <h1>Got a code?</h1>
             <p class="lede">Six characters on the sign, the table card, or the QR.</p>
 

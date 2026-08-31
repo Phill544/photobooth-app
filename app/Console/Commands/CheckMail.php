@@ -51,8 +51,8 @@ class CheckMail extends Command
         $to = $this->option('to');
 
         Mail::raw(
-            'Photobooth mail check. If you are reading this, the transport works and password reset will reach hosts.',
-            fn ($message) => $message->to($to)->subject('Photobooth mail check'),
+            'Quikbooth mail check. If you are reading this, the transport works and password reset will reach hosts.',
+            fn ($message) => $message->to($to)->subject('Quikbooth mail check'),
         );
 
         $this->info("Sent a test message to {$to}. It has to actually arrive — a transport can accept and drop.");

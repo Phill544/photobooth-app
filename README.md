@@ -1,4 +1,4 @@
-# Photobooth
+# Quikbooth
 
 A photobooth web app for events. Guests scan a QR code, take a set of photos, watch them
 compose into a photo strip on their phone, and share them to the event album. No app install.

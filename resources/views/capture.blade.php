@@ -8,7 +8,7 @@
          that never fetch the page. --}}
     <meta name="robots" content="noindex, nofollow">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $event->name }} — Photobooth</title>
+    <title>{{ $event->name }} — Quikbooth</title>
     @include('partials.theme')
     @unless ($event->isClosed())
         @vite('resources/js/capture.ts')

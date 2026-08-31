@@ -1,4 +1,4 @@
-# Photobooth — Plan & Decisions
+# Quikbooth — Plan & Decisions
 
 A photobooth web app for events. Guests scan a QR code, take a set of photos,
 see them composed into a photo strip on their phone, and share them to the

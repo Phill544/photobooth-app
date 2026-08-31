@@ -88,7 +88,7 @@
 </head>
 <body class="ctx-light">
     <header class="topbar">
-        <a class="wordmark" href="/e/{{ $event->code }}">Photobooth</a>
+        <a class="wordmark" href="/e/{{ $event->code }}">Quikbooth</a>
         <div class="topbar-right share">
             <span class="code">{{ $event->code }}</span>
             <button type="button" class="btn--small share-btn" data-share-url="{{ url('/e/'.$event->code) }}" data-share-title="{{ $event->name }}">Share the album</button>

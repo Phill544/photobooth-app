@@ -1,7 +1,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <style>
-    /* Photobooth theme — single source of truth. Scale, brand hues and components
+    /* Quikbooth theme — single source of truth. Scale, brand hues and components
        live on :root; the two rooms (ctx-dark = the booth, ctx-light = the album)
        only reassign colour. Near-black rooms, one electric blue, ivory type, and
        film perforations down every edge. */

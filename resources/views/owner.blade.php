@@ -106,7 +106,7 @@
 </head>
 <body class="ctx-light">
     <header class="topbar no-print">
-        <a class="wordmark" href="/dashboard">Photobooth</a>
+        <a class="wordmark" href="/dashboard">Quikbooth</a>
         <a class="btn btn--ghost btn--small" href="/dashboard">Your events</a>
     </header>
 

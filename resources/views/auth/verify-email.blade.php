@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Confirm your address — Photobooth</title>
+    <title>Confirm your address — Quikbooth</title>
     @include('partials.theme')
     <style>
         .room { display: flex; min-height: 100dvh; }

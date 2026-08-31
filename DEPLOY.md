@@ -14,7 +14,7 @@ Most of what this app needs is **injected by attaching a resource**, not typed i
 only these yourself, under the environment's *Environment variables*:
 
 ```
-APP_NAME=Photobooth
+APP_NAME=Quikbooth
 APP_ENV=production
 APP_DEBUG=false            # flip to true briefly if you need to read a real error
 APP_KEY=                   # generate one (Cloud can, or `php artisan key:generate --show`)
@@ -218,7 +218,7 @@ managed queues require it), so the transport costs no new package at all. Setup,
 ```
 MAIL_MAILER=ses
 MAIL_FROM_ADDRESS=hello@your-verified-domain
-MAIL_FROM_NAME=Photobooth
+MAIL_FROM_NAME=Quikbooth
 SES_KEY=...
 SES_SECRET=...
 SES_REGION=ap-southeast-2      # must be the region the identity was verified in

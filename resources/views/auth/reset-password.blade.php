@@ -6,7 +6,7 @@
     {{-- The token is in this URL, so it must never be indexed or sent onward. --}}
     <meta name="robots" content="noindex, nofollow">
     <meta name="referrer" content="no-referrer">
-    <title>Set a new password — Photobooth</title>
+    <title>Set a new password — Quikbooth</title>
     @include('partials.theme')
     <style>
         .room { display: flex; min-height: 100dvh; }

@@ -139,8 +139,8 @@ it('does not gate anything when there is no mailer to verify with', function () 
 it('sends an email that says who it is from', function () {
     $mail = (new VerifyEmail)->toMail($this->unverified);
 
-    expect($mail->subject)->toContain('Photobooth')
-        ->and((string) $mail->render())->toContain('Photobooth');
+    expect($mail->subject)->toContain('Quikbooth')
+        ->and((string) $mail->render())->toContain('Quikbooth');
 });
 
 // Everyone who had an account before this shipped was told nothing about

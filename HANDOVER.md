@@ -1,4 +1,4 @@
-# Handover — Photobooth
+# Handover — Quikbooth
 
 Orientation for the next agent picking this up. For depth, read alongside
 [PLAN.md](PLAN.md) (decisions + roadmap + design system), [DEPLOY.md](DEPLOY.md) (Laravel Cloud),

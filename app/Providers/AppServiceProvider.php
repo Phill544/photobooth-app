@@ -25,21 +25,21 @@ class AppServiceProvider extends ServiceProvider
         // remember signing up — so it says which app it is, in this app's voice,
         // rather than the framework's stock copy. The layout stays Laravel's.
         ResetPassword::toMailUsing(fn ($notifiable, string $token) => (new MailMessage)
-            ->subject('Reset your Photobooth password')
-            ->greeting('Photobooth')
+            ->subject('Reset your Quikbooth password')
+            ->greeting('Quikbooth')
             ->line('Someone asked to reset the password for the host account on '.$notifiable->getEmailForPasswordReset().'.')
             ->action('Set a new password', url('/reset-password/'.$token.'?email='.urlencode($notifiable->getEmailForPasswordReset())))
             ->line('The link works once, and expires in '.config('auth.passwords.users.expire').' minutes.')
             ->line('If this was not you, nothing has changed and you can ignore this email.')
-            ->salutation('— Photobooth'));
+            ->salutation('— Quikbooth'));
 
         VerifyEmail::toMailUsing(fn ($notifiable, string $url) => (new MailMessage)
-            ->subject('Confirm your Photobooth address')
-            ->greeting('Photobooth')
+            ->subject('Confirm your Quikbooth address')
+            ->greeting('Quikbooth')
             ->line('Confirm this address and you can open your first booth.')
             ->action('Confirm my address', $url)
             ->line('If you did not sign up, ignore this and no account will be used.')
-            ->salutation('— Photobooth'));
+            ->salutation('— Quikbooth'));
 
         // Keyed on the event code, not the IP: every guest at a venue shares
         // one NAT IP, and X-Forwarded-For is client-spoofable behind our

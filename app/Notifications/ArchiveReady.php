@@ -21,7 +21,7 @@ class ArchiveReady extends Notification
 
         return (new MailMessage)
             ->subject("Your {$event->name} photos are ready")
-            ->greeting('Photobooth')
+            ->greeting('Quikbooth')
             ->line("Everything from {$event->name} is in one file: {$this->archive->strip_count} "
                 .str('strip')->plural($this->archive->strip_count).' in strips/ and '
                 ."{$this->archive->photo_count} ".str('photo')->plural($this->archive->photo_count)
@@ -32,6 +32,6 @@ class ArchiveReady extends Notification
             ->action('Download everything', $this->archive->downloadUrl())
             ->line('The link works until '.$this->archive->expires_at->format('j M Y')
                 .', then the file is deleted. Ask again any time for a fresh one.')
-            ->salutation('— Photobooth');
+            ->salutation('— Quikbooth');
     }
 }

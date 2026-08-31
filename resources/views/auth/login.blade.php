@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Log in — Photobooth</title>
+    <title>Log in — Quikbooth</title>
     @include('partials.theme')
     <style>
         .room { display: flex; min-height: 100dvh; }
