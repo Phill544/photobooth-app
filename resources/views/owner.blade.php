@@ -56,6 +56,20 @@
         .edit-preview { display: flex; flex-direction: column; align-items: center; gap: var(--space-xs); }
         .edit-preview .strip-mat { width: 100%; max-width: 160px; }
 
+        /* Who can open the album — folded, but its summary states the setting. */
+        .privacy { text-align: right; }
+        .privacy > summary { display: inline-flex; list-style: none; }
+        .privacy > summary::-webkit-details-marker { display: none; }
+        .privacy-body { text-align: left; margin-top: var(--space-md); padding: var(--space-lg);
+            display: grid; gap: var(--space-md);
+            background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); }
+        .privacy form { display: flex; flex-direction: column; gap: var(--space-lg); align-items: flex-start; }
+        .privacy fieldset { width: 100%; }
+        /* Three plain choices, not swatches — there is nothing here to look at. */
+        .choice { display: flex; align-items: center; gap: var(--space-xs);
+            margin-top: var(--space-2xs); font-size: var(--text-sm); }
+        .choice input { width: auto; }
+
         /* The one irreversible control on the page: reached deliberately, and
            given room of its own rather than a slot in the footer row. */
         .danger { margin-top: var(--space-lg); }
@@ -102,7 +116,7 @@
 
         <div class="pane no-print">
             <div class="pane-head">
-                <p class="eyebrow">{{ $event->isClosed() ? 'Closed' : 'Live now' }}</p>
+                <p class="eyebrow">{{ ['live' => 'Live now', 'closed' => 'Closed', 'finished' => 'Finished'][$event->status()] }}</p>
                 <h1>{{ $event->name }}</h1>
             </div>
 
@@ -201,9 +215,101 @@
                 </div>
             </details>
 
+            {{-- Who can open the album. Folded like the panel above it, but the
+                 summary carries the current setting: a host glancing at this
+                 page needs to know their wedding album is shut without having
+                 to open a fold to find out. --}}
+            <details class="privacy" id="privacy" @if ($errors->has('album_pin')) open @endif>
+                <summary class="btn btn--ghost btn--small">Album · {{ $privacyOptions[$event->album_privacy] }}</summary>
+                <div class="privacy-body">
+                    <form method="POST" action="/events/{{ $event->code }}/privacy">
+                        @csrf
+                        <fieldset class="field">
+                            <legend class="field-label">Who can see the album</legend>
+                            @foreach ($privacyOptions as $key => $label)
+                                <label class="choice">
+                                    <input type="radio" name="album_privacy" value="{{ $key }}"
+                                           @checked(old('album_privacy', $event->album_privacy) === $key)>
+                                    {{ $label }}
+                                </label>
+                            @endforeach
+                        </fieldset>
+
+                        <div class="field">
+                            <label for="album_pin">Album PIN</label>
+                            {{-- In the clear, because the host is the one reading
+                                 it out. Guests match it whatever case they type. --}}
+                            <input id="album_pin" name="album_pin" maxlength="{{ $pinMaxLength }}"
+                                   autocomplete="off" autocapitalize="off" spellcheck="false"
+                                   value="{{ old('album_pin', $event->album_pin) }}">
+                            <p class="hint">{{ $pinMinLength }}–{{ $pinMaxLength }} characters. Guests type this once to open the album.</p>
+                        </div>
+
+                        <button class="btn--small">Save privacy</button>
+                        @error('album_privacy') <p class="error">{{ $message }}</p> @enderror
+                        @error('album_pin') <p class="error">{{ $message }}</p> @enderror
+                    </form>
+                    <p class="hint">The booth is never gated — guests can always shoot, and always
+                        save their own strip to their phone.</p>
+                </div>
+            </details>
+
+            {{-- How long the photos are kept, and the one control that buys an
+                 album more time. Extending inside the grace period brings an
+                 expired album straight back, because nothing has gone yet. --}}
+            <details class="privacy" id="retention" @if ($errors->has('photos_expire_at')) open @endif>
+                <summary class="btn btn--ghost btn--small">
+                    @if ($event->photosWerePurged())
+                        Photos · deleted {{ $event->photos_purged_at->format('j M Y') }}
+                    @else
+                        Photos · {{ $event->photos_expire_at ? 'kept until '.$event->photos_expire_at->format('j M Y') : 'kept for good' }}
+                    @endif
+                </summary>
+                <div class="privacy-body">
+                    {{-- A date field here would be an offer that recovers nothing:
+                         the files are gone, so the panel says so and stops. --}}
+                    @if ($event->photosWerePurged())
+                        <p class="error">This album's photos were deleted on
+                            {{ $event->photos_purged_at->format('j M Y') }}, at the end of the window it
+                            was kept for. There is nothing left to give more time to.</p>
+                    @else
+                        @if ($event->hasExpired())
+                            <p class="error">This album expired. Its photos are deleted on
+                                {{ $event->photos_expire_at->copy()->addDays($graceDays)->format('j M Y') }} —
+                                move the date to bring it back.</p>
+                        @endif
+                        <form method="POST" action="/events/{{ $event->code }}/retention">
+                        @csrf
+                        <div class="field">
+                            <label for="photos_expire_at">Keep the photos until</label>
+                            <input id="photos_expire_at" name="photos_expire_at" type="date"
+                                   min="{{ now()->toDateString() }}"
+                                   {{-- On an expired album the stored date is one this
+                                        field would refuse, so the host who most needs to
+                                        extend gets a fresh window to accept instead. --}}
+                                   value="{{ old('photos_expire_at', $event->hasExpired()
+                                       ? now()->addDays($retentionDays)->toDateString()
+                                       : $event->photos_expire_at?->toDateString()) }}">
+                            <p class="hint">Guests are told this date before they share. Clear it to keep
+                                them for good. Photos are deleted {{ $graceDays }} days after it passes,
+                                so there is time to change your mind.</p>
+                        </div>
+                            <button class="btn--small">Save</button>
+                            @error('photos_expire_at') <p class="error">{{ $message }}</p> @enderror
+                        </form>
+                    @endif
+                </div>
+            </details>
+
+            {{-- Three states now, and the album half of the sentence depends on the
+                 privacy setting: a hidden album is not one guests can see, and a
+                 finished event has no toggle worth offering — reopening the booth
+                 would not let it take a photo while the window is past. --}}
             <div class="foot">
-                @if ($event->isClosed())
-                    <p><a href="/e/{{ $event->code }}">The booth</a> is closed — guests can still see the album.</p>
+                @if ($event->hasExpired())
+                    <p><a href="/e/{{ $event->code }}">The booth</a> is finished — its window has passed.</p>
+                @elseif ($event->isClosed())
+                    <p><a href="/e/{{ $event->code }}">The booth</a> is closed{{ $event->albumIsHidden() ? '.' : ' — guests can still see the album.' }}</p>
                     <form method="POST" action="/events/{{ $event->code }}/toggle-closed">
                         @csrf
                         <button class="btn--small">Reopen the booth</button>

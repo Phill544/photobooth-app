@@ -48,6 +48,7 @@
 
         .empty { max-width: var(--measure); margin: 0 auto;
             padding: 0 var(--page-gutter); color: var(--text-muted); }
+
     </style>
 </head>
 <body class="ctx-dark">
@@ -82,7 +83,7 @@
     @else
         <ul class="events">
             @foreach ($events as $event)
-                <li @class(['live' => ! $event->isClosed()])>
+                <li @class(['live' => $event->status() === 'live'])>
                     <a href="/events/{{ $event->code }}">
                         <span class="dot"></span>
                         <span class="name">
@@ -93,7 +94,7 @@
                         <span class="meta">
                             <p class="mono mono--plain">{{ $event->code }}</p>
                             <p class="muted">{{ $event->photos_count > 0 ? $event->photos_count.' '.Str::plural('photo', $event->photos_count) : 'Not started' }}</p>
-                            <p class="mono status">{{ $event->isClosed() ? 'Closed' : 'Live' }}</p>
+                            <p class="mono status">{{ ['live' => 'Live', 'closed' => 'Closed', 'finished' => 'Finished'][$event->status()] }}</p>
                         </span>
                     </a>
                 </li>

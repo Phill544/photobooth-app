@@ -154,13 +154,26 @@
     </style>
 </head>
 <body class="ctx-dark" data-event-code="{{ $event->code }}" data-event-name="{{ $event->name }}" data-template="{{ $event->template }}" data-theme="{{ $event->theme }}" data-caption="{{ $event->caption }}" data-logo="{{ $event->logo_path ? url($event->logoUrl()) : '' }}">
-    @if ($event->isClosed())
+    {{-- A hidden album is the host's alone, so the booth stops offering a door
+         that would only answer 403 — and the consent line has to say who is
+         really going to see the strip, because that is the promise the guest
+         taps Share on. --}}
+    @php($albumIsHidden = $event->albumIsHidden())
+    @if (! $event->acceptsUploads())
     <main class="screen screen--center">
         <div class="inner">
             <p class="eyebrow">The booth</p>
             <h1>{{ $event->name }}</h1>
-            <p class="muted">This booth is closed — the album is still open.</p>
-            <a class="btn btn--ghost" href="/e/{{ $event->code }}/gallery">See the album</a>
+            {{-- An expired event has no album left to send anyone to, and a
+                 photo shared into one would be swept before the month is out. --}}
+            @if ($event->hasExpired())
+                <p class="muted">This event has finished, and its photos are no longer kept.</p>
+            @elseif ($albumIsHidden)
+                <p class="muted">This booth is closed. Thanks for shooting.</p>
+            @else
+                <p class="muted">This booth is closed — the album is still open.</p>
+                <a class="btn btn--ghost" href="/e/{{ $event->code }}/gallery">See the album</a>
+            @endif
         </div>
     </main>
     @else
@@ -180,7 +193,9 @@
                         <button id="start" class="btn--hero"><span class="rec-dot"></span>Start shooting</button>
                         <div class="btn-row">
                             <button id="add-filter" class="btn--ghost">Pick a look</button>
-                            <a class="btn btn--ghost" href="/e/{{ $event->code }}/gallery">The album</a>
+                            @unless ($albumIsHidden)
+                                <a class="btn btn--ghost" href="/e/{{ $event->code }}/gallery">The album</a>
+                            @endunless
                         </div>
                     </div>
 
@@ -226,7 +241,15 @@
                     <img id="strip-preview" alt="Your photo strip">
                 </div>
                 <div class="bottom">
-                    <p class="consent-note">Sharing puts your strip in the event album — anyone with the link can see it.</p>
+                    <p class="consent-note">Sharing puts your strip in the event album —
+                        @if ($albumIsHidden) only the host can see it.
+                        @elseif ($event->albumNeedsPin()) guests with the album PIN can see it.
+                        @else anyone with the link can see it.
+                        @endif
+                    </p>
+                    @if ($event->photos_expire_at)
+                        <p class="consent-note">Photos are kept until {{ $event->photos_expire_at->format('j M Y') }}.</p>
+                    @endif
                     {{-- Shown when the strip can't be encoded for sending (a phone
                          low on memory). Staying on this screen matters: it holds
                          the only copy and the only Save link. --}}
@@ -266,7 +289,9 @@
                     </div>
                     <div class="btn-row">
                         <button id="again" class="secondary">Take another</button>
-                        <a class="btn btn--ghost" href="/e/{{ $event->code }}/gallery">See the album</a>
+                        @unless ($albumIsHidden)
+                            <a class="btn btn--ghost" href="/e/{{ $event->code }}/gallery">See the album</a>
+                        @endunless
                     </div>
                     <div class="share invite">
                         <button type="button" class="btn--ghost btn--small share-btn" data-share-url="{{ url('/e/'.$event->code) }}" data-share-title="{{ $event->name }}">Invite others</button>

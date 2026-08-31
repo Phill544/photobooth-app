@@ -19,7 +19,7 @@ APP_ENV=production
 APP_DEBUG=false            # flip to true briefly if you need to read a real error
 APP_KEY=                   # generate one (Cloud can, or `php artisan key:generate --show`)
 APP_URL=https://your-domain   # important: QR codes + invite links use this / the request host
-CACHE_STORE=database       # throttle state must be shared across containers, so not `array`
+CACHE_STORE=database       # throttle state and the sweep's onOneServer lock are shared, so not `array`
 ```
 
 Everything else arrives on its own, and **is not worth setting by hand — a custom variable
@@ -152,6 +152,51 @@ which is the designed degradation. Every guest just pays for it in bandwidth.
 > (the `jobs` and `failed_jobs` tables already exist) and add a background process running
 > `php artisan queue:work --tries=3` on the App cluster. It shares CPU with web traffic and gives
 > you no failed-job visibility, which is why production doesn't do this.
+
+## The scheduler (the retention sweep)
+
+Every event carries a **retention window** (`events.photos_expire_at`, 90 days on a new event, and
+the host can move it or clear it from the event page). When it passes, the album turns into an
+expired page for guests. **Thirty days after that** (`Event::PURGE_GRACE_DAYS`) a scheduled sweep
+deletes that event's photos and their files, keeps the event row so its code keeps explaining
+itself, and stamps `photos_purged_at` — after which no date brings the album back, and the host
+page says so instead of offering an extension.
+
+The gap between the two dates is the point: it is the window in which a host who has already missed
+their date can email and be given more time, and `photos_purged_at` is what stops the app promising
+that after there is nothing left to give.
+
+**Nothing runs any of it until you turn the scheduler on.** Click the environment's **App compute
+cluster** in the infrastructure canvas, enable the **Scheduler** toggle, then save and **re-deploy**
+that cluster. After the deploy, Cloud invokes `php artisan schedule:run` every minute. (A Worker
+cluster can carry it instead if you'd rather keep it off the web instances.)
+
+Three things Cloud's scheduler does that matter here:
+
+- **It runs on every replica.** `routes/console.php` therefore schedules the sweep with
+  `->onOneServer()`, so a scaled environment doesn't delete the same album from several instances at
+  once. That method needs an atomic cache lock, which is why `CACHE_STORE` must not be `array` —
+  the same reason the throttles need it.
+- **The schedule is read at deploy time.** Cloud stores the output of `schedule:list` on each deploy
+  and uses it to decide when to wake a sleeping environment, so **a change to the schedule does not
+  take effect until the next deployment**.
+- **Scale-to-zero wakes for it.** The environment wakes to run the sweep and then stays up for its
+  sleep timeout. Daily at 03:15 costs one short wake a night; don't schedule anything at an interval
+  shorter than the sleep timeout or the environment will never sleep again.
+
+Check what's registered, and what it would do, from the environment's **Commands** tab:
+
+```
+php artisan schedule:list
+php artisan photobooth:sweep-expired
+```
+
+The sweep is safe to run by hand and prints one line per album it took (or `Nothing to sweep.`). It
+only ever picks up events whose window **and** grace have both passed and that still have photos.
+
+Nothing breaks without a scheduler — albums still expire on their date, so guests see the expired
+page and hosts keep their controls. The photos simply never get deleted, which means the retention
+window is a promise the deploy isn't keeping, and storage grows forever.
 
 ## First deploy: create your admin
 

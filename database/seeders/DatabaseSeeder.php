@@ -26,6 +26,8 @@ class DatabaseSeeder extends Seeder
         );
         // is_admin is intentionally not mass-assignable (no register-time escalation),
         // so grant it explicitly here.
+        // is_admin is intentionally not mass-assignable (no register-time escalation),
+        // so grant it explicitly here.
         $host->forceFill(['is_admin' => true])->save();
 
         // The booth to shoot into, and the empty album that goes with it.
@@ -58,5 +60,44 @@ class DatabaseSeeder extends Seeder
             'caption' => 'The Nguyens at home',
             'closed_at' => Carbon::parse('2026-08-08 18:30'),
         ]), sessions: 12, openedAt: Carbon::parse('2026-08-08 14:00'), hours: 4);
+
+        // The two album states that are otherwise a chore to reach by hand — a
+        // PIN gate, and a night whose window has run out. Both matter on a phone
+        // (the PIN screen is a form a guest types into; the expired page is what
+        // a guest meets after everyone has gone home), and neither can be made
+        // by shooting into a booth: an expired event refuses uploads.
+        $this->fillAlbum(Event::firstOrCreate(['code' => 'SECRET'], [
+            'name' => 'Marsh Wedding',
+            'owner_id' => $host->id,
+            'template' => 'grid',
+            'theme' => 'champagne',
+            'caption' => 'Ana & Rob',
+            'album_privacy' => 'pin',
+            'album_pin' => 'bridesmaids',
+        ]), sessions: 5, openedAt: Carbon::parse('2026-08-15 20:00'), hours: 3);
+
+        // Expired, but inside the grace period: the host still sees the album
+        // and the countdown, a guest gets the expired page, and the sweep is
+        // still a fortnight off.
+        $this->fillAlbum(Event::firstOrCreate(['code' => 'LAPSED'], [
+            'name' => 'Winter Staff Party',
+            'owner_id' => $host->id,
+            'template' => 'classic',
+            'theme' => 'sand',
+            'closed_at' => Carbon::parse('2026-06-01 23:00'),
+            'photos_expire_at' => Carbon::now()->subDays(Event::PURGE_GRACE_DAYS - 14),
+        ]), sessions: 4, openedAt: Carbon::parse('2026-06-01 19:00'), hours: 3);
+
+        // And the state after the sweep has been through: the code still answers,
+        // the album says what happened to the photos, and no date brings them
+        // back. No fillAlbum call — the point of this one is that it is empty.
+        $swept = Event::firstOrCreate(['code' => 'SWEPT2'], [
+            'name' => 'Spring Fundraiser',
+            'owner_id' => $host->id,
+            'closed_at' => Carbon::parse('2026-03-14 22:00'),
+            'photos_expire_at' => Carbon::parse('2026-06-12 23:59'),
+        ]);
+        $swept->photos_purged_at ??= Carbon::parse('2026-07-12 03:15');
+        $swept->save();
     }
 }

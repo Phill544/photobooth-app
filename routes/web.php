@@ -30,12 +30,15 @@ Route::middleware('auth')->group(function () {
     Route::patch('/events/{event:code}', [EventController::class, 'update']);
     Route::delete('/events/{event:code}', [EventController::class, 'destroy']);
     Route::post('/events/{event:code}/toggle-closed', [EventController::class, 'toggleClosed']);
+    Route::post('/events/{event:code}/privacy', [EventController::class, 'privacy']);
+    Route::post('/events/{event:code}/retention', [EventController::class, 'retention']);
     Route::delete('/e/{event:code}/groups/{group}', [PhotoController::class, 'destroyGroup']);
 });
 
 // --- Guests: join by code, no login (the event code is the credential) ---
 Route::get('/e/{event:code}', [EventController::class, 'capture']);
 Route::get('/e/{event:code}/gallery', [EventController::class, 'gallery']);
+Route::post('/e/{event:code}/gallery/unlock', [EventController::class, 'unlock'])->middleware('throttle:album-pin');
 Route::post('/e/{event:code}/photos', [PhotoController::class, 'store'])->middleware('throttle:uploads');
 
 // The image routes themselves live in routes/images.php — they have no use for a

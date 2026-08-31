@@ -71,6 +71,12 @@
         }
         #lightbox-close:hover { transform: none; }
 
+        .expiry-notice {
+            max-width: var(--measure); margin: 0 auto; padding: 0 var(--page-gutter) var(--space-md);
+            color: var(--danger); font-size: var(--text-sm);
+        }
+        .expiry-notice--calm { color: var(--text-muted); }
+
         .empty { text-align: center; color: var(--text-muted); font-family: var(--font-display);
             font-size: var(--display-sm); padding: var(--space-3xl) 0; }
 
@@ -99,12 +105,29 @@
         <div class="stats">
             <x-stat :figure="$stripCount" :label="Str::plural('strip', $stripCount)" />
             <x-stat :figure="$photoCount" :label="Str::plural('photo', $photoCount)" />
+            @php($status = $event->status())
             <x-stat
-                :figure="$event->isClosed() ? 'shut' : 'live'"
-                :label="$event->isClosed() ? 'booth closed' : 'booth open'"
-                :say="$event->isClosed() ? 'The booth is closed' : 'The booth is open'" />
+                :figure="['live' => 'live', 'closed' => 'shut', 'finished' => 'done'][$status]"
+                :label="['live' => 'booth open', 'closed' => 'booth closed', 'finished' => 'event over'][$status]"
+                :say="['live' => 'The booth is open', 'closed' => 'The booth is closed', 'finished' => 'The event is over'][$status]" />
         </div>
     </div>
+
+    {{-- Only the host reaches an expired album — for guests it is the gate. The
+         grace period is theirs to use, so the page says how much of it is left
+         and what happens at the end of it. Once the sweep has been through there
+         is no more time to offer: saying so is the whole point of recording when
+         it ran. --}}
+    @if ($event->photosWerePurged())
+        <p class="expiry-notice">This album's photos were deleted on {{ $event->photos_purged_at->format('j M Y') }},
+            at the end of the window it was kept for. Nothing here can bring them back.</p>
+    @elseif ($event->hasExpired())
+        <p class="expiry-notice">This album expired on {{ $event->photos_expire_at->format('j M Y') }}.
+            Its photos are deleted on {{ $event->photos_expire_at->copy()->addDays($graceDays)->format('j M Y') }}
+            unless you <a href="/events/{{ $event->code }}#retention">give it more time</a>.</p>
+    @elseif ($event->photos_expire_at)
+        <p class="expiry-notice expiry-notice--calm">Photos in this album are kept until {{ $event->photos_expire_at->format('j M Y') }}.</p>
+    @endif
 
     {{-- Whether the album has anything in it, which is not the same question as
          whether this page of it does: a cursor can outlive the sessions behind
@@ -123,7 +146,11 @@
 
     <main class="feed">
         @if (! $hasPhotos)
-            <p class="empty">No photos yet — be the first.</p>
+            {{-- ...and a swept album is not an album nobody has shot into yet.
+                 The notice above has already said what happened to it. --}}
+            @unless ($event->photosWerePurged())
+                <p class="empty">No photos yet — be the first.</p>
+            @endunless
         @else
             {{-- Strips: one card per session, newest first. --}}
             <div class="strips" id="panel-strips">

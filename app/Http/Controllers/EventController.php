@@ -9,6 +9,7 @@ use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -33,7 +34,9 @@ class EventController extends Controller
         return view('dashboard', [
             'events' => $events,
             'isAdmin' => $user->is_admin,
-            'liveCount' => $events->reject->isClosed()->count(),
+            // Live means taking photos, which a finished event is not, however
+            // its closed_at reads.
+            'liveCount' => $events->filter(fn (Event $event) => $event->status() === 'live')->count(),
         ]);
     }
 
@@ -84,6 +87,13 @@ class EventController extends Controller
             'lastStripAt' => $strips()->latest()->first()?->created_at,
             'templates' => Event::TEMPLATES,
             'themes' => Event::STRIP_THEMES,
+            // Passed in rather than reached for in the view: `Event` in a Blade
+            // template is the framework's facade alias, not this model.
+            'privacyOptions' => Event::ALBUM_PRIVACY,
+            'graceDays' => Event::PURGE_GRACE_DAYS,
+            'retentionDays' => Event::RETENTION_DAYS,
+            'pinMaxLength' => Event::PIN_MAX_LENGTH,
+            'pinMinLength' => Event::PIN_MIN_LENGTH,
         ]);
     }
 
@@ -165,6 +175,55 @@ class EventController extends Controller
         return redirect("/events/{$event->code}");
     }
 
+    public function privacy(Request $request, Event $event)
+    {
+        abort_unless($event->managedBy($request->user()), 403);
+
+        $validated = $request->validate([
+            'album_privacy' => ['required', Rule::in(array_keys(Event::ALBUM_PRIVACY))],
+            'album_pin' => ['nullable', 'string', 'min:'.Event::PIN_MIN_LENGTH, 'max:'.Event::PIN_MAX_LENGTH],
+        ]);
+
+        // The one setting that is useless without a PIN is the one that insists
+        // on it. An empty field is left alone everywhere else, so the word the
+        // host has been reading out all night survives a trip through open and
+        // back rather than having to be re-invented.
+        if ($validated['album_privacy'] === 'pin' && blank($validated['album_pin'] ?? null)) {
+            throw ValidationException::withMessages([
+                'album_pin' => 'Give guests a PIN of '.Event::PIN_MIN_LENGTH.' to '.Event::PIN_MAX_LENGTH.' characters to type.',
+            ])->redirectTo("/events/{$event->code}#privacy");
+        }
+
+        $event->album_privacy = $validated['album_privacy'];
+        if (filled($validated['album_pin'] ?? null)) {
+            $event->album_pin = $validated['album_pin'];
+        }
+        $event->save();
+
+        return redirect("/events/{$event->code}");
+    }
+
+    public function retention(Request $request, Event $event)
+    {
+        abort_unless($event->managedBy($request->user()), 403);
+
+        $validated = $request->validate([
+            // Backdating would hand the next sweep an album the host never
+            // meant to lose. An empty field is "keep these for good".
+            'photos_expire_at' => ['nullable', 'date', 'after_or_equal:today'],
+        ]);
+
+        // Through the stated day, not up to the start of it: a host who says
+        // "kept until the 15th" is promising their guests the 15th.
+        $event->update([
+            'photos_expire_at' => $validated['photos_expire_at']
+                ? Carbon::parse($validated['photos_expire_at'])->endOfDay()
+                : null,
+        ]);
+
+        return redirect("/events/{$event->code}");
+    }
+
     public function capture(Event $event)
     {
         return view('capture', [
@@ -174,8 +233,83 @@ class EventController extends Controller
         ]);
     }
 
+    // Why a guest is being kept out of the album, or null if they aren't. The
+    // host and an admin are never turned away — the grace period exists so they
+    // can still get in, pull the photos down, and give the album more time. The
+    // booth is gated by none of this: a guest can always shoot, and always save
+    // their own strip.
+    private function albumGate(Request $request, Event $event): ?string
+    {
+        if ($event->managedBy($request->user())) {
+            return null;
+        }
+
+        // Expiry outranks the PIN. A guest holding a PIN that would no longer
+        // open anything should be told the album is over, not asked to type it.
+        if ($event->hasExpired()) {
+            return 'expired';
+        }
+
+        if ($event->albumIsHidden()) {
+            return 'hidden';
+        }
+
+        if ($event->albumNeedsPin() && $request->session()->get($this->unlockKey($event)) !== true) {
+            return 'pin';
+        }
+
+        return null;
+    }
+
+    // Per event, because a guest can be at two of them in one session.
+    private function unlockKey(Event $event): string
+    {
+        return "album-unlocked.{$event->id}";
+    }
+
+    // Both sides of the gate carry the page of the album the guest was on, so
+    // unlocking lands them back where they were reading rather than at the top
+    // of the night. Rebuilt from the two keys the album knows rather than
+    // echoed, so the only place this can ever redirect to is this album.
+    private function albumQuery(Request $request): string
+    {
+        $query = array_filter([
+            'order' => $request->query('order') === 'oldest' ? 'oldest' : null,
+            'after' => $request->integer('after') ?: null,
+        ]);
+
+        return $query ? '?'.http_build_query($query) : '';
+    }
+
+    public function unlock(Request $request, Event $event)
+    {
+        $album = "/e/{$event->code}/gallery".$this->albumQuery($request);
+
+        if (! $event->pinMatches($request->input('pin'))) {
+            throw ValidationException::withMessages([
+                'pin' => 'That PIN does not open this album.',
+            ])->redirectTo($album);
+        }
+
+        $request->session()->put($this->unlockKey($event), true);
+
+        return redirect($album);
+    }
+
     public function gallery(Request $request, Event $event)
     {
+        if ($state = $this->albumGate($request, $event)) {
+            // Hidden is a refusal and says so. A PIN is a door, and a door is a
+            // 200 with a form in it; so is an expired album, which a host can
+            // still bring back inside the grace period.
+            return response()->view('album-gate', [
+                'event' => $event,
+                'state' => $state,
+                'unlockUrl' => "/e/{$event->code}/gallery/unlock".$this->albumQuery($request),
+                'pinMaxLength' => Event::PIN_MAX_LENGTH,
+            ], $state === 'hidden' ? 403 : 200);
+        }
+
         $oldestFirst = $request->query('order') === 'oldest';
 
         // A page is a page of *sessions*. A strip and the shots it was composed
@@ -214,6 +348,7 @@ class EventController extends Controller
             // count rather than counting a page it can see.
             'stripCount' => $event->photos()->where('kind', 'strip')->count(),
             'photoCount' => $event->photos()->where('kind', 'original')->count(),
+            'graceDays' => Event::PURGE_GRACE_DAYS,
         ]);
     }
 

@@ -22,8 +22,10 @@ resumes itself from IndexedDB, queued album thumbnails + a tap-to-enlarge lightb
 cached session-free image routes) → the first of **P3 host trust** (a host can delete an event,
 and everything behind it, without an SSH session) → **a paged album** (the 4000-photo event that
 used to render 3997 `<img>` tags into one page now arrives 24 sessions at a time, and the dev
-seed can produce that event on demand).
-**194 Pest + 83 Vitest tests green.** Every feature slice was built red/green and then put
+seed can produce that event on demand) → **an album a host controls**: tri-state privacy
+(open / PIN / hidden) and a stated retention window that expires the album, then sweeps its photos
+thirty days later on a schedule.
+**253 Pest + 83 Vitest tests green.** Every feature slice was built red/green and then put
 through an adversarial review (see Conventions).
 
 ## Stack & how to run
@@ -50,7 +52,23 @@ through an adversarial review (see Conventions).
 
 **Routing** splits cleanly across two files:
 - **Guest, public (no login), `routes/web.php`:** `GET /e/{code}` (capture), `/e/{code}/gallery`,
-  `POST /e/{code}/photos` (throttled, CSRF-exempt). The event code is the credential.
+  `POST /e/{code}/gallery/unlock` (throttled), `POST /e/{code}/photos` (throttled, CSRF-exempt).
+  The event code is the credential.
+  **The album has a front door** (`EventController::albumGate()`): a host or admin is never turned
+  away, and a guest meets whatever `events.album_privacy` says — `open` (what every album that
+  existed before this had, and the default), `pin`, or `hidden`. Hidden is a refusal and answers
+  403; a PIN is a door, so it is a 200 with a form in it, and the unlock is a session flag keyed
+  per event (a guest can be at two). Expiry outranks both: a guest holding a PIN that would open
+  nothing is told the album is over rather than asked to type it. Both sides of the gate carry the
+  page of the album the guest was on, rebuilt from `order`/`after` server-side rather than echoed,
+  so the only place an unlock can ever redirect to is this album. **The PIN gates the album page
+  and nothing else** — the image routes stay session-free and immutably cached exactly as P1 left
+  them, so a leaked photo URL still opens (Phill's call, 2026-08-31, pinned by a test). The PIN is
+  stored in the clear, because the host reads it out to a room and has to be able to read it back;
+  it sits beside the event code, also in the clear, guarding the same album. Its bounds live once
+  on `Event::PIN_MIN_LENGTH`/`PIN_MAX_LENGTH` — the guest's field is the one that silently
+  truncates typing *and* paste, so a literal there that drifts below the validator is a PIN the
+  host can set and no guest can enter.
   **The album is paged, and a page is a page of *sessions*** (`EventController::SESSIONS_PER_PAGE`,
   24) — a strip and the shots it was composed from are one card, so half a session is not a thing
   the page can render. The cursor is `?after=<MAX(id)>`, the session's place in the night, rather
@@ -81,8 +99,8 @@ through an adversarial review (see Conventions).
   (DEPLOY.md's detached-bucket row) and is also the deliberate intermediate state of
   `Event::purge()`, which drops bytes before rows.
 - **Owner, auth-gated:** `/dashboard`, `/new`, `POST /events`, `GET|PATCH|DELETE /events/{code}`,
-  toggle-closed, and `DELETE /e/{code}/groups/{group}`. `Event::managedBy($user)` = owner OR admin,
-  else 403. The delete asks for the event code **in the request body**, not a browser `confirm()`:
+  toggle-closed, privacy, retention, and `DELETE /e/{code}/groups/{group}`.
+  `Event::managedBy($user)` = owner OR admin, else 403. The delete asks for the event code **in the request body**, not a browser `confirm()`:
   it is the one action that destroys every guest's photos, and a dialog guards nothing a request
   can skip. A rejected code redirects to `#delete` — the panel is the last thing on a long page,
   and the error was measured 270px below the fold without it.
@@ -166,6 +184,27 @@ path — logos are not per-event, and `photobooth:purge-event` used to leave eve
 (PHP, for the form + validation) mirrored by geometry/hex in `templates.ts` / `strip-theme.ts` (JS,
 for the canvas) — **keep the keys in sync by hand** (noted in both files).
 
+**Retention.** `events.photos_expire_at` is a stated window — `Event::RETENTION_DAYS` (90) on a
+new event, set in `booted()` rather than backfilled by the migration, because only events created
+after the window existed have guests who were told about one; every album that predates it is kept
+for good. Guests are told the date twice, at the two moments it matters: on the review screen as
+they decide to share, and in the album header. When the date passes, the album becomes an expired
+page for guests, the booth stops taking photos (a photo shared into an album already counting down
+is one the guest loses within the month), and the host keeps full access — which is the point of
+`Event::PURGE_GRACE_DAYS` (30). Inside that gap a host or admin can move the date and the album
+comes straight back, which is the "someone emails asking nicely" case the window exists for.
+`photobooth:sweep-expired` then runs `Event::purgePhotos()`: the same prefix delete as `purge()`,
+but the event row stays so its code keeps explaining itself, and the host's logo stays because a
+logo is branding, not a guest's photo. It stamps `photos_purged_at` — **recorded, not inferred
+from an empty album**, because a host who deleted every session by hand has not been swept, and
+because after it is set no date brings the photos back, so `hasExpired()` reads it too and no date
+reopens the album either. Every screen that used to label two states now asks `Event::status()`
+for one of three: a closed booth and a finished one are not the same thing to say.
+`photos_purged_at` is deliberately not mass-assignable — nothing a request sends may claim an
+album's photos were deleted, because that claim shuts the album. **The sweep does nothing without
+a scheduler**: DEPLOY.md has the toggle, and `->onOneServer()` is on the schedule because Cloud
+runs it on every replica.
+
 ## Deployment
 
 `DEPLOY.md` has the full Laravel Cloud checklist. The one that bit us: with no DB attached the app
@@ -228,6 +267,23 @@ offline hold and its hint, the resume notice after killing the tab mid-upload, I
 Safari **including private mode**, and the album's thumbnails, lightbox and per-photo save on both
 platforms.
 
+Added by the privacy/retention slice — all of it is new UI a phone has never rendered, and the
+dev seed now carries every state (see Handy facts), so this is a walk through five codes:
+
+- **The PIN gate** (`SECRET`, PIN `bridesmaids`): typing a *word* into the field on both keyboards
+  — that `autocapitalize="off"` actually holds on iOS, that the whole 11 characters go in (a
+  `maxlength` that disagreed with the validator was the bug that shipped and got caught), the wrong-PIN
+  error, and that the unlock survives backgrounding the tab.
+- **A hidden album**: switch `PARTY2` to "Only me" and check the booth offers no album link on
+  either platform — and that the consent line above Share says *only the host* before you tap it.
+- **The expired booth and album** (`LAPSED`), and **a swept one** (`SWEPT2`): both are full-screen
+  dark type with no controls, which is the one screen shape nothing else on the phone exercises.
+- **The review screen's second consent line** ("Photos are kept until …"). It fits at 375×812 in
+  the pane, but that is the screen with the least room on a real short phone in landscape.
+- **The host's two new folds** on a phone: the radio choices (they are prose, not swatches), and
+  the `type="date"` field — iOS renders its own picker and this is the app's first date input.
+  Check the summary line still reads as a state ("Photos · kept until 29 Nov 2026") at 375px.
+
 ### P2 — Participation engine (the visible payoff)
 9. Live wall: full-screen `/e/{code}/wall` for venue TVs — strips animating in via 3–5s
    cursor polling, event QR + code always in a corner, Screen Wake Lock, watchdog reload when
@@ -250,9 +306,12 @@ platforms.
 13. Password reset, then email verification (reset matters more). Needs the mailer above.
 14. Download-all ZIP: queued job streams S3 → zip, emails a signed expiring link. Never
     client-side (CORS + mobile memory). Needs the mailer above.
-16. Tri-state album privacy (hidden / PIN / open) + a stated retention window with a graceful
-    expired-album page. `photobooth:purge-event --force` exists now, so the retention sweep has
-    something to schedule.
+20. Warn hosts before their retention window closes — a mail at, say, 14 days and 1 day out, and
+    one when the photos have actually gone. **Phill's, 2026-08-31, not from the review**, and the
+    reason the 90-day default is safe to ship without it only for as long as nobody has had an
+    album swept: right now the window is stated on three screens and nowhere else, so a host who
+    never opens the app never hears about it. Needs the mailer above, and `photos_purged_at`
+    already records the fact the last of those three mails would report.
 
 ### P4 — New output modes (independent slices, in effort order)
 17. 9:16 story-strip variant of every layout from the same frames (share-sheet ready; build
@@ -292,6 +351,9 @@ toggle + higher capture resolution · audio/haptic countdown cue.
   are real JPEGs with real derivatives, written where `PhotoController::store` and
   `GenerateThumbnail` write theirs, because an album's cost is the files it asks for; only a
   dozen images are ever drawn and the rest are copies of those (`SeedsAlbums`). It skips any
-  event that already has photos, so re-running it is safe.
+  event that already has photos, so re-running it is safe. It also seeds the three album states
+  that are otherwise a chore to reach by hand, because none of them can be produced by shooting
+  into a booth: `SECRET` (PIN `bridesmaids`), `LAPSED` (expired, still inside its grace period, so
+  the host sees the countdown) and `SWEPT2` (photos already deleted — empty on purpose).
 - Event codes: 6 chars from an unambiguous alphabet (no O/0/1/I), case-insensitive.
 - Recent git history is the best per-slice narrative — each commit message explains the why.

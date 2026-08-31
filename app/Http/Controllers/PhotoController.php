@@ -42,6 +42,10 @@ class PhotoController extends Controller
     public function store(Request $request, Event $event)
     {
         abort_if($event->isClosed(), 410, 'This event is closed.');
+        // A photo shared into an album already counting down to its sweep is
+        // one the guest loses within the month. Same 410 the booth already
+        // knows how to read as terminal.
+        abort_if($event->hasExpired(), 410, 'This event has finished.');
 
         $validated = $request->validate([
             'photo' => ['required', 'image', 'mimes:jpeg,png,webp', 'max:10240'],
