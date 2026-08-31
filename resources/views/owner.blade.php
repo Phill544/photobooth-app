@@ -56,6 +56,15 @@
         .edit-preview { display: flex; flex-direction: column; align-items: center; gap: var(--space-xs); }
         .edit-preview .strip-mat { width: 100%; max-width: 160px; }
 
+        /* Taking the night home. Not folded away: this is the thing a host comes
+           back for once the event is over, and it has state worth seeing. */
+        .archive { display: flex; flex-direction: column; gap: var(--space-xs); }
+        .archive p { margin: 0; font-size: var(--text-sm); color: var(--text-muted); }
+        .archive .ready { color: var(--text); }
+        .archive form { margin: 0; }
+        .archive form button { width: 100%; }
+        .archive .error { margin: 0; }
+
         /* Who can open the album — folded, but its summary states the setting. */
         .privacy { text-align: right; }
         .privacy > summary { display: inline-flex; list-style: none; }
@@ -139,6 +148,49 @@
                     <button type="button" class="btn--ghost btn--small share-copy" data-copy="{{ url('/e/'.$event->code) }}">Copy link</button>
                     <span class="link-chip">{{ url('/e/'.$event->code) }}</span>
                 </div>
+            </div>
+
+            {{-- The night in one file. Built by a queued job because a busy event
+                 is thousands of files, so this panel has three states to show
+                 rather than one button. --}}
+            <div class="archive">
+                @if ($archive?->status === 'pending')
+                    <button class="btn--ghost" disabled>Building your download…</button>
+                    <p>A big night takes a few minutes. We'll email
+                        {{ $archive->requester?->email ?? 'you' }} when it's ready — you can close this page.</p>
+                @else
+                    {{-- A ready archive is a snapshot of the album at the moment
+                         it was built, so the way to ask for another one stays on
+                         the page beside it. The email promises exactly that. --}}
+                    @if ($archive?->isReady())
+                        <a class="btn btn--ghost" href="{{ $archive->downloadUrl() }}">Download everything · {{ $archive->size() }}</a>
+                        <p class="ready">{{ $archive->strip_count }} {{ Str::plural('strip', $archive->strip_count) }}
+                            and {{ $archive->photo_count }} {{ Str::plural('photo', $archive->photo_count) }},
+                            built {{ $archive->updated_at->diffForHumans() }}. This link works until
+                            {{ $archive->expires_at->format('j M Y') }}.</p>
+                    @endif
+
+                    <form method="POST" action="/events/{{ $event->code }}/archive">
+                        @csrf
+                        <button class="btn--ghost">{{ $archive?->isReady() ? 'Build a fresh one' : 'Download everything' }}</button>
+                    </form>
+
+                    @if ($archive?->isReady())
+                        <p>Anything shot since then isn't in it — build a fresh one and we'll email
+                            you a new link.</p>
+                    @else
+                        <p>One zip — strips and originals in their own folders. We build it in the
+                            background and email you a link.</p>
+                    @endif
+
+                    @if ($archive?->status === 'failed')
+                        <p class="error">The last one didn't finish. Asking again starts a fresh build.</p>
+                    @endif
+                @endif
+                @error('archive') <p class="error">{{ $message }}</p> @enderror
+                @if (session('status'))
+                    <p class="ready" role="status">{{ session('status') }}</p>
+                @endif
             </div>
 
             {{-- Its own fields only: the delete panel below has an error too,

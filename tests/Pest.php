@@ -20,6 +20,18 @@ function uploadPhoto(string $code, array $overrides = []): TestResponse
     ], $overrides));
 }
 
+// The entry names inside a built archive. Reading the real zip back is the only
+// way to know the folders are what the host will actually see on their desktop.
+function zipEntries(string $path): array
+{
+    $zip = new ZipArchive;
+    $zip->open($path);
+    $names = array_map(fn (int $i) => $zip->getNameIndex($i), range(0, $zip->numFiles - 1));
+    $zip->close();
+
+    return $names;
+}
+
 // An upload as the booth itself sends it: multipart, and asking for JSON. The
 // Accept header is what turns a rejected upload into a 422 the client can read
 // instead of an HTML validation redirect.

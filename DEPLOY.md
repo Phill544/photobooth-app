@@ -159,6 +159,31 @@ Two things worth knowing when you create it:
   logs say "allowed memory size exhausted", that's this — the queue's Memory chart confirms it.
 - The Flex class caps a job at 90 seconds, which these jobs (~40 ms) never approach.
 
+### The second job: download-all archives
+
+`BuildEventArchive` is a much heavier job than a thumbnail, and it runs on the same queue. It zips
+an event's strips and originals into one file under the event's own prefix, then emails the host a
+signed link. Three things it needs:
+
+- **`ext-zip`.** It is declared in `composer.json`, so a runtime without it fails the **build** with
+  a plain message rather than failing every archive job at run time. Laravel Cloud lets you add PHP
+  extensions per environment if it is not there by default.
+- **Local disk while it runs.** Each photo is streamed to a temp file and the zip is assembled from
+  those, so the container needs room for roughly twice the event's bytes, briefly. Memory is flat —
+  one photo at a time — so the 256 MiB ceiling that bites the thumbnail job does not bite this one.
+- **Time.** The job's timeout is 900s. Measured locally against the 4000-photo seed
+  (`--class=BigEventSeeder`, event `NEWYRS`): **8.5s, 50 MB peak, a 149 MB archive**. Do not read
+  that as a production number — that run was against the local disk. On object storage every one of
+  those ~4000 files is a network round trip, so budget minutes, which is what the timeout is for.
+
+  Those 8.5 seconds were **over ten minutes** before the entries were switched to
+  `ZipArchive::CM_STORE`. Deflating a JPEG spends real CPU to save almost nothing, and a busy night
+  is thousands of them; the archive is a container, not a compressor.
+
+Archives are offered for `Archive::LIFETIME_DAYS` (7) and then deleted by a scheduled sweep — see
+the scheduler section. They also go whenever the photos they hold go, because they live under the
+same `events/{id}/` prefix that the host's delete and the retention sweep already clear.
+
 Failed jobs appear in the environment's **Queues** dashboard under Monitoring, with retry and
 delete — the `queue:failed` / `queue:retry` commands don't work against managed queues.
 
@@ -250,11 +275,16 @@ Three things Cloud's scheduler does that matter here:
   sleep timeout. Daily at 03:15 costs one short wake a night; don't schedule anything at an interval
   shorter than the sleep timeout or the environment will never sleep again.
 
+The second scheduled command, `photobooth:sweep-archives`, deletes built download-all archives
+whose link has expired (7 days). Each is a second copy of an entire event, so without it every
+download a host ever asked for accumulates on the bucket.
+
 Check what's registered, and what it would do, from the environment's **Commands** tab:
 
 ```
 php artisan schedule:list
 php artisan photobooth:sweep-expired
+php artisan photobooth:sweep-archives
 ```
 
 The sweep is safe to run by hand and prints one line per album it took (or `Nothing to sweep.`). It

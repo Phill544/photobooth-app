@@ -26,8 +26,9 @@ seed can produce that event on demand) → **an album a host controls**: tri-sta
 (open / PIN / hidden) and a stated retention window that expires the album, then sweeps its photos
 thirty days later on a schedule → **a host account that can look after itself**: password reset
 and email verification over a real mail transport (SES), behind the same kind of deploy gate the
-storage disk has.
-**290 Pest + 83 Vitest tests green.** Every feature slice was built red/green and then put
+storage disk has → **download-all**: a queued job zips a whole night into one file and emails the
+host a signed, expiring link.
+**316 Pest + 83 Vitest tests green.** Every feature slice was built red/green and then put
 through an adversarial review (see Conventions).
 
 ## Stack & how to run
@@ -240,6 +241,31 @@ album's photos were deleted, because that claim shuts the album. **The sweep doe
 a scheduler**: DEPLOY.md has the toggle, and `->onOneServer()` is on the schedule because Cloud
 runs it on every replica.
 
+**Download-all** (`BuildEventArchive`, `App\Models\Archive`). A host asks, a queued job zips the
+event's strips and originals into `strips/` and `photos/` inside one file, and emails them a
+**signed, expiring** link — no login on that route, because the link is opened on whatever device
+reads the mail rather than the one they signed in on. The row exists because the build is queued:
+without it there is nothing to show the host while it runs, nothing to hang a lifetime on, and
+nothing for the nightly sweep to find. One build at a time per event, because a host who taps twice
+should not set two copies of the same hundreds of megabytes going.
+
+Two things it deliberately borrows from elsewhere in the app. It writes **under the event's own
+prefix**, so the host's delete and the retention sweep already take it — an archive that outlived
+the photos it holds would make the retention window a lie, and that is a test. And it checks the
+`false` that `Storage::writeStream` returns on a refused write rather than recording the path
+anyway, for the same reason `PhotoController::store` does: the alternative is emailing a host a
+link to nothing.
+
+The one measured thing: entries are added with **`ZipArchive::CM_STORE`**. Deflating a JPEG spends
+real CPU to save nothing, and a busy night is thousands of them — the 4000-photo seed went from
+**over ten minutes to 8.5 seconds** (50 MB peak, 149 MB out) when that changed. Photos stream
+through temp files one at a time rather than through `addFromString`, which holds everything it is
+handed until `close()`; on that event that would have been the whole night in memory. Staging
+happens inside a `try/finally`, and **a photo row that has outlived its file is skipped rather than
+fatal** — the album already answers 404 for that state, and one orphan must not cost a host the
+whole night (it used to throw straight past the cleanup and leave every staged original behind, on
+both attempts). The counts on the row are of what actually went into the zip.
+
 ## Deployment
 
 `DEPLOY.md` has the full Laravel Cloud checklist. The one that bit us: with no DB attached the app
@@ -329,6 +355,10 @@ the phone is where they are actually used:
 - The **`log` mailer means neither link will arrive at a phone** until SES is configured: grep
   `storage/logs/laravel.log` on the dev machine and open the URL on the phone by hand (the tunnel
   host will differ from `APP_URL`, so edit the host in the URL).
+- **A download-all link on a phone.** The archive route sends `Content-Disposition: attachment` for
+  a file that can be hundreds of megabytes; what iOS Safari and Android Chrome each do with that —
+  and whether it lands anywhere a host can find — is worth seeing once before a host tries it at
+  the end of a night.
 
 ### P2 — Participation engine (the visible payoff)
 9. Live wall: full-screen `/e/{code}/wall` for venue TVs — strips animating in via 3–5s
@@ -350,9 +380,6 @@ the phone is where they are actually used:
 > deploy, the reset pages say so honestly rather than promising an email, and verification gates
 > nothing — so production is safe, it just cannot send.
 
-14. Download-all ZIP: queued job streams S3 → zip, emails a signed expiring link. Never
-    client-side (CORS + mobile memory). **Strips and originals in one archive, foldered**
-    (Phill, 2026-08-31).
 20. Warn hosts before their retention window closes — a mail at, say, 14 days and 1 day out, and
     one when the photos have actually gone. **Phill's, 2026-08-31, not from the review**, and the
     reason the 90-day default is safe to ship without it only for as long as nobody has had an
@@ -406,5 +433,8 @@ toggle + higher capture resolution · audio/haptic countdown cue.
   from the mailer guard). A reset or verification link is one grep away:
   `grep -o 'http://localhost:8000/[a-z/-]*verify[^"< ]*' storage/logs/laravel.log`. Clear the log
   first or you will find an older one.
+- **The queue matters more now.** `composer run dev` runs a worker; `php artisan serve` on its
+  own does not, so thumbnails and download-all archives will sit in the `jobs` table untouched.
+  `php artisan queue:work --once` clears one by hand.
 - Event codes: 6 chars from an unambiguous alphabet (no O/0/1/I), case-insensitive.
 - Recent git history is the best per-slice narrative — each commit message explains the why.

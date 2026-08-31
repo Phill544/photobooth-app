@@ -18,3 +18,7 @@ Artisan::command('inspire', function () {
 // once. Nothing runs any of it without the Scheduler toggle on the App cluster:
 // DEPLOY.md has that, and the redeploy it needs.
 Schedule::command('photobooth:sweep-expired')->dailyAt('03:15')->onOneServer();
+
+// And the download-all archives, each a second copy of a whole event, offered
+// for a week (Archive::LIFETIME_DAYS) and then deleted.
+Schedule::command('photobooth:sweep-archives')->dailyAt('03:30')->onOneServer();

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ArchiveController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\PhotoController;
@@ -63,6 +64,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/events/{event:code}/toggle-closed', [EventController::class, 'toggleClosed']);
     Route::post('/events/{event:code}/privacy', [EventController::class, 'privacy']);
     Route::post('/events/{event:code}/retention', [EventController::class, 'retention']);
+    Route::post('/events/{event:code}/archive', [ArchiveController::class, 'store']);
     Route::delete('/e/{event:code}/groups/{group}', [PhotoController::class, 'destroyGroup']);
 });
 
@@ -71,6 +73,12 @@ Route::get('/e/{event:code}', [EventController::class, 'capture']);
 Route::get('/e/{event:code}/gallery', [EventController::class, 'gallery']);
 Route::post('/e/{event:code}/gallery/unlock', [EventController::class, 'unlock'])->middleware('throttle:album-pin');
 Route::post('/e/{event:code}/photos', [PhotoController::class, 'store'])->middleware('throttle:uploads');
+
+// Taking the night home. No `auth`: the signature IS the credential, because
+// this link is emailed and gets opened on whatever device reads the mail rather
+// than the one the host signed in on. It carries the file's own expiry.
+Route::get('/archives/{archive}/download', [ArchiveController::class, 'download'])
+    ->middleware('signed')->name('archive.download');
 
 // The image routes themselves live in routes/images.php — they have no use for a
 // session, so they are registered outside this group (see bootstrap/app.php).

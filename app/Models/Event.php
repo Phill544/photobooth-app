@@ -121,6 +121,11 @@ class Event extends Model
         return $this->hasMany(Photo::class);
     }
 
+    public function archives(): HasMany
+    {
+        return $this->hasMany(Archive::class);
+    }
+
     // One stable route per event, but the host can replace the file behind it —
     // and images are served with a year of immutable caching. So the URL carries
     // the stored file's fingerprint: a swapped logo is simply a different URL.
@@ -168,10 +173,16 @@ class Event extends Model
     // guests rather than the host: every photo and every file behind one, with
     // the event row left standing so its code keeps explaining itself. A host's
     // logo is their own branding, not a guest's photo, so it stays.
+    //
+    // Built archives are photos too, in one file — they live under the same
+    // prefix so the sweep above already takes their bytes, and their rows go
+    // here. A retention window that deleted the photos and left a zip of them
+    // on the same disk would not be a retention window at all.
     public function purgePhotos(): void
     {
         Storage::deleteDirectory("events/{$this->id}");
 
+        $this->archives()->delete();
         $this->photos()->delete();
 
         // Set here rather than mass-assigned: nothing a request sends may claim

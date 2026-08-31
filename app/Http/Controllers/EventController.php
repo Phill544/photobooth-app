@@ -98,6 +98,9 @@ class EventController extends Controller
             'retentionDays' => Event::RETENTION_DAYS,
             'pinMaxLength' => Event::PIN_MAX_LENGTH,
             'pinMinLength' => Event::PIN_MIN_LENGTH,
+            // Only the most recent one is worth showing: asking again replaces
+            // the link a host would have used anyway.
+            'archive' => $event->archives()->latest()->first(),
         ]);
     }
 
