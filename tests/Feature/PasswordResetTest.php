@@ -1,9 +1,12 @@
 <?php
 
 use App\Models\User;
-use Illuminate\Auth\Notifications\ResetPassword;
+use App\Notifications\QueuedResetPassword;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Queue;
 
 beforeEach(function () {
     // Local and testing are exempt from the mailer guard — the log mailer is the
@@ -24,7 +27,7 @@ it('sends a reset link to an address we know', function () {
     $this->post('/forgot-password', ['email' => 'host@example.com'])
         ->assertRedirect('/forgot-password');
 
-    Notification::assertSentTo($this->host, ResetPassword::class);
+    Notification::assertSentTo($this->host, QueuedResetPassword::class);
 });
 
 // Two different answers here would turn this form into a way of asking which
@@ -32,11 +35,17 @@ it('sends a reset link to an address we know', function () {
 it('says the same thing about an address we do not know', function () {
     Notification::fake();
 
-    $known = $this->post('/forgot-password', ['email' => 'host@example.com']);
-    $unknown = $this->post('/forgot-password', ['email' => 'nobody@example.com']);
+    // Read each flash straight after its own request. TestResponse has no
+    // getSession(), so `$response->getSession()` falls through to the app's one
+    // live session store and comparing two of them compares a value with itself.
+    $this->post('/forgot-password', ['email' => 'host@example.com']);
+    $known = session('status');
 
-    expect($unknown->getSession()->get('status'))->toBe($known->getSession()->get('status'));
-    Notification::assertSentTimes(ResetPassword::class, 1);
+    $this->post('/forgot-password', ['email' => 'nobody@example.com']);
+    $unknown = session('status');
+
+    expect($known)->not->toBeNull()->and($unknown)->toBe($known);
+    Notification::assertSentTimes(QueuedResetPassword::class, 1);
 });
 
 it('still asks for something that looks like an address', function () {
@@ -119,6 +128,52 @@ it('does not spend the login budget on the way back in', function () {
     $this->post('/reset-password', ['token' => 'x', 'email' => 'host@example.com'])->assertStatus(302);
 });
 
+it('does not take the page down when the reset mail cannot go', function () {
+    Queue::fake();
+    breakTheMailer();
+
+    $this->post('/forgot-password', ['email' => 'host@example.com'])
+        ->assertRedirect('/forgot-password');
+});
+
+// And the answer stays uniform. Only a real address ever reaches the transport,
+// so a distinct "we could not send that" would say which addresses have
+// accounts — the exact thing the single answer above exists to prevent.
+it('keeps one answer for both addresses even when sending fails', function () {
+    Queue::fake();
+    breakTheMailer();
+
+    $this->post('/forgot-password', ['email' => 'host@example.com']);
+    $known = session('status');
+
+    $this->post('/forgot-password', ['email' => 'nobody@example.com']);
+    $unknown = session('status');
+
+    expect($known)->not->toBeNull()->and($unknown)->toBe($known);
+});
+
+// Queueing moved the raw token out of request memory and into a store. The
+// database keeps only its hash on purpose, so the queue must not be the one
+// place a working reset link sits in the clear — least of all in failed_jobs,
+// which is exactly where a rejected recipient parks it.
+it('does not leave a usable reset token sitting in the queue', function () {
+    config(['queue.default' => 'database']);
+
+    Password::sendResetLink(['email' => 'host@example.com']);
+
+    $payload = DB::table('jobs')->value('payload');
+    $hashed = DB::table('password_reset_tokens')->value('token');
+    expect($payload)->not->toBeNull()->and($hashed)->not->toBeNull();
+
+    // Every 64-hex run in the payload, checked against the stored hash: none of
+    // them may be the token it is a hash of.
+    preg_match_all('/[a-f0-9]{64}/', $payload, $candidates);
+
+    foreach ($candidates[0] as $candidate) {
+        expect(Hash::check($candidate, $hashed))->toBeFalse();
+    }
+});
+
 it('refuses a token that was not ours', function () {
     $this->post('/reset-password', [
         'token' => 'not-a-real-token',
@@ -178,7 +233,7 @@ it('throttles requests for a link', function () {
 // The email is the only part of this a host ever sees, and it goes out under the
 // app's name to somebody who may have forgotten they have an account.
 it('sends an email that says who it is from and where to go', function () {
-    $mail = (new ResetPassword('a-token'))->toMail($this->host);
+    $mail = (new QueuedResetPassword('a-token'))->toMail($this->host);
     $rendered = (string) $mail->render();
 
     expect($mail->subject)->toContain('Quikbooth')

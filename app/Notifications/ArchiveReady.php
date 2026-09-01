@@ -3,11 +3,20 @@
 namespace App\Notifications;
 
 use App\Models\Archive;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class ArchiveReady extends Notification
+// Queued, because the archive is already built, written and downloadable by
+// the time this is sent. Sending it inline meant a transport failure failed
+// the job, which retried the entire build and then parked a perfectly good
+// archive at 'failed' — telling the host their download did not finish
+// while the file sat there ready for them.
+class ArchiveReady extends Notification implements ShouldQueue
 {
+    use Queueable;
+
     public function __construct(public Archive $archive) {}
 
     public function via(object $notifiable): array

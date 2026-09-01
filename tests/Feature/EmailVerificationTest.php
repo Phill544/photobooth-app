@@ -2,8 +2,9 @@
 
 use App\Models\Event;
 use App\Models\User;
-use Illuminate\Auth\Notifications\VerifyEmail;
+use App\Notifications\QueuedVerifyEmail;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\URL;
 
 function verificationUrl(User $user): string
@@ -28,7 +29,35 @@ it('emails a new host a link to verify the address they typed', function () {
         'password_confirmation' => 'a-good-password',
     ])->assertRedirect('/dashboard');
 
-    Notification::assertSentTo(User::whereEmail('new@example.com')->sole(), VerifyEmail::class);
+    Notification::assertSentTo(User::whereEmail('new@example.com')->sole(), QueuedVerifyEmail::class);
+});
+
+// Production, 2026-09-01. SES refused an unverified recipient, the exception
+// escaped `event(new Registered(...))`, and the host got a 500 — *after* the
+// account row was written and *before* Auth::login ran. She could not log in
+// (she never learned the account existed) and could not register again (the
+// address was taken). Sending the link must not be able to take the request
+// down with it, whatever the transport says.
+it('creates the account and signs the host in even when the mail cannot go', function () {
+    Queue::fake();
+    breakTheMailer();
+
+    $this->post('/register', [
+        'name' => 'New Host',
+        'email' => 'new@example.com',
+        'password' => 'a-good-password',
+        'password_confirmation' => 'a-good-password',
+    ])->assertRedirect('/dashboard');
+
+    expect(User::whereEmail('new@example.com')->exists())->toBeTrue();
+    $this->get('/dashboard')->assertOk();
+});
+
+it('does not take the page down when a resend cannot go either', function () {
+    Queue::fake();
+    breakTheMailer();
+
+    $this->actingAs($this->unverified)->post('/email/resend')->assertRedirect('/email/verify');
 });
 
 // Verification gates the one thing worth gating and nothing else: a host is
@@ -64,7 +93,7 @@ it('sends the link again when asked', function () {
 
     $this->actingAs($this->unverified)->post('/email/resend')->assertRedirect('/email/verify');
 
-    Notification::assertSentTo($this->unverified, VerifyEmail::class);
+    Notification::assertSentTo($this->unverified, QueuedVerifyEmail::class);
 });
 
 it('throttles asking for it again', function () {
@@ -137,7 +166,7 @@ it('does not gate anything when there is no mailer to verify with', function () 
 });
 
 it('sends an email that says who it is from', function () {
-    $mail = (new VerifyEmail)->toMail($this->unverified);
+    $mail = (new QueuedVerifyEmail)->toMail($this->unverified);
 
     expect($mail->subject)->toContain('Quikbooth')
         ->and((string) $mail->render())->toContain('Quikbooth');

@@ -2,6 +2,7 @@
 
 Orientation for the next agent picking this up. For depth, read alongside
 [PLAN.md](PLAN.md) (decisions + roadmap + design system), [DEPLOY.md](DEPLOY.md) (Laravel Cloud),
+[OBSERVABILITY.md](OBSERVABILITY.md) (the error-tracking/monitoring plan — not yet built),
 and [README.md](README.md) (local quickstart). This file is the map and the working conventions.
 
 ## What it is
@@ -28,7 +29,7 @@ thirty days later on a schedule → **a host account that can look after itself*
 and email verification over a real mail transport (SES), behind the same kind of deploy gate the
 storage disk has → **download-all**: a queued job zips a whole night into one file and emails the
 host a signed, expiring link.
-**316 Pest + 83 Vitest tests green.** Every feature slice was built red/green and then put
+**322 Pest + 83 Vitest tests green.** Every feature slice was built red/green and then put
 through an adversarial review (see Conventions).
 
 ## Stack & how to run
@@ -137,7 +138,28 @@ through an adversarial review (see Conventions).
   lifts entirely when the mailer is fake — requiring a link nothing can send is a locked door with
   no key cut for it, and DEPLOY.md is explicit that a failing deploy command may not abort a
   release. `local` and `testing` are exempt from all of it, so a dev with no SES credentials still
-  works: the link lands in `storage/logs/laravel.log`. **SES reads `SES_*`, deliberately not the
+  works: the link lands in `storage/logs/laravel.log`.
+  **Every auth mail is queued** (`App\Notifications\QueuedResetPassword` / `QueuedVerifyEmail`,
+  sent from `User`), and so is `ArchiveReady`. That is not tidiness, it is a production incident
+  (2026-09-01): a new host registered, SES was still sandboxed, it refused the unverified
+  recipient, and the `TransportException` escaped `event(new Registered(...))`. The account row was
+  already written and `Auth::login()` had not run, so she got a 500, could not log in (she never
+  learned the account existed) and could not register again (the address was taken). Sending on the
+  queue means a transport that refuses a message can no longer take down the request that triggered
+  it, and it keeps the forgot-password form's single answer honest, since only a real address ever
+  reaches the transport. The same shape of bug sat in `BuildEventArchive`, which failed the whole
+  job (rebuilding the archive on retry) and then parked a built, downloadable archive at `failed`
+  when only the email had failed.
+  `QueuedResetPassword` is additionally **`ShouldBeEncrypted`**, because queueing moves a live
+  credential out of request memory and into a store: `ResetPassword` carries the RAW token while
+  `password_reset_tokens` deliberately keeps only its hash, so an unencrypted payload would leave a
+  working reset link in `jobs` and, on the very failure this design exists to survive, in
+  `failed_jobs` and the Cloud Queues dashboard. A test greps the payload for any 64-hex run that
+  `Hash::check`s against the stored hash.
+  Two of the enumeration tests used to be tautologies: `TestResponse` has no `getSession()`, so
+  `$response->getSession()` fell through to the app's single live session store and comparing two
+  of them compared a value with itself. Read each flash straight after its own request.
+  **SES reads `SES_*`, deliberately not the
   `AWS_*` pair** the framework ships in `config/services.php` — those are this app's bucket, and one
   rotation should not be able to take out either photos or password resets with no visible
   connection between them.
@@ -319,6 +341,11 @@ Each item is a slice: red/green TDD, then an adversarial review pass (see Conven
 line plus the git log are where finished work is recorded. Item numbers are stable IDs from the
 review, so they don't get renumbered when something above them goes; a phase whose items are all
 done disappears with them.
+
+Alongside the phases, not from the review: **[OBSERVABILITY.md](OBSERVABILITY.md)** (Phill's,
+2026-09-01) — the error-tracking/monitoring plan. Its phases 0–1 are dashboard/config work, not
+slices; its phase 2 (the booth reporting its own client errors) is a normal code slice and can be
+picked up like any item here.
 
 ### Gate — one combined real-device pass (Android + iPhone), before P2
 Everything below is queued behind one session on real phones. It covers the redesign screens

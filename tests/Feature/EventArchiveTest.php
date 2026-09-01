@@ -202,6 +202,22 @@ it('leaves no temp files behind, whichever way the build ends', function () {
     expect(count(glob(sys_get_temp_dir().'/pb-*')))->toBe($before);
 });
 
+// The archive is built, written and downloadable before the email goes. A
+// transport failure used to fail the job, which retried the entire build and
+// then parked a perfectly good archive at 'failed' — telling the host their
+// download did not finish while the file sat there, ready.
+it('keeps a built archive when only the email fails', function () {
+    Queue::fake();
+    breakTheMailer();
+    shootSession();
+
+    (new BuildEventArchive(Archive::create(['event_id' => $this->event->id, 'requested_by' => $this->owner->id])))->handle();
+
+    $archive = Archive::sole();
+    expect($archive->status)->toBe('ready');
+    Storage::assertExists($archive->path);
+});
+
 // --- Taking it home ---
 
 it('hands over the zip to a signed link', function () {

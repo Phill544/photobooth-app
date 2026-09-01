@@ -2,7 +2,11 @@
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Testing\TestResponse;
+use Symfony\Component\Mailer\Exception\TransportException;
+use Symfony\Component\Mailer\SentMessage;
+use Symfony\Component\Mailer\Transport\AbstractTransport;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)
@@ -18,6 +22,27 @@ function uploadPhoto(string $code, array $overrides = []): TestResponse
         'group' => fake()->uuid(),
         'slot' => 1,
     ], $overrides));
+}
+
+// A transport that rejects the way SES does when it will not take a recipient.
+// This is the production failure of 2026-09-01 in a test: the mail throws from
+// inside the request that was doing something else important.
+function breakTheMailer(): void
+{
+    Mail::extend('exploding', fn () => new class extends AbstractTransport
+    {
+        protected function doSend(SentMessage $message): void
+        {
+            throw new TransportException('Email address is not verified.');
+        }
+
+        public function __toString(): string
+        {
+            return 'exploding';
+        }
+    });
+
+    config(['mail.default' => 'exploding', 'mail.mailers.exploding' => ['transport' => 'exploding']]);
 }
 
 // The entry names inside a built archive. Reading the real zip back is the only
