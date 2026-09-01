@@ -2,12 +2,14 @@
 
 The plan and decisions for tracking errors, logs and (eventually) usage in production.
 [HANDOVER.md](HANDOVER.md) is the map of the app; this file is how we find out what the app did
-last night. **Status: Phase 0 is live (2026-09-01)** — the `cloud` CLI is installed and
+last night. **Status: Phases 0 and 1 are live (2026-09-01)** — the `cloud` CLI is installed and
 authenticated on the dev machine, the agent skill is in, Claude reads production logs directly,
-and the missing `check-mail` deploy guard is in the environment's deploy commands. **Phase 1 is
-in flight**: `laravel/nightwatch` is in composer.json (inert until its token exists); still to do
-are the Connect Nightwatch toggle, the $0 spending cap + exception alert, and the MCP hookup.
-Phases 2–3 not started. Update this line as phases ship.
+and the missing `check-mail` deploy guard is in the environment's deploy commands. The Nightwatch
+integration is connected and the agent runs on the App cluster; a deliberate smoke-test exception
+fired on prod was captured as an issue, **emailed Phill by default**, and read back through the
+log stream. One formality open: the first MCP read-back (the server loads at session start, so a
+session newer than the hookup does it, then resolves the smoke-test issue). Phases 2–3 not
+started. Update this line as phases ship.
 
 All vendor facts below (pricing, tiers, MCP endpoints, API shapes) were verified against current
 docs on 2026-09-01 and independently fact-checked. Re-verify prices before acting on them if
@@ -77,8 +79,10 @@ What it buys us, in this app's terms:
   failures, and — the one that matters most — the retention sweeps. A silently failing
   `photobooth:sweep-expired` makes the retention window a promise the deploy isn't keeping;
   Nightwatch monitors scheduled tasks as first-class events.
-- **Alerting exists**: Slack integration and custom webhooks — a new exception during a Saturday
-  event pings a phone instead of waiting to be found.
+- **Alerting exists, and the useful one is on by default**: a new issue emails the account owner
+  with no setup (verified by the 2026-09-01 smoke test — the mail beat the manual check). Slack
+  integration and a per-application webhook (`issue.opened` etc.) are the opt-in upgrades, under
+  Settings → application → Issues.
 - **Claude reads it directly** via the official MCP server:
   `claude mcp add --transport http nightwatch https://nightwatch.laravel.com/mcp` (OAuth on first
   use; or install the `laravel-nightwatch@laravel` plugin from the same marketplace as Phase 0).
@@ -96,8 +100,10 @@ Setup (mostly dashboard clicks; the composer require is the only repo change):
 3. Cloud environment dashboard → **Connect Nightwatch** → enable monitoring → paste token.
    Cloud then runs the agent on all App/Worker compute itself and injects `NIGHTWATCH_TOKEN`,
    `NIGHTWATCH_REQUEST_SAMPLE_RATE=0.1`, `LOG_CHANNEL=stack`, `LOG_STACK=laravel-cloud-socket,nightwatch`.
-4. Turn on the Slack (or webhook) alert for new exception issues. **Set the spending cap to $0**
-   so a quota blowout pauses ingestion rather than billing.
+4. Alerting needs nothing: new-issue email is on by default. Add the Slack integration or a
+   webhook later if email stops being enough. A spending cap only matters once a payment method
+   is attached — with none on file, hitting the free quota pauses ingestion on its own, which is
+   the failure mode a $0 cap exists to guarantee.
 5. Add the MCP server to Claude Code (command above).
 
 Cost guardrails — the free tier is 300k events/month, but **everything is an event** (each
@@ -120,18 +126,31 @@ fallbacks, IndexedDB in private-mode Safari, the upload retry tail — all of it
 we can't see, showing an error screen to one guest and telling no one. This phase makes the
 existing handlers report before they render.
 
-Not an SDK: the errors-only Sentry browser bundle **measures 30KB gzipped** — several times the
-app's own JS — and the tiny third-party alternatives speak Sentry's deprecated ingestion protocol.
-A hand-rolled reporter is ~0.5–1KB, testable, and feeds the pipeline we already read.
+Not an SDK, and here is the whole trade laid out (settled with Phill, 2026-09-01). Nightwatch has
+**no browser SDK**, so "use an SDK" doesn't mean upgrading this reporter — it means adding Sentry
+as a second vendor (account, quota, dashboard, MCP) solely for client errors, plus its errors-only
+bundle, which **measures 30KB gzipped** against a booth whose entire JS is ~7KB, delivered at the
+QR-scan moment on venue Wi-Fi. The tiny third-party alternatives speak Sentry's deprecated
+ingestion protocol. A hand-rolled reporter is ~0.5–1KB, testable, and feeds the pipeline Phase 1
+already alerts from. What it honestly gives up: transport robustness (a beacon that fails is a
+lost report — though an SDK's standard error transport is also send-once; offline buffering is an
+opt-in extra even in Sentry) and automatic symbolication (Claude decodes minified frames from the
+build's maps on demand instead — minutes per novel error, at a volume of a handful per event
+night). **The switch trigger:** if client errors prove frequent, or undiagnosable from message +
+stack + flow-state, or session replay is ever wanted — add the Sentry browser SDK *then*, with
+evidence. Nothing here gets undone: the endpoint stays, the SDK is additive.
 
 Design (a normal slice: red/green TDD, then adversarial review):
 
 - **Client** — a small pure module (`report.ts`, Vitest-tested) called from the two existing
   global listeners in [capture.ts:499](resources/js/capture.ts:499) and wired onto the other guest
   pages (album, gallery unlock):
-  - Payload: `{message, stack, url, userAgent, eventCode, ts}` — message and stack as **separate
-    fields** (Chrome and iOS Safari format stacks differently; treat the stack as an opaque
-    string), stack truncated at 8KB.
+  - Payload: `{message, stack, url, userAgent, eventCode, flowState, landed, ts}` — message and
+    stack as **separate fields** (Chrome and iOS Safari format stacks differently; treat the
+    stack as an opaque string), stack truncated at 8KB. `flowState` (the capture-flow state
+    machine's current state) and `landed` (uploads already in the album) are this app's answer to
+    an SDK's generic breadcrumbs: for debugging a booth, *which screen and how much was saved*
+    beats "user clicked something 4 seconds ago".
   - Noise control, all client-side and unit-testable: fingerprint = message + first stack frame,
     deduped in a per-pageload `Set`; hard cap ~5 reports per page load; drop frames from
     `*-extension://` URLs; `String()` non-Error rejection reasons.
@@ -142,9 +161,13 @@ Design (a normal slice: red/green TDD, then adversarial review):
 - **Server** — `POST /e/{code}/client-errors`: throttled (its own bucket, ~10/min/IP), CSRF-exempt
   for the same reason the uploader is (no authenticated session to protect; booth pages sit open
   for hours), payload size-capped, always answers 204. It does one thing:
-  `Log::error('client-error', [...])` — which lands in the Cloud log stream *and* Nightwatch's
-  log search via the Phase 1 stack, with zero new storage or vendor. Scoping it under the event
-  code means a report names the event it came from, and an unknown code is refused.
+  `report(new ClientError($payload))` — a small exception class carrying the report — so a client
+  error rides the exact pipeline a server exception does: it becomes a **Nightwatch issue**,
+  grouped by message, kept 14 days, **emailed on first occurrence** (the smoke test proved that
+  path), and readable by Claude through the MCP. Reported exceptions are logged too, so it still
+  appears in the Cloud log stream beside the access logs it correlates with. Zero new storage or
+  vendor. Scoping it under the event code means a report names the event it came from, and an
+  unknown code is refused.
 - **Symbolication** — set Vite `build.sourcemap: 'hidden'` so maps are emitted without a
   `sourceMappingURL` pointer. The maps sit beside the build output and are technically fetchable
   by guessing the content-hashed filename + `.map`; acceptable, because they contain only client
