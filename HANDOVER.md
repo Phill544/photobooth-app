@@ -399,13 +399,22 @@ the phone is where they are actually used:
     optional email-me-my-strip field with separate consent checkboxes (delivery ≠ marketing).
 
 ### P3 — Host trust pack (before charging money)
-> **Mail is wired but not yet credentialled.** The transport, the guards, the deploy gate and the
-> SES setup steps all exist now (see the Auth entry in the architecture map, and DEPLOY.md's "Mail"
-> section). What is still outstanding is **Phill's**: verify a sending domain in SES, leave the
-> sandbox, and set `MAIL_MAILER=ses` + `SES_KEY`/`SES_SECRET`/`SES_REGION` +
-> `MAIL_FROM_ADDRESS` on the environment. Until that is done `photobooth:check-mail` fails the
-> deploy, the reset pages say so honestly rather than promising an email, and verification gates
-> nothing — so production is safe, it just cannot send.
+> **Mail is live, and still sandboxed.** As of 2026-09-01 SES is configured and sending in
+> production: `quikbooth.com` is a verified DKIM domain identity in ap-southeast-2, the IAM user and
+> `SES_*` credentials are set, `photobooth:check-mail --to=` has arrived, and password reset and
+> download-all have both been run end to end. The scheduler toggle is on and bounce/complaint
+> notifications are pointed at a monitored inbox.
+>
+> **The one thing left is production access** — the SES sandbox only delivers to addresses that are
+> themselves verified identities. That has a sharper consequence than it sounds: a new host can
+> register and log in (registration no longer fails when mail cannot go — see the Auth entry), but
+> the verification mail never arrives, and verification is what gates `/new`. **So until the sandbox
+> is lifted, a new host can reach their dashboard and cannot create an event**, with no way out from
+> the UI. The workaround is to mark them verified by hand:
+> `App\Models\User::whereEmail('...')->first()->markEmailAsVerified();`
+>
+> Nothing in the code changes when production access is granted — no redeploy, no config. Delivery
+> simply starts working and that dead end disappears.
 
 20. Warn hosts before their retention window closes — a mail at, say, 14 days and 1 day out, and
     one when the photos have actually gone. **Phill's, 2026-08-31, not from the review**, and the

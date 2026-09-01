@@ -211,7 +211,40 @@ managed queues require it), so the transport costs no new package at all. Setup,
 2. **Leave the sandbox.** A new SES account can only send to addresses it has verified, which means
    password reset works for you and silently fails for every real host. Request production access
    from the console; it is a form and usually same-day.
-3. **Create an IAM user** with permission to `ses:SendRawEmail`, and take its access key and secret.
+3. **Create an IAM user**, no console access, and attach this as an **inline policy**. Note there
+   is no inline-policy editor in the create-user wizard: skip the permissions step entirely, create
+   the user, then open it and use **Permissions → Add permissions → Create inline policy → JSON**.
+
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Action": ["ses:SendEmail", "ses:SendRawEmail"],
+         "Resource": "*"
+       }
+     ]
+   }
+   ```
+
+   The app only ever calls `SendRawEmail` (see `Illuminate\Mail\Transport\SesTransport`), but AWS's
+   own example lists both and it costs nothing to match it.
+
+   > **`Resource` must be `*`, not the identity ARN.** Scoping it to
+   > `arn:aws:ses:...:identity/your-domain` looks tighter and fails: AWS's IAM guide notes that
+   > sandbox restrictions prevent some resource-scoped policies from working, and in the sandbox SES
+   > authorises against the *recipient* identity, which will never be in a policy scoped to your
+   > sending domain. Every sending example in their docs uses `*`. The documented way to restrict
+   > what you may send *as* is a condition, not a resource — add this once mail is arriving:
+   >
+   > ```json
+   > "Condition": { "StringEquals": { "ses:FromAddress": "hello@your-verified-domain" } }
+   > ```
+
+   Take the user's access key and secret from **Security credentials → Create access key →
+   "Application running outside AWS"**. Not SES *SMTP* credentials — those are for the SMTP
+   interface and will not work with this app's API transport.
 4. Set these in the environment (Cloud dashboard → environment → variables), then **redeploy** so
    `config:cache` re-reads them:
 
