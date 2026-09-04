@@ -138,8 +138,9 @@ labels. Enforced in all four places (`dashboard`, `capture`, `show`, `gallery`) 
 on the booth, album, and event pages.
 
 Also from event feedback: front-camera frames are now captured **un-mirrored** (preview stays
-mirrored) so text/signs in the strip read correctly. Countdown is **5 seconds**. The create form
-and the owner edit form both show a **live strip preview** (`strip-preview.ts`, bound via
+mirrored) so text/signs in the strip read correctly. Countdown is **3 seconds** — it went to 5 on
+that feedback and has since been put back. The create form and the owner edit form both show a
+**live strip preview** (`strip-preview.ts`, bound via
 `[data-strip-form]`) that redraws via the real compose modules (placeholder cells) as the owner
 changes layout/colour/caption/logo.
 

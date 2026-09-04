@@ -37,8 +37,8 @@ describe('the happy path', () => {
         expect(walk({ screen: 'customise' }, [{ type: 'tick' }])).toEqual({ screen: 'customise' });
     });
 
-    it('gives guests a 5-second countdown', () => {
-        expect(COUNTDOWN_SECONDS).toBe(5);
+    it('gives guests a 3-second countdown', () => {
+        expect(COUNTDOWN_SECONDS).toBe(3);
     });
 
     it('counts down to the flash', () => {

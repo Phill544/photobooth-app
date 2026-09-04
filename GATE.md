@@ -57,7 +57,7 @@ Its siblings: [HANDOVER.md](HANDOVER.md) (the map + conventions),
 
 - [ ] Start screen: event name, the shot promise ("3 photos. One strip. Yours to keep."), and the
       tally if the album has anything in it. Event logo shows if one is set.
-- [ ] "Start shooting" → 5-second countdown, big numeral, shot dashes lighting up.
+- [ ] "Start shooting" → 3-second countdown, big numeral, shot dashes lighting up.
 - [ ] HUD reads `Shot 1 / 3` and the active look.
 - [ ] **Preview is mirrored, the captured frame is not.** Hold up something with text on it — the
       text must read correctly in the strip. This came from real event feedback.

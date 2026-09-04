@@ -28,7 +28,7 @@ export type FlowEvent =
     | { type: 'cameraLost' }
     | { type: 'cameraBack' };
 
-export const COUNTDOWN_SECONDS = 5;
+export const COUNTDOWN_SECONDS = 3;
 
 export function nextState(state: FlowState, event: FlowEvent, template: StripTemplate): FlowState {
     if (event.type === 'cameraLost') {
