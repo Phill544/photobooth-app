@@ -28,23 +28,6 @@ return [
         'key' => env('RESEND_API_KEY'),
     ],
 
-    // Kept after the move to Resend so MAIL_MAILER=ses remains a one-variable
-    // rollback: the identity and its DKIM records are still published. It is a
-    // partial rollback — SES never left its sandbox, so it reaches verified
-    // identities and nobody else.
-    //
-    // The rollback needs SES_KEY and SES_SECRET to still be set wherever it is
-    // claimed. MailManager::addSesCredentials only injects them when BOTH are
-    // non-empty; otherwise the SES client falls back to the ambient AWS
-    // credential chain and picks up the AWS_* pair below — the photo bucket's,
-    // which has no ses:SendEmail — and fails as an AccessDenied in a worker
-    // rather than at boot.
-    'ses' => [
-        'key' => env('SES_KEY'),
-        'secret' => env('SES_SECRET'),
-        'region' => env('SES_REGION', 'ap-southeast-2'),
-    ],
-
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

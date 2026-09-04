@@ -9,7 +9,8 @@ its siblings.
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | How the app is put together and **why** — routing, the paged album, privacy and retention, the durability and mail guards, download-all, the client modules | Before changing anything server-side |
 | **[GATE.md](GATE.md)** | The real-device checklist (Android + iPhone) that everything in P2 is queued behind | Before P2, and whenever you ship something a phone has never rendered |
 | **[PLAN.md](PLAN.md)** | Locked product decisions, the roadmap, and the design system | Before changing a screen or re-opening a settled decision |
-| **[DEPLOY.md](DEPLOY.md)** | Laravel Cloud: env, build/deploy commands, the queue, mail, the scheduler | Before deploying or touching infrastructure |
+| **[DEPLOY.md](DEPLOY.md)** | Laravel Cloud: env, build/deploy commands, the queue, the scheduler | Before deploying or touching infrastructure |
+| **[MAIL.md](MAIL.md)** | The three mails, the Resend transport, the sending limits that constrain what you may send, and what bounce visibility is missing | Before sending anything to more than one person, or when a mail didn't arrive |
 | **[OBSERVABILITY.md](OBSERVABILITY.md)** | The error-tracking / monitoring plan (Phill's, mostly not built) | When production breaks and nobody told us |
 | **[README.md](README.md)** | Local quickstart | First run on a new machine |
 
@@ -41,7 +42,7 @@ used to render 3997 `<img>` tags into one page now arrives 24 sessions at a time
 seed can produce that event on demand) → **an album a host controls**: tri-state privacy
 (open / PIN / hidden) and a stated retention window that expires the album, then sweeps its photos
 thirty days later on a schedule → **a host account that can look after itself**: password reset
-and email verification over a real mail transport (SES, mid-move to Resend — see P3), behind the same kind of deploy gate the
+and email verification over a real mail transport (Resend), behind the same kind of deploy gate the
 storage disk has → **download-all**: a queued job zips a whole night into one file and emails the
 host a signed, expiring link.
 **322 Pest + 83 Vitest tests green.** Every feature slice was built red/green and then put
@@ -162,36 +163,30 @@ seeded event codes for each state.
     optional email-me-my-strip field with separate consent checkboxes (delivery ≠ marketing).
 
 ### P3 — Host trust pack (before charging money)
-> **Mail moved to Resend on 2026-09-04, and is not proven yet.** AWS refused production access, so
-> the SES sandbox was never going to lift — and a sandboxed transport reaches only addresses that
-> are themselves verified identities, which meant a new host could register and log in but never
-> receive the verification mail, and verification is what gates `/new`.
->
-> Done: `resend/resend-php` is installed, `quikbooth.com` is **verified** in Resend (`us-east-1`,
-> tracking off, all three DNS records verified), a send-only key scoped to the domain exists, and
-> nothing in the code or the tests names SES as the transport any more. **What is left is the
-> environment** — confirm the deployed release actually carries the package, set `MAIL_MAILER`,
-> `MAIL_FROM_ADDRESS` and `RESEND_API_KEY` (leaving `SES_*` in place as the rollback), redeploy,
-> then prove it with `photobooth:check-mail --to=` to a real mailbox that is not your own, and
-> finish with one real password reset so the queued path is exercised too. **Follow DEPLOY.md's
-> order**: every way of getting it wrong passes the deploy gate and fails in a queue worker.
->
-> Until that is finished the old dead end stands, and the workaround is unchanged — mark the host
-> verified by hand: `App\Models\User::whereEmail('...')->first()->markEmailAsVerified();`
->
-> **Two things the move did not fix.** Bounce and complaint visibility is gone until a webhook
-> replaces the SES-notifications-to-a-monitored-inbox arrangement, so a hard bounce now puts an
-> address on Resend's suppression list with nothing to tell you. And the dead end itself was never
-> SES's fault: `Deliverability::mailerIsFake()` tests the mailer *name*, so the app has no state for
-> a real transport that will not deliver to a particular recipient — which Resend produces too, via
-> that suppression list, a suspended key, or an exhausted daily quota.
-
 20. Warn hosts before their retention window closes — a mail at, say, 14 days and 1 day out, and
     one when the photos have actually gone. **Phill's, 2026-08-31, not from the review**, and the
     reason the 90-day default is safe to ship without it only for as long as nobody has had an
     album swept: right now the window is stated on three screens and nowhere else, so a host who
     never opens the app never hears about it. `photos_purged_at` already records the fact the last
     of those three mails would report.
+21. Bounce and complaint visibility. Resend's equivalent of the old SES-notifications-to-an-inbox
+    arrangement is a webhook (`email.bounced`, `email.complained`, `email.failed`,
+    `email.suppressed`), and there is no endpoint for one — so a hard bounce puts an address on
+    Resend's account-wide suppression list, every later send to it is accepted and dropped, and
+    nothing says so. The list is readable over the API in the meantime; MAIL.md has the check.
+    **Deferred 2026-09-04** — nothing has bounced yet, and at three mails a week the API check is
+    cheaper than the endpoint.
+22. Give the verification gate a third state, and a host a way to fix their own address.
+    `Deliverability::mailerIsFake()` tests the mailer *name*, so the app knows "no mailer" and "a
+    mailer" and nothing in between. A real transport that will not deliver to one recipient — a
+    suppressed address, a suspended key, an exhausted quota, or simply a typo at registration —
+    lands a host exactly where the SES sandbox did: dashboard reachable, `/new` barred, no way out
+    from the UI. `/email/verify` says "ask an admin to change it" and no route exists that lets
+    them. Two halves worth shipping together: let a host correct an unverified address, and let the
+    gate degrade rather than bar. A client-side domain-typo suggestion at registration (edit
+    distance against the common providers, *suggest* never block, and include the AU ones —
+    `bigpond.com`, `optusnet.com.au`, `iinet.net.au`) reduces how often it happens; the other two
+    remove the consequence. **Deferred 2026-09-04.**
 
 ### P4 — New output modes (independent slices, in effort order)
 17. 9:16 story-strip variant of every layout from the same frames (share-sheet ready; build

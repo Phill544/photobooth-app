@@ -91,9 +91,11 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
   database, a disk and a queue but has no mail service to inject — so a page saying "check your
   email" over that default is the same silent failure that cost this app its first photos. Two
   guards, same shape as storage: `photobooth:check-mail` is a **deploy command** that fails a
-  release whose mailer is fake or whose from-address is still the framework's `@example.com`
-  placeholder (`--to=` also sends a real message, the only way to tell working config from working
-  credentials), and at **request** time the forgot-password page says so plainly instead of offering
+  release whose mailer is fake, whose from-address is still the framework's `@example.com`
+  placeholder, whose transport will not build, or whose API key is blank — the last two because
+  naming a transport is not the same as having one, and both failures otherwise surface in a queue
+  worker (`--to=` also sends a real message, still the only way to tell a working key from an
+  accepted one) — and at **request** time the forgot-password page says so plainly instead of offering
   a form, the endpoint behind it answers 503, and login stops linking to it. The verification gate
   lifts entirely when the mailer is fake — requiring a link nothing can send is a locked door with
   no key cut for it, and DEPLOY.md is explicit that a failing deploy command may not abort a
@@ -122,12 +124,10 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
   **Mail reads `RESEND_API_KEY`, deliberately not the
   `AWS_*` pair** the framework ships in `config/services.php` — those are this app's bucket, and one
   rotation should not be able to take out either photos or password resets with no visible
-  connection between them. **Resend replaced SES on 2026-09-04**, after AWS refused this account
-  production access: a sandboxed transport reaches only verified identities, which from a real
-  host's side is indistinguishable from a broken one. Resend has no such gate — though it sends via
-  SES itself, so the move bought a different account's standing on AWS rather than independence from
-  it. The `ses` block stays configured, which keeps `MAIL_MAILER=ses` a one-variable rollback; a
-  partial one, since the sandbox never lifted.
+  connection between them. Resend replaced SES on 2026-09-04 — **[MAIL.md](MAIL.md)** carries that
+  decision, the sending limits it brought with it, the rollback, and the one thing these guards
+  still cannot see: they test the mailer's *name*, so a real transport that will not deliver to a
+  particular recipient reads as healthy.
 - **Errors:** every 404 renders `resources/views/errors/404.blade.php`. A render hook in
   `bootstrap/app.php` fires only when an **`Event`** route binding is what failed and passes the
   code that was tried, so the page can name it; everything else (a missing photo under a real
