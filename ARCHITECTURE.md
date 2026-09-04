@@ -97,7 +97,7 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
   a form, the endpoint behind it answers 503, and login stops linking to it. The verification gate
   lifts entirely when the mailer is fake — requiring a link nothing can send is a locked door with
   no key cut for it, and DEPLOY.md is explicit that a failing deploy command may not abort a
-  release. `local` and `testing` are exempt from all of it, so a dev with no SES credentials still
+  release. `local` and `testing` are exempt from all of it, so a dev with no Resend key still
   works: the link lands in `storage/logs/laravel.log`.
   **Every auth mail is queued** (`App\Notifications\QueuedResetPassword` / `QueuedVerifyEmail`,
   sent from `User`), and so is `ArchiveReady`. That is not tidiness, it is a production incident
@@ -119,10 +119,15 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
   Two of the enumeration tests used to be tautologies: `TestResponse` has no `getSession()`, so
   `$response->getSession()` fell through to the app's single live session store and comparing two
   of them compared a value with itself. Read each flash straight after its own request.
-  **SES reads `SES_*`, deliberately not the
+  **Mail reads `RESEND_API_KEY`, deliberately not the
   `AWS_*` pair** the framework ships in `config/services.php` — those are this app's bucket, and one
   rotation should not be able to take out either photos or password resets with no visible
-  connection between them.
+  connection between them. **Resend replaced SES on 2026-09-04**, after AWS refused this account
+  production access: a sandboxed transport reaches only verified identities, which from a real
+  host's side is indistinguishable from a broken one. Resend has no such gate — though it sends via
+  SES itself, so the move bought a different account's standing on AWS rather than independence from
+  it. The `ses` block stays configured, which keeps `MAIL_MAILER=ses` a one-variable rollback; a
+  partial one, since the sandbox never lifted.
 - **Errors:** every 404 renders `resources/views/errors/404.blade.php`. A render hook in
   `bootstrap/app.php` fires only when an **`Event`** route binding is what failed and passes the
   code that was tried, so the page can name it; everything else (a missing photo under a real

@@ -24,16 +24,19 @@ function uploadPhoto(string $code, array $overrides = []): TestResponse
     ], $overrides));
 }
 
-// A transport that rejects the way SES does when it will not take a recipient.
-// This is the production failure of 2026-09-01 in a test: the mail throws from
-// inside the request that was doing something else important.
+// A transport that refuses a recipient mid-request. This is the production
+// failure of 2026-09-01 in a test: SES was sandboxed, it rejected an address it
+// had not verified, and the mail threw from inside the request that was doing
+// something else important. Resend refuses for its own reasons — a suspended
+// key, an unverified domain, an exhausted daily quota — so the shape outlives
+// the transport that taught it to us.
 function breakTheMailer(): void
 {
     Mail::extend('exploding', fn () => new class extends AbstractTransport
     {
         protected function doSend(SentMessage $message): void
         {
-            throw new TransportException('Email address is not verified.');
+            throw new TransportException('The transport refused the recipient.');
         }
 
         public function __toString(): string

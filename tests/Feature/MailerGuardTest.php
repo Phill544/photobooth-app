@@ -22,7 +22,7 @@ it('calls the log mailer fake outside local and testing', function () {
 it('accepts a real transport', function () {
     app()->detectEnvironment(fn () => 'production');
 
-    config(['mail.default' => 'ses']);
+    config(['mail.default' => 'resend']);
     expect(Deliverability::mailerIsFake())->toBeFalse();
 
     config(['mail.default' => 'array']);
@@ -71,12 +71,12 @@ it('fails the release when nothing would actually send', function () {
 it('passes when a transport and a from address are set', function () {
     app()->detectEnvironment(fn () => 'production');
     config([
-        'mail.default' => 'ses',
+        'mail.default' => 'resend',
         'mail.from.address' => 'hello@photobooth.example',
     ]);
 
     $this->artisan('photobooth:check-mail')
-        ->expectsOutputToContain('ses')
+        ->expectsOutputToContain('resend')
         ->assertSuccessful();
 });
 
@@ -85,7 +85,7 @@ it('passes when a transport and a from address are set', function () {
 it('fails on the from address nobody changed', function () {
     app()->detectEnvironment(fn () => 'production');
     config([
-        'mail.default' => 'ses',
+        'mail.default' => 'resend',
         'mail.from.address' => 'hello@example.com',
     ]);
 

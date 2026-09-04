@@ -13,7 +13,7 @@ class Deliverability
     // for you.
     //
     // Local and testing are exempt: `log` and `array` are the right mailers
-    // there, and a dev with no SES credentials must still be able to work.
+    // there, and a dev with no Resend key must still be able to work.
     public static function mailerIsFake(): bool
     {
         return in_array(config('mail.default'), ['log', 'array'], true)

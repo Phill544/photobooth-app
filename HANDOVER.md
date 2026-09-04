@@ -41,7 +41,7 @@ used to render 3997 `<img>` tags into one page now arrives 24 sessions at a time
 seed can produce that event on demand) → **an album a host controls**: tri-state privacy
 (open / PIN / hidden) and a stated retention window that expires the album, then sweeps its photos
 thirty days later on a schedule → **a host account that can look after itself**: password reset
-and email verification over a real mail transport (SES), behind the same kind of deploy gate the
+and email verification over a real mail transport (SES, mid-move to Resend — see P3), behind the same kind of deploy gate the
 storage disk has → **download-all**: a queued job zips a whole night into one file and emails the
 host a signed, expiring link.
 **322 Pest + 83 Vitest tests green.** Every feature slice was built red/green and then put
@@ -162,22 +162,29 @@ seeded event codes for each state.
     optional email-me-my-strip field with separate consent checkboxes (delivery ≠ marketing).
 
 ### P3 — Host trust pack (before charging money)
-> **Mail is live, and still sandboxed.** As of 2026-09-01 SES is configured and sending in
-> production: `quikbooth.com` is a verified DKIM domain identity in ap-southeast-2, the IAM user and
-> `SES_*` credentials are set, `photobooth:check-mail --to=` has arrived, and password reset and
-> download-all have both been run end to end. The scheduler toggle is on and bounce/complaint
-> notifications are pointed at a monitored inbox.
+> **Mail moved to Resend on 2026-09-04, and is not proven yet.** AWS refused production access, so
+> the SES sandbox was never going to lift — and a sandboxed transport reaches only addresses that
+> are themselves verified identities, which meant a new host could register and log in but never
+> receive the verification mail, and verification is what gates `/new`.
 >
-> **The one thing left is production access** — the SES sandbox only delivers to addresses that are
-> themselves verified identities. That has a sharper consequence than it sounds: a new host can
-> register and log in (registration no longer fails when mail cannot go — see the Auth entry), but
-> the verification mail never arrives, and verification is what gates `/new`. **So until the sandbox
-> is lifted, a new host can reach their dashboard and cannot create an event**, with no way out from
-> the UI. The workaround is to mark them verified by hand:
-> `App\Models\User::whereEmail('...')->first()->markEmailAsVerified();`
+> Done: `resend/resend-php` is installed, `quikbooth.com` is **verified** in Resend (`us-east-1`,
+> tracking off, all three DNS records verified), a send-only key scoped to the domain exists, and
+> nothing in the code or the tests names SES as the transport any more. **What is left is the
+> environment** — confirm the deployed release actually carries the package, set `MAIL_MAILER`,
+> `MAIL_FROM_ADDRESS` and `RESEND_API_KEY` (leaving `SES_*` in place as the rollback), redeploy,
+> then prove it with `photobooth:check-mail --to=` to a real mailbox that is not your own, and
+> finish with one real password reset so the queued path is exercised too. **Follow DEPLOY.md's
+> order**: every way of getting it wrong passes the deploy gate and fails in a queue worker.
 >
-> Nothing in the code changes when production access is granted — no redeploy, no config. Delivery
-> simply starts working and that dead end disappears.
+> Until that is finished the old dead end stands, and the workaround is unchanged — mark the host
+> verified by hand: `App\Models\User::whereEmail('...')->first()->markEmailAsVerified();`
+>
+> **Two things the move did not fix.** Bounce and complaint visibility is gone until a webhook
+> replaces the SES-notifications-to-a-monitored-inbox arrangement, so a hard bounce now puts an
+> address on Resend's suppression list with nothing to tell you. And the dead end itself was never
+> SES's fault: `Deliverability::mailerIsFake()` tests the mailer *name*, so the app has no state for
+> a real transport that will not deliver to a particular recipient — which Resend produces too, via
+> that suppression list, a suspended key, or an exhausted daily quota.
 
 20. Warn hosts before their retention window closes — a mail at, say, 14 days and 1 day out, and
     one when the photos have actually gone. **Phill's, 2026-08-31, not from the review**, and the

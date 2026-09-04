@@ -18,16 +18,27 @@ return [
         'key' => env('POSTMARK_API_KEY'),
     ],
 
+    // The live mail transport. RESEND_API_KEY is deliberately its own variable
+    // rather than the AWS_* pair further down: those are the object-storage
+    // bucket's, Laravel Cloud configures that disk at runtime from its own
+    // injected config, and one credential rotation should not be able to take out
+    // either photos or password resets with no obvious connection between the
+    // two. Two services, two sets of keys.
     'resend' => [
         'key' => env('RESEND_API_KEY'),
     ],
 
-    // Deliberately NOT the AWS_* variables the framework ships here. Those are
-    // the object-storage bucket's on this app, and Laravel Cloud configures that
-    // disk at runtime from its own injected config — so pointing mail at the same
-    // pair means one credential rotation silently takes out either photos or
-    // password resets, and the region that suits the bucket is not necessarily
-    // one where a sending domain is verified. Two services, two sets of keys.
+    // Kept after the move to Resend so MAIL_MAILER=ses remains a one-variable
+    // rollback: the identity and its DKIM records are still published. It is a
+    // partial rollback — SES never left its sandbox, so it reaches verified
+    // identities and nobody else.
+    //
+    // The rollback needs SES_KEY and SES_SECRET to still be set wherever it is
+    // claimed. MailManager::addSesCredentials only injects them when BOTH are
+    // non-empty; otherwise the SES client falls back to the ambient AWS
+    // credential chain and picks up the AWS_* pair below — the photo bucket's,
+    // which has no ses:SendEmail — and fails as an AccessDenied in a worker
+    // rather than at boot.
     'ses' => [
         'key' => env('SES_KEY'),
         'secret' => env('SES_SECRET'),

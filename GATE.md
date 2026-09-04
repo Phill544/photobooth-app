@@ -189,10 +189,18 @@ one the host logged in with. None of them has ever been opened that way.
       the end of a night.
 - [ ] An expired download link answers honestly rather than 500ing.
 
-> **SES is live but still sandboxed** (as of 2026-09-01), so mail only reaches addresses that are
-> themselves verified SES identities. Test with your own verified address. If you are on a dev
-> machine with `MAIL_MAILER=log` instead, grep the link out of `storage/logs/laravel.log` and open
-> it on the phone by hand — remember the tunnel host differs from `APP_URL`, so edit the host.
+> **Check the transport before you start this section.** Mail is mid-move from SES to Resend
+> (DEPLOY.md's Mail section has the state and the remaining steps). Until the environment is
+> switched, production is still sandboxed SES and only reaches addresses that are themselves
+> verified SES identities — test with one of those, and read a non-arriving mail as the sandbox
+> rather than an app bug. Once `MAIL_MAILER=resend` is live there is no sandbox and no recipient
+> restriction, so any address works; prefer one that is *not* on `quikbooth.com`, since a shared
+> sending pool is judged per recipient domain. Two traps either way: before the Resend domain
+> verifies it refuses *every* recipient including your own, and after it verifies, any address that
+> hard-bounced on an earlier attempt is on Resend's suppression list, where a send is accepted and
+> dropped with nothing to say so. If you are on a dev machine with `MAIL_MAILER=log` instead, grep
+> the link out of `storage/logs/laravel.log` and open it on the phone by hand — remember the tunnel
+> host differs from `APP_URL`, so edit the host.
 
 ## 12. Worth a look while you are there
 

@@ -21,12 +21,12 @@ class CheckMail extends Command
 
         if (Deliverability::mailerIsFake()) {
             $this->error("The default mailer is [{$mailer}], and this is the ".app()->environment().' environment.');
-            $this->error('Nothing it is handed will ever arrive. Set MAIL_MAILER and its credentials — DEPLOY.md has the SES steps.');
+            $this->error('Nothing it is handed will ever arrive. Set MAIL_MAILER and its credentials — DEPLOY.md has the Resend steps.');
 
             return self::FAILURE;
         }
 
-        // A from address is not decoration: SES will not send from a domain it
+        // A from address is not decoration: Resend will not send from a domain it
         // has not verified, and the framework's placeholder is a domain nobody
         // owns — which bounces, or lands in spam, and looks from the host's side
         // exactly like no mailer at all.

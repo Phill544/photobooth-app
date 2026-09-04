@@ -32,8 +32,11 @@ overrides an injected one**, which is how you end up with a live app pointed at 
 | `QUEUE_CONNECTION=cloud` + `LARAVEL_CLOUD_MANAGED_QUEUES_CONFIG` | creating a managed queue | see below |
 | `LOG_CHANNEL=laravel-cloud-socket` | the platform | |
 
-**Nothing injects a mailer** — `MAIL_MAILER` and its credentials are yours to set by hand, and
-`photobooth:check-mail` fails the deploy until they are. See **Mail (password reset)** below.
+**Nothing injects a mailer** — `MAIL_MAILER`, `MAIL_FROM_ADDRESS` and `RESEND_API_KEY` are all
+yours to set by hand. `photobooth:check-mail` fails the release while the mailer is still `log` or
+`array`, or the from-address is still the `@example.com` placeholder, and **that is the whole of
+what it checks**: it never reads the API key, never builds a transport, and cannot tell whether the
+Resend package is even installed. See **Mail (password reset)** below.
 
 `SESSION_DRIVER` is whatever you choose; production runs `cookie`, which suits serverless (no
 shared store to reach, nothing to clean up). `database` works too — the `sessions` table exists.
@@ -88,8 +91,11 @@ framework's default mailer is `log`, which accepts everything and delivers nothi
 told "check your email" and waits for a link that was written to a file. It fails a release whose
 mailer is `log` or `array`, or whose `MAIL_FROM_ADDRESS` is still the framework's `@example.com`
 placeholder — an address on a domain the transport cannot send from bounces, which from the host's
-side is indistinguishable from having no mailer. `--to=you@example.com` also sends a real message,
-which is the only way to tell working configuration from working credentials.
+side is indistinguishable from having no mailer. `--to=` also sends a real message, which is the
+only way to tell working configuration from working credentials — and the deploy invocation has no
+`--to=`, so it builds no transport at all. `MAIL_MAILER=resend` with `resend/resend-php` absent, or
+with `RESEND_API_KEY` unset, passes the gate and then fatals in a queue worker. The probe is the
+only part of this command that would have caught either.
 
 The password-reset pages ask the same question at **request** time: with no real mailer the
 forgot-password page says so plainly instead of offering a form, the endpoint behind it answers
@@ -187,8 +193,10 @@ same `events/{id}/` prefix that the host's delete and the retention sweep alread
 Failed jobs appear in the environment's **Queues** dashboard under Monitoring, with retry and
 delete — the `queue:failed` / `queue:retry` commands don't work against managed queues.
 
-Nothing breaks without a queue: uploads still succeed and the grids serve full-size originals,
-which is the designed degradation. Every guest just pays for it in bandwidth.
+Nothing about uploads or albums breaks without a queue: uploads still succeed and the grids serve
+full-size originals, which is the designed degradation. Every guest just pays for it in bandwidth.
+**Mail does break, though.** All three mails are `ShouldQueue`, so with nothing running the jobs a
+password reset is accepted, queued, and never sent.
 
 > **If you'd rather not use a managed queue**, leave `QUEUE_CONNECTION` at its `database` default
 > (the `jobs` and `failed_jobs` tables already exist) and add a background process running
@@ -201,81 +209,165 @@ which is the designed degradation. Every guest just pays for it in bandwidth.
 storage and queues, this one is entirely yours to configure. Until it is, `config/mail.php`
 defaults to `MAIL_MAILER=log`.
 
-Production uses **Amazon SES**, chosen because `aws/aws-sdk-php` is already a dependency (Cloud's
-managed queues require it), so the transport costs no new package at all. Setup, once:
+Production is **moving to Resend**, superseding Amazon SES (decided 2026-09-04). AWS refused this
+account's request to leave the SES sandbox, and a sandboxed transport delivers only to addresses
+that are themselves verified identities — so password reset and verification worked for the
+operator and silently failed for every real host. Resend has no equivalent gate: its docs are
+explicit that there is no sandbox mode, no approval process and no waiting period. Past domain
+verification, the only ceiling on the free plan is volume — 3,000 messages a month and a hard
+100 a day, which pauses sending rather than billing when you cross it.
 
-1. **Verify a sending domain** in the SES console, in the region you intend to send from, and add
-   the DKIM records it gives you to that domain's DNS. A verified *address* also works and is
-   quicker, but then every host sees mail from that one address and nothing else on the domain is
-   authenticated.
-2. **Leave the sandbox.** A new SES account can only send to addresses it has verified, which means
-   password reset works for you and silently fails for every real host. Request production access
-   from the console; it is a form and usually same-day.
-3. **Create an IAM user**, no console access, and attach this as an **inline policy**. Note there
-   is no inline-policy editor in the create-user wizard: skip the permissions step entirely, create
-   the user, then open it and use **Permissions → Add permissions → Create inline policy → JSON**.
+> **Status, 2026-09-04 — the move is not finished.** Done: `resend/resend-php` is installed, and
+> `quikbooth.com` is verified in Resend (`us-east-1`, tracking off, all three DNS records verified).
+> **Not done: the environment still has no `RESEND_API_KEY` and still runs `MAIL_MAILER=ses`**, so
+> production mail is still sandboxed SES and a new host still cannot receive a verification link.
+> Steps 4-7 below are what remain. Delete this blockquote once a `--to=` probe has actually arrived.
 
-   ```json
-   {
-     "Version": "2012-10-17",
-     "Statement": [
-       {
-         "Effect": "Allow",
-         "Action": ["ses:SendEmail", "ses:SendRawEmail"],
-         "Resource": "*"
-       }
-     ]
-   }
-   ```
+Two things about the trade belong on the record, because neither is obvious a year from now:
 
-   The app only ever calls `SendRawEmail` (see `Illuminate\Mail\Transport\SesTransport`), but AWS's
-   own example lists both and it costs nothing to match it.
+> **Resend sends via SES.** Its subprocessor list names AWS as a sending provider, its regions are
+> AWS region IDs, and the MX record it asks for is `feedback-smtp.us-east-1.amazonses.com`. This app
+> has not left SES — it has stopped needing its *own* standing on it. Do not file the move as
+> "we're off AWS".
+>
+> **The limits got tighter, not looser.** Resend's acceptable-use policy requires a bounce rate
+> under 4% and a spam rate under 0.08%, and says an account over those "may be shut down without
+> warning"; its terms reserve suspension without prior notice generally. SES's own thresholds are
+> 5%/10% and 0.1%/0.5%, with a notification and a review period first. At this app's volume a single
+> hard bounce is 4%, and the only mail that goes to an address nobody has confirmed is the
+> verification link — so a typo at registration is very nearly the whole bounce risk. Do not bulk
+> re-send verification to a backlog of stuck hosts in one go.
 
-   > **`Resource` must be `*`, not the identity ARN.** Scoping it to
-   > `arn:aws:ses:...:identity/your-domain` looks tighter and fails: AWS's IAM guide notes that
-   > sandbox restrictions prevent some resource-scoped policies from working, and in the sandbox SES
-   > authorises against the *recipient* identity, which will never be in a policy scoped to your
-   > sending domain. Every sending example in their docs uses `*`. The documented way to restrict
-   > what you may send *as* is a condition, not a resource — add this once mail is arriving:
-   >
-   > ```json
-   > "Condition": { "StringEquals": { "ses:FromAddress": "hello@your-verified-domain" } }
-   > ```
+Setup, once:
 
-   Take the user's access key and secret from **Security credentials → Create access key →
-   "Application running outside AWS"**. Not SES *SMTP* credentials — those are for the SMTP
-   interface and will not work with this app's API transport.
-4. Set these in the environment (Cloud dashboard → environment → variables), then **redeploy** so
+1. **Add the sending domain**, region `us-east-1`, with open and click tracking **off** (the
+   domain's **Configuration** tab). Tracking is off by default and has to stay off: click tracking
+   rewrites every link in the HTML body to point at a tracking subdomain, and two of this app's
+   three mails carry a Laravel *signed* URL — an extra hop that rewrites or re-encodes a link, or a
+   scanner that follows it, is how a single-use verification link gets spent before the host taps it.
+
+   The domain added here is the apex `quikbooth.com`. Resend recommends a subdomain to isolate
+   sending reputation, and that is a real argument — but verifying `send.quikbooth.com` as the
+   *identity* changes what recipients see in the From line, and `hello@quikbooth.com` is worth more
+   than the reputation isolation at this volume. Resend puts its Return-Path on `send.quikbooth.com`
+   either way, and that stays invisible.
+
+2. **Publish three DNS records.** Names are relative to the zone — Cloudflare appends
+   `quikbooth.com`, so enter `send`, not `send.quikbooth.com`, or you will end up with
+   `send.quikbooth.com.quikbooth.com`. Leave TTL on **Auto**.
+
+   | Type | Name | Value | Priority |
+   | --- | --- | --- | --- |
+   | TXT | `resend._domainkey` | the DKIM value from *Resend → Domains → quikbooth.com*, pasted verbatim | |
+   | MX | `send` | `feedback-smtp.us-east-1.amazonses.com` | 10 |
+   | TXT | `send` | `v=spf1 include:amazonses.com ~all` | |
+
+   The DKIM value starts with `p=` and is one long unbroken string. Paste it exactly: do not prepend
+   `v=DKIM1; k=rsa;`, do not add quotes, and do not trim the trailing `=` padding. If your provider
+   displays it split or shortened, re-paste it.
+
+   > **`quikbooth.com` came back in the legacy TXT+MX shape**, so none of these three records is
+   > proxiable and there is no grey-cloud trap on them. Resend's docs note that domains created
+   > after August 2026 may instead be shown **CNAME** records — if you ever see CNAMEs here, they
+   > must be set to **DNS only** (grey cloud) on Cloudflare, because proxied records don't resolve
+   > as CNAMEs and verification then never completes with no error anywhere.
+
+   > **None of this collides with the SES identity, so leave SES's records where they are.** Resend's
+   > DKIM selector is `resend._domainkey` and SES's are random-token selectors — DKIM permits any
+   > number of them. Resend's SPF sits on `send.quikbooth.com` rather than the apex, so it neither
+   > conflicts with an apex SPF record nor spends any of its ten-lookup budget. Keeping the SES
+   > identity published costs nothing (10,000 identities per region are free) and is the only
+   > rollback there is.
+
+3. **Confirm it verified.** *Resend → Domains → quikbooth.com* must read **Verified**, and each of
+   the three records must show verified individually — a domain can sit at `partially_verified`,
+   which still sends but without a fallback sending server. Cloudflare usually resolves in minutes;
+   use **Verify DNS Records** rather than waiting. To see what the world actually resolves:
+
+```
+nslookup -type=TXT resend._domainkey.quikbooth.com
+nslookup -type=MX send.quikbooth.com
+nslookup -type=TXT send.quikbooth.com
+```
+
+4. **Confirm the deployed release carries `resend/resend-php`.** From the environment's **Commands**
+   tab: `php artisan tinker --execute="var_dump(class_exists('Resend'));"`. It must print
+   `bool(true)`. The build is `composer install --no-dev` from the *committed* lock, so if it prints
+   `false` the package has not been merged and deployed yet — deploy that release before touching
+   `MAIL_MAILER`. `photobooth:check-mail` cannot see this and exits 0 either way.
+
+5. **Create an API key**: *Resend → API Keys → Create*, permission **Sending access**, and set the
+   domain restriction to `quikbooth.com` so the key cannot send as anything else. Same
+   least-privilege reasoning as the IAM user it replaces.
+
+6. Set these in the environment (Cloud dashboard → environment → variables), then **redeploy** so
    `config:cache` re-reads them:
 
 ```
-MAIL_MAILER=ses
-MAIL_FROM_ADDRESS=hello@your-verified-domain
+MAIL_MAILER=resend
+MAIL_FROM_ADDRESS=hello@quikbooth.com
 MAIL_FROM_NAME=Quikbooth
-SES_KEY=...
-SES_SECRET=...
-SES_REGION=ap-southeast-2      # must be the region the identity was verified in
+RESEND_API_KEY=re_...
 ```
 
-> **`SES_*`, not `AWS_*`.** Laravel ships `config/services.php` pointing SES at
-> `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`, which on this app are the object-storage bucket's.
-> They are deliberately separated here: one rotation would otherwise take out either photos or
-> password resets with no obvious connection between the two, and the region that suits a bucket is
-> not necessarily one where a sending domain is verified.
+   Leave `SES_KEY`, `SES_SECRET` and `SES_REGION` set. They are what makes `MAIL_MAILER=ses` a
+   one-variable rollback, and an SES mailer with *empty* credentials does not fail loudly — the SDK
+   falls back to the ambient AWS credential chain, picks up the photo bucket's `AWS_*` pair, and
+   dies as an AccessDenied inside a queue worker.
 
-Then prove it end to end from the environment's **Commands** tab — configuration being right and
-credentials working are different questions:
+> **Order matters here, and every way of getting it wrong deploys green.** Three of them:
+>
+> - **Flipping `MAIL_MAILER` before the domain verifies.** Resend answers 403 `The quikbooth.com
+>   domain is not verified. Please, add and verify your domain.` — and it refuses *every* recipient,
+>   your own address included. There is no equivalent of the SES sandbox's verified-identity escape
+>   hatch. Do step 3 first.
+> - **Flipping it before the release carrying `resend/resend-php` is deployed.** Every send dies on
+>   `Error: Class "Resend" not found` in a queue worker. Do step 4 first. (SES needed no package at
+>   all, because `aws/aws-sdk-php` was already a dependency for the managed queue; Resend costs
+>   exactly one.)
+> - **Adding `RESEND_API_KEY` after the deploy that ran `config:cache`.** `services.resend.key`
+>   resolves to null and stays null until the next deploy. The variable has to exist first.
+
+> **`RESEND_API_KEY`, not `AWS_*`.** The `AWS_*` pair in `config/services.php` is this app's photo
+> bucket. Mail and object storage stay on separate credentials so that one rotation cannot take out
+> either photos or password resets with no visible connection between the two.
+
+7. **Prove it end to end** from the environment's **Commands** tab — configuration being right and
+   credentials working are different questions:
 
 ```
-php artisan photobooth:check-mail --to=you@example.com
+php artisan photobooth:check-mail --to=<a-real-mailbox-you-can-open>
 ```
 
-It has to actually arrive. SES will accept a message and drop it if the from-domain is not
-verified, and the command cannot see that.
+   Use a real Gmail address and a real Outlook address, neither your own nor on `quikbooth.com`,
+   because a shared sending pool is judged per recipient domain. **Never send the probe to
+   `example.com` or any other invented address** — that is a guaranteed hard bounce, and at this
+   volume one bounce is 4%, which is Resend's suspension threshold. And it has to actually *arrive*:
+   a transport can accept a message and drop it. If it lands in spam rather than the inbox, open
+   "Show original" in Gmail to see whether SPF, DKIM and DMARC passed before blaming the pool.
+
+   **The probe is not the whole path.** It uses `Mail::raw`, which sends synchronously, while all
+   three real mails are `ShouldQueue`. So finish by requesting one real password reset from
+   `/forgot-password` and confirming it arrives — that is the only thing that exercises the queue.
 
 **Locally, leave `MAIL_MAILER=log`.** The reset link is written to `storage/logs/laravel.log`;
 grep it out and paste it into the browser. The guard exempts `local` and `testing` precisely so a
-dev with no SES credentials can still work on these pages.
+dev with no Resend key can still work on these pages.
+
+**Bounce and complaint visibility is currently gone.** Under SES it went to a monitored inbox, and
+Resend has no email-me-the-bounces equivalent. The full replacement is a webhook — `email.bounced`,
+`email.complained`, `email.failed`, `email.suppressed` — and this app has no webhook endpoint of any
+kind yet. Until it has one, a hard bounce silently puts the address on Resend's account-wide
+suppression list and nothing in the app or in an inbox says so. Two cheaper stopgaps that need no
+endpoint: the suppression list is readable over the API (and via the Resend MCP), and the dashboard
+logs each message's fate for 30 days.
+
+**DMARC is not published and is not required** at this volume — Resend treats it as recommended, and
+a verified domain already passes SPF and DKIM. `v=DMARC1; p=none; rua=mailto:...` on
+`_dmarc.quikbooth.com` would add aggregate reports on who is sending as this domain and whether it
+authenticates, at no delivery risk. If you do publish it, leave alignment relaxed (the default):
+the From is `hello@quikbooth.com` while the Return-Path is on `send.quikbooth.com`, and `aspf=s`
+would break SPF alignment and leave DKIM carrying it alone.
 
 ## The scheduler (the retention sweep)
 
