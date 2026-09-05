@@ -23,7 +23,6 @@ const LOGO_WIDTH_SHARE = 0.7; // of the strip
 const CAPTION_HEIGHT_SHARE = 0.4; // of the band
 const CAPTION_FLOOR_SHARE = 0.25; // of the band — smaller than this and we ellipsise instead
 const ELLIPSIS = '…';
-const GRAPHEMES = new Intl.Segmenter(); // whole characters, emoji included
 
 export function footerBand(strip: Size, template: StripTemplate): FooterBand {
     return {
@@ -64,8 +63,12 @@ export function captionLine(caption: string, band: FooterBand, measure: Measure)
     // until the ellipsis fits. Trim whole characters, never code units: event
     // names really do carry emoji, and half of a surrogate pair inks as a tofu
     // box exactly where the ellipsis should be. Don't strand a space either.
+    // Built here rather than at module scope: capture.ts imports this file
+    // transitively, so a throw at import time would kill every control in the
+    // booth before its own error handlers exist, with nothing on screen to say
+    // so. This branch only runs for a caption too long to shrink into the mat.
     const shown = (parts: string[]) => parts.join('').trimEnd() + ELLIPSIS;
-    const parts = [...GRAPHEMES.segment(caption)].map((part) => part.segment);
+    const parts = [...new Intl.Segmenter().segment(caption)].map((part) => part.segment);
     while (parts.length && measure(shown(parts), font(floor)) > band.innerWidth) {
         parts.pop();
     }

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { captionLine, footerBand, logoBox } from './strip-footer';
 import type { StripTemplate } from './templates';
 
@@ -64,6 +64,28 @@ describe('logoBox', () => {
 
     it('scales a small logo up, so the footer is never half empty', () => {
         expect(logoBox({ width: 20, height: 10 }, band).height).toBeCloseTo(96 * 0.62);
+    });
+});
+
+// capture.ts imports this module transitively, through strip-compose. Anything
+// this file does at import time therefore runs before the booth's own error
+// handlers are registered, and a throw there kills every control on the page
+// with nothing on screen to say so. So it must do nothing at import time.
+describe('importing the module', () => {
+    it('constructs nothing, so the booth cannot die on a module it barely uses', async () => {
+        const real = Intl.Segmenter;
+        // A browser without it, or with an ICU build whose constructor throws.
+        (Intl as { Segmenter?: unknown }).Segmenter = undefined;
+        vi.resetModules();
+
+        try {
+            const fresh = await import('./strip-footer');
+
+            expect(fresh.captionLine('Sam & Ali', band, measure).text).toBe('Sam & Ali');
+        } finally {
+            (Intl as { Segmenter?: unknown }).Segmenter = real;
+            vi.resetModules();
+        }
     });
 });
 
