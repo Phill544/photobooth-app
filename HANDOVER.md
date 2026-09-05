@@ -45,7 +45,7 @@ thirty days later on a schedule → **a host account that can look after itself*
 and email verification over a real mail transport (Resend), behind the same kind of deploy gate the
 storage disk has → **download-all**: a queued job zips a whole night into one file and emails the
 host a signed, expiring link.
-**322 Pest + 83 Vitest tests green.** Every feature slice was built red/green and then put
+**324 Pest + 83 Vitest tests green.** Every feature slice was built red/green and then put
 through an adversarial review (see Conventions).
 
 ## Stack & how to run
@@ -128,7 +128,9 @@ dependency); nothing breaks without one, every guest just pays for it in bandwid
 
 ## What's next — prioritised work list
 
-Nothing is broken or half-done. This list came out of the 2026-08-26 competitive review
+One known defect is on this list (24), found on the 2026-09-05 gate pass and deliberately
+deferred with the reasoning written down; nothing is half-done. The numbered phases came out
+of the 2026-08-26 competitive review
 ("State of the Booth" — https://claude.ai/code/artifact/63d587ad-5a7a-4bd5-9b8e-6a89a1dacca0,
 ask Phill for access; it carries the full rationale and feasibility notes). Work the phases
 top to bottom; **items within a phase are independent and can be picked up in parallel.**
@@ -187,6 +189,38 @@ seeded event codes for each state.
     distance against the common providers, *suggest* never block, and include the AU ones —
     `bigpond.com`, `optusnet.com.au`, `iinet.net.au`) reduces how often it happens; the other two
     remove the consequence. **Deferred 2026-09-04.**
+23. Make the retention window a property of the host's plan rather than a date they pick.
+    **Phill's, 2026-09-05, off the back of the gate pass — not from the review.** Today the
+    "Photos · …" fold on the owner page hands the host a free-form `type="date"`, validated
+    `after_or_equal:today` (`EventController::retention()`). The intent is that the window comes
+    with what they pay for — 30 days free, 90 paid, whatever the tiers end up being — with the
+    backend keeping full support for an arbitrary date, which it already has
+    (`Event::RETENTION_DAYS` = 90 applied in the `creating` hook, `PURGE_GRACE_DAYS` = 30, and
+    `SweepExpired` keyed off both). The view layer is thin, so removing the input is cheap. Three
+    things not to trip over:
+    - **`gallery.blade.php` offers an expired album's host "give it more time", pointing at
+      `/events/{code}#retention` — the fold containing that input.** Take the input out and the
+      link still resolves, onto a fold with nothing to act on. No test asserts that link is
+      present (`RetentionWindowTest` only pins its *absence* after a sweep), so it can vanish
+      silently. Write that test before touching the view.
+    - **Sequencing: the free-form date field is currently the only way to reach the expired /
+      grace-period states on production without a shell** (set a throwaway event's expiry to
+      today; `after_or_equal:today` accepts today and it is stored end-of-day UTC, so it flips at
+      10:00 AEST). GATE.md section 9 is still open and depends on it. Discharge those lines first,
+      then change the fold.
+    - Don't build a plan attribute yet — PLAN.md has no pricing tiers in it, so there is nothing
+      to hang one off. The smallest change that matches the intent is to replace the date input
+      with a one-tap "give it another 90 days", which keeps the host's only real use of the
+      control and leaves the column free-form for when tiers exist.
+24. The join form does not work without JavaScript. **Found on the gate pass, 2026-09-05.**
+    `partials/code-entry.blade.php` has no `action` and no `method`, and the only navigation to
+    the booth is `location.href` inside the JS submit handler — so a no-JS submit GETs the current
+    page, which ignores `?code=`, and the guest sees an empty field and no movement. The tile UI
+    degrades correctly (the plain ruled input is there); it is only the submit that goes nowhere.
+    The partial is shared with the unknown-code 404, so a no-JS retry there re-serves the same 404.
+    Deliberately deferred: the destination needs JS and a camera anyway, so this buys honesty
+    rather than a working booth. The fix is an `action="/join"` plus a route that upper-cases and
+    redirects — do it next time the 404 page is open, and both pages get it at once.
 
 ### P4 — New output modes (independent slices, in effort order)
 17. 9:16 story-strip variant of every layout from the same frames (share-sheet ready; build

@@ -118,7 +118,8 @@ Every screen rebuilt to the Claude Design canvas `Redesign.dc.html` (project
 components, and the three places the implementation deliberately departs from the canvas. What
 changed behind the paint:
 
-- **Join** is six code tiles over a hidden input (progressive: a plain ruled field without JS).
+- **Join** is six code tiles over a hidden input. Without JS the field is still a plain ruled
+  input, but the form has no `action`, so submitting it goes nowhere — see HANDOVER item 24.
 - **Booth** start screen leads with the event name and one blue CTA; the camera screen gets a HUD
   (`Shot 1 / 3`, the active look) and shot dashes; the looks picker shows the guest's own face
   under each filter (one still grabbed on entry, each tile CSS-filtered from the same op list).
