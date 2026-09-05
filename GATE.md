@@ -71,6 +71,13 @@ Its siblings: [HANDOVER.md](HANDOVER.md) (the map + conventions),
 - [x] "Take another" resets to a fresh run.
 - [x] Try every template — classic (3), quad (4), grid (2×2), single — the shot count is
       template-driven, never hard-coded.
+- [ ] **A long event name still prints inside the strip.** The caption defaults to the event name,
+      which may be 100 characters, and the strip is composed on the phone — so this is the phone's
+      own typesetting, not the desktop preview's. Check one name of ~45 characters (shrinks to fit)
+      and one of ~65 (shrinks to the floor, then ellipsises), both sitting inside the mat rather
+      than running off both edges. **Include an emoji in one of them** and check the character
+      before the ellipsis is whole, not a tofu box. A 2×2 grid strip is twice as wide, so it
+      shrinks later — worth one look.
 
 ## 3. The booth — the awkward paths
 

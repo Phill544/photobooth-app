@@ -158,6 +158,13 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
   state machine to the DOM), `strip-compose.ts` (draws the strip; every measurement it uses comes
   from `strip-layout.ts` and `strip-footer.ts`, which is where the tests are), `wake-lock.ts`,
   `strip-preview.ts` (live preview on create/edit forms), `upload.ts`.
+- **The caption is fitted, never clipped:** it defaults to the event name, which is 100 characters
+  against a 600px mat, so `strip-footer.ts` measures it through the compose canvas and steps the
+  font down from 40% of the footer band to a 25% floor before ellipsising. It is never wider than
+  the photos above it — a caption running off both edges reads as a broken strip. The trim walks
+  **grapheme clusters**, not code units: event names carry emoji, and half a surrogate pair inks as
+  a tofu box exactly where the ellipsis belongs. A logo still takes the footer instead of the
+  caption, one or the other.
 - **A failed upload is a branch, not a message:** `upload.ts` turns a refused upload into a typed
   `UploadError` — `closed` (410), `throttled` (429, honouring `Retry-After`), `rejected` (422) or
   `network` — and `upload-queue.ts` decides from that: terminal kinds stop at once, the rest get a

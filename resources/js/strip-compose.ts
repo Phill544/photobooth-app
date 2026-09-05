@@ -29,7 +29,11 @@ export function composeStrip(
         const box = logoBox(branding.logo, band);
         ctx.drawImage(branding.logo, box.x, box.y, box.width, box.height);
     } else {
-        const line = captionLine(branding.caption, band);
+        // The context is the only thing that knows how wide the text really is.
+        const line = captionLine(branding.caption, band, (text, font) => {
+            ctx.font = font;
+            return ctx.measureText(text).width;
+        });
         ctx.fillStyle = branding.textColor;
         ctx.font = line.font;
         ctx.textAlign = 'center';

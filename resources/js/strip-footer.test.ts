@@ -18,6 +18,10 @@ function template(overrides: Partial<StripTemplate> = {}): StripTemplate {
 const strip = { width: 648, height: 1542 };
 const band = footerBand(strip, template());
 
+// A stand-in for the canvas: every glyph is half the font size wide. At the
+// full 38px that puts 31 characters across a 600px strip, which is what the
+// real thing measures too.
+const measure = (text: string, font: string) => text.length * Number(font.match(/(\d+)px/)![1]) * 0.5;
 
 describe('footerBand', () => {
     it('is as wide as the strip, footer-tall, and centred on the band', () => {
@@ -65,16 +69,66 @@ describe('logoBox', () => {
 
 describe('captionLine', () => {
     it('typesets bold at 40% of the band height', () => {
-        expect(captionLine('Sam & Ali', band).font).toBe('bold 38px system-ui, sans-serif');
+        expect(captionLine('Sam & Ali', band, measure).font).toBe('bold 38px system-ui, sans-serif');
     });
 
     it('sizes from the band, so a taller footer prints a bigger caption', () => {
         const tall = footerBand(strip, template({ footerHeight: 200 }));
 
-        expect(captionLine('Sam & Ali', tall).font).toBe('bold 80px system-ui, sans-serif');
+        expect(captionLine('Sam & Ali', tall, measure).font).toBe('bold 80px system-ui, sans-serif');
     });
 
-    it('prints the caption it was given', () => {
-        expect(captionLine('Sam & Ali', band).text).toBe('Sam & Ali');
+    it('prints a caption that already fits exactly as it was given', () => {
+        expect(captionLine('Sam & Ali', band, measure).text).toBe('Sam & Ali');
+    });
+
+    it('shrinks a long caption until it fits rather than letting it run off the strip', () => {
+        const long = 'M'.repeat(40);
+        const line = captionLine(long, band, measure);
+
+        expect(line.text).toBe(long);
+        expect(line.font).toBe('bold 30px system-ui, sans-serif');
+        expect(measure(line.text, line.font)).toBeLessThanOrEqual(band.innerWidth);
+    });
+
+    it('has more room on a wider strip, so the same caption stays full size', () => {
+        const grid = footerBand({ width: 1272, height: 1092 }, template({ columns: 2 }));
+
+        expect(captionLine('M'.repeat(40), grid, measure).font).toBe('bold 38px system-ui, sans-serif');
+    });
+
+    it('stops shrinking at a floor — a caption is text, not a watermark', () => {
+        expect(captionLine('M'.repeat(200), band, measure).font).toBe('bold 24px system-ui, sans-serif');
+    });
+
+    it('ellipsises what still will not fit at the floor', () => {
+        const line = captionLine('M'.repeat(60), band, measure);
+
+        expect(line.text).toBe('M'.repeat(49) + '…');
+        expect(measure(line.text, line.font)).toBeLessThanOrEqual(band.innerWidth);
+    });
+
+    it('cuts whole characters, so an emoji never prints as half of itself', () => {
+        const line = captionLine('M'.repeat(48) + '\u{1F389}\u{1F942}', band, measure);
+
+        expect(line.text).toBe('M'.repeat(48) + '…');
+        expect(line.text).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/); // a lone high surrogate inks as tofu
+    });
+
+    it('keeps a multi-part emoji whole rather than stranding a piece of it', () => {
+        const family = '\u{1F468}‍\u{1F469}‍\u{1F467}‍\u{1F466}';
+        const line = captionLine('M'.repeat(45) + family, band, measure);
+
+        expect(line.text).toBe('M'.repeat(45) + '…');
+    });
+
+    it('never leaves a space stranded before the ellipsis', () => {
+        const line = captionLine('M'.repeat(48) + '   ' + 'M'.repeat(20), band, measure);
+
+        expect(line.text).toBe('M'.repeat(48) + '…');
+    });
+
+    it('draws nothing for an empty caption', () => {
+        expect(captionLine('', band, measure).text).toBe('');
     });
 });

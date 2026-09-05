@@ -45,7 +45,7 @@ thirty days later on a schedule → **a host account that can look after itself*
 and email verification over a real mail transport (Resend), behind the same kind of deploy gate the
 storage disk has → **download-all**: a queued job zips a whole night into one file and emails the
 host a signed, expiring link.
-**330 Pest + 94 Vitest tests green.** Every feature slice was built red/green and then put
+**330 Pest + 102 Vitest tests green.** Every feature slice was built red/green and then put
 through an adversarial review (see Conventions).
 
 ## Stack & how to run
@@ -227,13 +227,6 @@ for an AU business.
     client errors) out of it and grow `SearchIndexingTest`. Until 31 ships, the policy points
     account deletion at the support inbox (D4). Keep `HomePageTest`, `EventCreationTest` (`/`
     contains `/dashboard`) and `SearchIndexingTest` green.
-27. **Caption overflow on the strip.** The caption is drawn with a bare `fillText` — no
-    `measureText`, no `maxWidth`. Single-column strips are 648px wide (600 cell + 2×24), captions
-    allow 60 characters and default to the event name (100), so anything past **31** characters
-    clips off both ends of the hero artefact: measured on the real canvas, a 45-character name
-    inks from x=0 to x=647. The typesetting now lives in a tested `strip-footer.ts`, so what is
-    left is to measure and shrink-to-fit inside `band.innerWidth` — step the font down to a floor,
-    then ellipsise. Every later strip slice (32, 47) writes its failing test in that module.
 28. **Every guest page has a way out.** The navigation audit found these literal dead ends — no
     way onward without the back button: the expired booth page and the expired album gate (zero
     links; the gate hides its only one on purpose); the closed-booth page when the album is hidden;
@@ -331,15 +324,16 @@ for an AU business.
     verified address, or deletes an account, and the privacy policy has to point at something.
     Minimum: a password change form, and account deletion that purges every event
     (`Event::purge()`) and then the user. Changing a *verified* address waits for 22's pattern.
-32. **The strip itself, after 27.** (a) Cells to 960×720 and the strip's JPEG quality to 0.9 — the
+32. **The strip itself.** (a) Cells to 960×720 and the strip's JPEG quality to 0.9 — the
     camera already yields 960×720 per shot (1280×720 ideal, 4:3 crop) and compose downsamples it
     into 600×450, a 1.6× loss for nothing; leave originals at 0.85, update the size mirrors in
     `SeedsAlbums` and the `Thumbnail` comment, and GATE the low-memory share path on an old
     iPhone. (b) Typeset the caption in the design-system fonts — the page loads Instrument Serif /
     Sans and DM Mono and the canvas uses none of them, so a Pixel and an iPhone print different
     strips of the same event; start `document.fonts.load()` at module init and await it (short
-    timeout) before compose. Both are small once 27's module exists. A date line in the footer is
-    *not* here — see 47.
+    timeout) before compose. Both are small now that the footer's typesetting lives in
+    `strip-footer.ts` — (b) is its `CAPTION_FONT_STACK` plus the await, and its failing test goes
+    in `strip-footer.test.ts`. A date line in the footer is *not* here — see 47.
 33. **Saving on Android saves.** The answer to *"can Save be bubbled to the top of the share
     sheet?"* is no — `navigator.share` has no target hint; the sheet is the OS's. So branch on
     platform, as the denied-screen copy already does: on Android and desktop "Save to phone" /
@@ -542,7 +536,7 @@ violates "limits stated up front".
     on that branch. Narrow: it needs a rotation during a scroll of a 24+ session album, and a
     reload already fixes it. Rides along with whichever slice next touches the album foot.
 44. **Photo missions** — host-picked prompt packs; a mission deep-links into capture and stamps
-    the prompt as the strip caption. Layer 1 is pure client after 27: a `missions.ts` pack
+    the prompt as the strip caption. Layer 1 is pure client: a `missions.ts` pack
     registry, `Event::MISSION_PACKS`, a nullable `events.mission_pack`, `?m=` validated in
     `capture()` and emitted as `data-mission`, printable per-mission QR cards on the owner page
     reusing `qrSvg()`. Decide first what a mission stamps on an event that has a **logo** — today
@@ -562,8 +556,9 @@ violates "limits stated up front".
     with `cameraLost` coverage and tests. Any new `photos.kind` must also touch
     `BuildEventArchive` (it hard-codes `['strip','original']` and throws on a third) and gate the
     thumbnail dispatch. The item most likely to burn a week on device quirks.
-47. **A date line in the strip footer** — with 44, once the footer module (27, 32) is settled: it
-    changes `footerHeight` and so every strip's height and its mirrors, and shares the
+47. **A date line in the strip footer** — with 44, once `strip-footer.ts` has settled (32 is the
+    part of it still to land): it changes `footerHeight` and so every strip's height and its
+    mirrors, and shares the
     logo-conflict decision with missions. Recommend date + caption (caption serif, date DM Mono),
     the logo replacing the caption line only, and no event code on the strip. The filename (34)
     already dates the saved file.

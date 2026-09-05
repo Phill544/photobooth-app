@@ -14,9 +14,16 @@ export type FooterBand = { width: number; innerWidth: number; height: number; ce
 
 export const CAPTION_FONT_STACK = 'system-ui, sans-serif';
 
+// How the caller measures text: strip-compose.ts hands over its own canvas
+// context, which is the only thing that knows how wide a glyph really is.
+export type Measure = (text: string, font: string) => number;
+
 const LOGO_HEIGHT_SHARE = 0.62; // of the band
 const LOGO_WIDTH_SHARE = 0.7; // of the strip
 const CAPTION_HEIGHT_SHARE = 0.4; // of the band
+const CAPTION_FLOOR_SHARE = 0.25; // of the band — smaller than this and we ellipsise instead
+const ELLIPSIS = '…';
+const GRAPHEMES = new Intl.Segmenter(); // whole characters, emoji included
 
 export function footerBand(strip: Size, template: StripTemplate): FooterBand {
     return {
@@ -41,8 +48,27 @@ export function logoBox(logo: Size, band: FooterBand): Rect {
     return { x: (band.width - width) / 2, y: band.centerY - height / 2, width, height };
 }
 
-export function captionLine(caption: string, band: FooterBand): { text: string; font: string } {
-    const size = Math.round(band.height * CAPTION_HEIGHT_SHARE);
+// The caption is the one thing on the strip a host typed, and it defaults to
+// the event name — so it is routinely longer than the strip is wide. Fit it:
+// step the size down to a floor, and only then cut it short. It never spills
+// past the photos above it, because a clipped caption reads as a broken strip.
+export function captionLine(caption: string, band: FooterBand, measure: Measure): { text: string; font: string } {
+    const font = (size: number) => `bold ${size}px ${CAPTION_FONT_STACK}`;
+    const floor = Math.round(band.height * CAPTION_FLOOR_SHARE);
 
-    return { text: caption, font: `bold ${size}px ${CAPTION_FONT_STACK}` };
+    for (let size = Math.round(band.height * CAPTION_HEIGHT_SHARE); size >= floor; size--) {
+        if (measure(caption, font(size)) <= band.innerWidth) return { text: caption, font: font(size) };
+    }
+
+    // Still too long at the floor — a 60-character caption is — so trim it back
+    // until the ellipsis fits. Trim whole characters, never code units: event
+    // names really do carry emoji, and half of a surrogate pair inks as a tofu
+    // box exactly where the ellipsis should be. Don't strand a space either.
+    const shown = (parts: string[]) => parts.join('').trimEnd() + ELLIPSIS;
+    const parts = [...GRAPHEMES.segment(caption)].map((part) => part.segment);
+    while (parts.length && measure(shown(parts), font(floor)) > band.innerWidth) {
+        parts.pop();
+    }
+
+    return { text: shown(parts), font: font(floor) };
 }
