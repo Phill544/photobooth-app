@@ -69,6 +69,10 @@ Route::middleware('auth')->group(function () {
 });
 
 // --- Guests: join by code, no login (the event code is the credential) ---
+// Where the join form posts. It exists so the form works with no JavaScript at
+// all: the code is normalised here and the booth URL is the redirect, so an
+// unknown code lands on the same 404 that names it as a typed URL does.
+Route::get('/join', [EventController::class, 'join']);
 Route::get('/e/{event:code}', [EventController::class, 'capture']);
 Route::get('/e/{event:code}/gallery', [EventController::class, 'gallery']);
 Route::post('/e/{event:code}/gallery/unlock', [EventController::class, 'unlock']); // rationed inside, where a wrong guess can be told from a guest

@@ -51,11 +51,19 @@ Its siblings: [HANDOVER.md](HANDOVER.md) (the map + conventions),
 - [x] A wrong-but-valid-shaped code lands on the friendly 404 that **names the code you typed** and
       offers the form again.
 - [x] Lower-case code in a typed URL still opens the booth (codes are case-insensitive).
-- [x] With JS disabled the code field is a plain ruled input. **It does not submit anywhere** —
-      confirmed on a phone, 2026-09-05, and confirmed in the code: the form has no `action`, and
-      the only navigation to the booth is `location.href` inside the JS handler. Filed as HANDOVER
-      item 24 and deliberately deferred, because the booth needs JS and a camera anyway. Re-check
-      this line when that ships — the same form is on the unknown-code 404.
+- [ ] **The join form with JavaScript off** (Safari: Settings → Safari → Advanced → JavaScript;
+      Chrome: Site settings). Typing a code and submitting must land in the booth — it posts to
+      `/join` now. Then try it again from the unknown-code 404, which shares the same partial.
+- [ ] **The way out of a booth that is over.** Open a finished event (`SWEPT2`) and a closed one
+      (`GARDEN`): each needs "Got another code? →" reaching the join page. Same on the expired
+      album gate (`LAPSED` as a guest, not signed in — it had no links at all), and on the
+      hidden/PIN gates ("Back to the booth").
+- [ ] **The guest auth pages** (log in, create account, forgot password, set a new password) each
+      carry "Got an event code? →". A guest who lands on one of these arrived by mistake.
+- [ ] **403 / 419 / 429.** Each is a real page now rather than Laravel's bare one. The easiest to
+      reach on a phone: leave the album PIN screen open and get the PIN wrong enough times (429),
+      and leave the owner page open long past the session to tap something into a 419. Both must
+      show the code form and the host door.
 
 ## 2. The booth — the happy path
 
@@ -68,7 +76,10 @@ Its siblings: [HANDOVER.md](HANDOVER.md) (the map + conventions),
 - [x] The preview keeps the template's cell aspect, so what you frame is what lands in the strip.
 - [x] Flash between shots; strip composes on-device; review screen shows it in the perforated mat.
 - [x] "Share to the album" → uploading → the purple done screen.
-- [x] "Take another" resets to a fresh run.
+- [ ] **"Take another" goes back to the start screen**, not straight into a countdown. It used to
+      drop the last guest's filter and start counting; on the guest's own phone (D2) the start
+      screen is where "Start shooting" and "Pick a look" already are. The camera stream must stay
+      alive across it, so the next run starts without a second permission prompt.
 - [x] Try every template — classic (3), quad (4), grid (2×2), single — the shot count is
       template-driven, never hard-coded.
 - [ ] **A long event name still prints inside the strip.** The caption defaults to the event name,
@@ -90,6 +101,14 @@ Its siblings: [HANDOVER.md](HANDOVER.md) (the map + conventions),
       countdown does not advance behind it.
 - [x] **Deny the camera**, then check the denied screen's per-platform Settings steps are actually
       correct for that OS version. Re-granting and retrying works.
+- [ ] **Leave the denied screen without granting anything.** Its only control used to loop back
+      into itself; "Back" must reach the start screen and "Browse the album" must reach the album.
+      Both on a phone, where a wrong turn means the browser's back arrow inside a QR scanner.
+- [ ] **Every screen has a door out.** Walk each one and leave it without the back button: review
+      ("Back to the start" — check Save sits above it, because this is the exit that costs a guest
+      their strip), the look picker ("Back"), camera-lost ("Back to the start"), and each
+      upload-failed screen ("Take another" + the album). Seeded codes for the failure screens are
+      in §5.
 - [x] **Open the booth link from inside Instagram / Messenger / TikTok.** The in-app interstitial
       should appear (UA-detected, with a getUserMedia-error safety net) and offer "open in Chrome"
       on Android / "open in Safari" on iOS.
@@ -136,6 +155,10 @@ NOTE: Unsure how to test
 ## 7. The album
 
 - [x] Wall of strips; Strips / All photos tabs both work; the order flip is a real link.
+- [ ] **The topbar at 375px**: the wordmark now goes to `/` and a context button sits beside it —
+      "Back to the booth" for a guest, "Manage this event" for the host. That topbar already wraps
+      (`flex-wrap`); check it wraps sensibly with the extra button rather than pushing the share
+      controls off.
 - [x] Header counts: strips and photos are separate numbers, and "photos" never includes strips.
 - [x] Tap a tile → lightbox with the full-size image → "Save this photo" saves it.
 - [ ] Escape/backdrop/× all close the lightbox and it stops downloading the big file.

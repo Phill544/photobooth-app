@@ -106,7 +106,7 @@
 </head>
 <body class="ctx-light">
     <header class="topbar no-print">
-        <a class="wordmark" href="/dashboard">Quikbooth</a>
+        <a class="wordmark" href="/">Quikbooth</a>
         <a class="btn btn--ghost btn--small" href="/dashboard">Your events</a>
     </header>
 
@@ -142,7 +142,7 @@
                 {{-- .btn-row is a pair; the copy affordance goes with the URL below it. --}}
                 <div class="btn-row">
                     <button type="button" class="btn--ghost share-btn" data-share-url="{{ url('/e/'.$event->code) }}" data-share-title="{{ $event->name }}">Share the link</button>
-                    <a class="btn btn--ghost" href="/e/{{ $event->code }}/gallery">Open the album</a>
+                    <a class="btn btn--ghost" href="/e/{{ $event->code }}/gallery" target="_blank">Open the album</a>
                 </div>
                 <div class="share">
                     <button type="button" class="btn--ghost btn--small share-copy" data-copy="{{ url('/e/'.$event->code) }}">Copy link</button>
@@ -359,15 +359,15 @@
                  would not let it take a photo while the window is past. --}}
             <div class="foot">
                 @if ($event->hasExpired())
-                    <p><a href="/e/{{ $event->code }}">The booth</a> is finished — its window has passed.</p>
+                    <p><a href="/e/{{ $event->code }}" target="_blank">The booth</a> is finished — its window has passed.</p>
                 @elseif ($event->isClosed())
-                    <p><a href="/e/{{ $event->code }}">The booth</a> is closed{{ $event->albumIsHidden() ? '.' : ' — guests can still see the album.' }}</p>
+                    <p><a href="/e/{{ $event->code }}" target="_blank">The booth</a> is closed{{ $event->albumIsHidden() ? '.' : ' — guests can still see the album.' }}</p>
                     <form method="POST" action="/events/{{ $event->code }}/toggle-closed">
                         @csrf
                         <button class="btn--small">Reopen the booth</button>
                     </form>
                 @else
-                    <p><a href="/e/{{ $event->code }}">The booth</a> is open to anyone with the code.</p>
+                    <p><a href="/e/{{ $event->code }}" target="_blank">The booth</a> is open to anyone with the code.</p>
                     <form method="POST" action="/events/{{ $event->code }}/toggle-closed">
                         @csrf
                         <button class="btn--danger">Close the booth</button>

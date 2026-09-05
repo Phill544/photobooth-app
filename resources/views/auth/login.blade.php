@@ -18,6 +18,9 @@
         .alt { margin-top: var(--space-xl); font-size: var(--text-sm); color: var(--text-muted); }
         .status { margin: var(--space-lg) 0 0; color: var(--ok); font-size: var(--text-sm); }
         .forgot { margin: 0; font-size: var(--text-sm); }
+        .way-out { margin: var(--space-lg) 0 0; font-size: var(--text-sm); }
+        .way-out a { color: var(--text-muted); text-decoration: none; }
+        .way-out a:hover { color: var(--text); text-decoration-line: underline; }
     </style>
 </head>
 <body class="ctx-dark">
@@ -54,6 +57,7 @@
                 @endunless
             </form>
             <p class="alt"><a href="/register">Need an account? Create one</a></p>
+            <p class="way-out"><a href="/">Got an event code? →</a></p>
         </main>
         <div class="perf-edge"></div>
     </div>

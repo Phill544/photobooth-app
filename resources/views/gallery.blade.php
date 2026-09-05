@@ -88,9 +88,16 @@
 </head>
 <body class="ctx-light">
     <header class="topbar">
-        <a class="wordmark" href="/e/{{ $event->code }}">Quikbooth</a>
+        <a class="wordmark" href="/">Quikbooth</a>
         <div class="topbar-right share">
             <span class="code">{{ $event->code }}</span>
+            {{-- The one context button beside the wordmark (D3). A host gets
+                 their own controls back; everyone else gets the booth. --}}
+            @if ($isHost)
+                <a class="btn btn--ghost btn--small" href="/events/{{ $event->code }}">Manage this event</a>
+            @else
+                <a class="btn btn--ghost btn--small" href="/e/{{ $event->code }}">Back to the booth</a>
+            @endif
             <button type="button" class="btn--small share-btn" data-share-url="{{ url('/e/'.$event->code) }}" data-share-title="{{ $event->name }}">Share the album</button>
             <button type="button" class="btn--ghost btn--small share-copy" data-copy="{{ url('/e/'.$event->code) }}">Copy link</button>
             <span class="link-chip">{{ url('/e/'.$event->code) }}</span>

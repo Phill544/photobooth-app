@@ -45,7 +45,7 @@ thirty days later on a schedule → **a host account that can look after itself*
 and email verification over a real mail transport (Resend), behind the same kind of deploy gate the
 storage disk has → **download-all**: a queued job zips a whole night into one file and emails the
 host a signed, expiring link.
-**330 Pest + 102 Vitest tests green.** Every feature slice was built red/green and then put
+**351 Pest + 106 Vitest tests green.** Every feature slice was built red/green and then put
 through an adversarial review (see Conventions).
 
 ## Stack & how to run
@@ -150,7 +150,7 @@ line says otherwise. Each item is a slice: red/green TDD, then an adversarial re
 Conventions). **Delete an item when it ships** — this list is only what is left; the Status line
 and the git log record what shipped. Item numbers are stable IDs (9–25 from the review, 26+ from
 this pass), never reused or renumbered; a section whose items are all gone disappears with them.
-Two known defects are on the list (24, 25), both deferred with the reasoning written down.
+One known defect is on the list (25), deferred with the reasoning written down.
 
 ### Decided — 2026-09-05, and what each one leaves open
 
@@ -183,13 +183,12 @@ does not.
   returning guest's strips. **Kiosk mode, if it ever comes, is a future functionality change** —
   not a variant to keep the code ready for, so don't preserve behaviour that only makes sense
   passed around a room. The `#again` comment in `capture.ts` ("drop the last guest's look") is the
-  one place that assumed a kiosk; 28 rewires that handler and corrects the comment with it. "Take
+  one place that assumed a kiosk; that handler now dispatches `reset` and the comment went with it. "Take
   another" still returns to the start screen, which is right under either model.
 - **D3 — The wordmark links to `/`, on every page**, with one context button beside it ("Your
   events" / "Back to the booth" / "Manage this event"); the booth's fixed kiosk screens keep
-  in-screen exits and never grow a bar. It ships inside 28, which is already adding those doors,
-  and it is one line in PLAN.md's design system. Phill's note: **there is room for improvement
-  here.** Take it as the starting point rather than the finished navigation and revisit it after
+  in-screen exits and never grow a bar. Shipped, and written into PLAN.md's design system.
+  Phill's note: **there is room for improvement here.** Take it as the starting point rather than the finished navigation and revisit it after
   launch — it is an href and a button, not a structural choice, and nothing downstream is built on
   its being final.
 - **D4 — Split: the words now, the artwork with Stripe.** A **support inbox** and the **privacy
@@ -227,48 +226,6 @@ for an AU business.
     client errors) out of it and grow `SearchIndexingTest`. Until 31 ships, the policy points
     account deletion at the support inbox (D4). Keep `HomePageTest`, `EventCreationTest` (`/`
     contains `/dashboard`) and `SearchIndexingTest` green.
-28. **Every guest page has a way out.** The navigation audit found these literal dead ends — no
-    way onward without the back button: the expired booth page and the expired album gate (zero
-    links; the gate hides its only one on purpose); the closed-booth page when the album is hidden;
-    the camera-denied screen (its one control loops into itself — `beginQuick` →
-    `handleCameraError` → `showTakeover`, and `render()` returns early while `takeover` is set);
-    the review screen for a guest who does not want to share (the machine accepts only `retake`,
-    which starts a countdown, or `share`); the terminal upload-failed screens (`closed`,
-    `rejected` — Save is a download, not navigation); and every 403 / 419 / 429, which is
-    Laravel's bare page (only `errors/404` exists). One slice, five parts, each small:
-    (a) a `{type:'reset'}` `FlowEvent` accepted from `review`, `done`, `uploadFailed`,
-    `customise` and `cameraLost` → `start` (Vitest — the pinned "starts a fresh set from done"
-    test changes deliberately), the camera stream kept alive across it. **"Take another"
-    dispatches `reset`.** That is the ruling on *"Take another defaults to the quick shoot even if
-    you came from the filter shots"*: today it is `setFilter('none'); retake()`, a deliberate
-    choice that drops the look and jumps straight into a filterless countdown. Sending it to the
-    start screen puts the next guest where "Start shooting" and "Pick a look" already live, is
-    what a real booth does, and is right under the own-phone model D2 locked — and would still be
-    right if kiosk mode ever arrives, which is why the comment that assumed one goes with it.
-    Also: "Back to start" on review, "Take another" + the album link on upload-failed, "Browse
-    the album" + "Back" on denied.
-    (b) "Got another code? →" to `/` on every `! acceptsUploads()` booth branch, the gate
-    including expired, the album topbar, and the four guest auth pages; an `@auth`/`@guest` label
-    on home ("Your events →" for a signed-in host). **D3 ships in this part**: the wordmark links
-    `/` on every page that has one, with a single context button beside it, and PLAN.md's design
-    system gains that line — there is no `href="/"` anywhere in the app today.
-    (c) "Manage this event →" for `managedBy` hosts on the booth start and done screens and the
-    album topbar, plus `target="_blank"` on the owner page's booth and album links so the owner
-    page is never lost in the first place.
-    (d) `errors/403|419|429.blade.php` cloned from the 404 layout — "This isn't your event", "This
-    page sat open too long", "Too many tries — wait a minute", each with the two generic doors.
-    (e) `capture.blade.php`'s Vite gate is `isClosed()` while the body branches on
-    `acceptsUploads()`, so an expired-but-open event loads `capture.ts` against a page with none
-    of its elements and it throws before its error handlers register. Make them agree.
-    **Item 24 ships inside this slice** so every new `href="/"` is honest without JS. Re-check
-    GATE §2–3 on both phones and reword GATE's "Take another resets to a fresh run" line.
-24. The join form does not work without JavaScript. **Found on the gate pass, 2026-09-05.**
-    `partials/code-entry.blade.php` has no `action` and no `method`, and the only navigation to
-    the booth is `location.href` inside the JS submit handler — so a no-JS submit GETs the current
-    page, which ignores `?code=`, and the guest sees an empty field and no movement. The partial
-    is shared with the unknown-code 404, so a no-JS retry there re-serves the same 404. The fix is
-    `action="/join"` plus a GET route that upper-cases and redirects; it rides inside 28 because
-    that slice adds a `/` link to every page, and each of them should work without JS.
 29. **The host page tells the truth about what just happened.** Every owner-page POST (update,
     toggle-closed, privacy, retention) redirects to the top of a long page with no fragment and no
     confirmation — only the archive flashes a status — and the dashboard never renders
@@ -284,7 +241,7 @@ for an AU business.
     on a phone. Closing is reversible — the comment beneath it says so — so give it
     `btn--ghost btn--small` to pair with "Reopen the booth", and give the `.btn--danger` tier a
     resting underline so the truly destructive three never read as static copy. Pin the class with
-    a one-line Pest assertion first. A separate commit from 28, so both bisect.
+    a one-line Pest assertion first. Its own commit, so it bisects on its own.
 23. **Retention as a role split, not a deletion.** The "Photos · …" fold hands every host a
     free-form `type="date"` validated `after_or_equal:today`; the intent is that the window comes
     with what they pay for. Shape: **admins keep the free-form date** (the "someone emailed asking
@@ -388,8 +345,8 @@ for an AU business.
 37. **The booth reports its own errors** — OBSERVABILITY.md phase 2, as specified there: a client
     `report.ts`, `POST /e/{code}/client-errors`, CSRF-exempt, throttled **on the event code**, not
     the IP (a venue is one NAT address). Today the `window.error` / `unhandledrejection` handlers
-    only paint the error screen. Sequence after 28 — so the expired-page throw fixed there is not
-    the first thing it reports — and before the gate pass. OBSERVABILITY's phases 0–1 are
+    only paint the error screen. Sequence before the gate pass; the expired-page throw that would
+    otherwise have been its first report is already fixed. OBSERVABILITY's phases 0–1 are
     dashboard work, not slices.
 38. **Registration cannot burn the day's mail.** `/register` has a 10/min IP throttle and nothing
     else, and every registration costs a verification mail against Resend's hard 100/day (MAIL.md)
@@ -414,7 +371,8 @@ for an AU business.
     from a tap, and iOS keeps a context suspended until a gesture resumes it and re-suspends it
     after a lock or a call, so unlock must be idempotent; synthesised tones, no asset; `tick()` on
     each countdown second (silent in landscape because no tick is dispatched), `shutter()` beside
-    the flash, `navigator.vibrate?.(30)` for Android. **After 28**, which rewires `#again`. GATE
+    the flash, `navigator.vibrate?.(30)` for Android. `#again` now dispatches `reset`, so the
+    unlock has to happen on the start screen's controls rather than on it. GATE
     §2: audible on both phones, iPhone mute switch honoured.
 - **Theme housekeeping** — after launch. Dead rules and tokens in `theme.blade.php` (`.card`, the
   `select` rules, `--orange`, `--r-xl`, `--leading-snug`, a doubled `--shadow-md`), eight views

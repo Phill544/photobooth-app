@@ -17,6 +17,9 @@
         form { display: flex; flex-direction: column; gap: var(--space-lg); margin-top: var(--space-xl); }
         button { width: 100%; }
         .alt { margin-top: var(--space-xl); font-size: var(--text-sm); color: var(--text-muted); }
+        .way-out { margin: var(--space-lg) 0 0; font-size: var(--text-sm); }
+        .way-out a { color: var(--text-muted); text-decoration: none; }
+        .way-out a:hover { color: var(--text); text-decoration-line: underline; }
     </style>
 </head>
 <body class="ctx-dark">
@@ -54,6 +57,7 @@
             </form>
 
             <p class="alt"><a href="/login">Back to log in</a></p>
+            <p class="way-out"><a href="/">Got an event code? →</a></p>
         </main>
         <div class="perf-edge"></div>
     </div>

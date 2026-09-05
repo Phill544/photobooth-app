@@ -36,7 +36,7 @@
 </head>
 <body class="ctx-light">
     <header class="topbar">
-        <a class="wordmark" href="/dashboard">Quikbooth</a>
+        <a class="wordmark" href="/">Quikbooth</a>
         <a class="btn--ghost btn--small btn" href="/dashboard">Your events</a>
     </header>
 

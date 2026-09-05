@@ -239,10 +239,26 @@ class EventController extends Controller
         return redirect("/events/{$event->code}");
     }
 
-    public function capture(Event $event)
+    // Codes are read off a sign and typed by hand, so they arrive in whatever
+    // case and spacing the guest managed. Nothing is looked up here: an unknown
+    // code goes to the booth URL and meets the 404 that names it.
+    public function join(Request $request)
+    {
+        // query() returns whatever was in the URL, and ?code[]=x is an array —
+        // this is a public GET linked from the home page, so it has to shrug.
+        $code = $request->query('code');
+        $code = is_string($code) ? strtoupper(trim($code)) : '';
+
+        return redirect($code === '' ? '/' : "/e/{$code}");
+    }
+
+    public function capture(Request $request, Event $event)
     {
         return view('capture', [
             'event' => $event,
+            // A host standing in the booth needs the way back to their own
+            // controls; a guest must never be shown a door that answers 403.
+            'isHost' => $event->managedBy($request->user()),
             'photoCount' => $event->photos()->where('kind', 'original')->count(),
             'stripCount' => $event->photos()->where('kind', 'strip')->count(),
         ]);
@@ -374,6 +390,7 @@ class EventController extends Controller
 
         return view('gallery', [
             'event' => $event,
+            'isHost' => $event->managedBy($request->user()),
             'sessions' => $page->map(fn ($session) => $photos[$session->group_uuid]),
             'nextPage' => $hasMore ? $this->galleryUrl($event, $oldestFirst, $page->last()->last_id) : null,
             'flipUrl' => $this->galleryUrl($event, ! $oldestFirst),

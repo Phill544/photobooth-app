@@ -48,6 +48,7 @@ it('asks crawlers to stay out of the guest and host areas', function () {
 
     expect($robots)
         ->toContain('Disallow: /e/')
+        ->toContain('Disallow: /join') // only ever redirects into /e/
         ->toContain('Disallow: /dashboard')
         ->toContain('Disallow: /new')
         ->toContain('Disallow: /events')

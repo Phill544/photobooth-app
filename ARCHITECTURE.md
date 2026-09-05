@@ -143,7 +143,7 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
   `bootstrap/app.php` fires only when an **`Event`** route binding is what failed and passes the
   code that was tried, so the page can name it; everything else (a missing photo under a real
   code, the JSON uploader) falls through untouched. The six-tile join form is
-  `partials/code-entry.blade.php`, shared by that page and the home page — its styles live in
+  `partials/code-entry.blade.php`, shared by the home page and every error page — its styles live in
   `partials/theme.blade.php`, and its submit handler refuses a code that isn't six characters
   rather than spending a page load to be told the same thing.
 
@@ -158,6 +158,30 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
   state machine to the DOM), `strip-compose.ts` (draws the strip; every measurement it uses comes
   from `strip-layout.ts` and `strip-footer.ts`, which is where the tests are), `wake-lock.ts`,
   `strip-preview.ts` (live preview on create/edit forms), `upload.ts`.
+- **No screen is a dead end.** Every guest screen leads somewhere without the back button, which
+  at an event may be several taps deep inside a QR scanner. In the booth that is one `reset`
+  `FlowEvent`, accepted from the five screens a guest can be left standing on (`review`, `done`,
+  `customise`, `cameraLost`, `uploadFailed`) and refused by the ones that belong to somebody
+  mid-run — a countdown, a flash, an upload still carrying a strip. On the paper pages it is a
+  quiet `.way-out` link: "Got another code? →" to `/` from a finished booth, an expired album gate
+  and the guest auth pages. **The wordmark goes to `/` on every page that has one, with a single
+  context button beside it** (PLAN.md's design system, D3); the booth's kiosk screens keep their
+  in-screen exits and never grow a bar. A host is offered "Manage this event →" wherever they meet
+  their own event — the view is handed `$isHost` rather than asking, so a guest is never shown a
+  door that would answer 403 — and the owner page opens the booth and the album in a new tab, so
+  the page a host runs the night from is never the one they navigated away from.
+- **`/join` is why the code form works with no JavaScript.** The form had no `action` and no
+  `method`; its only navigation was `location.href` in a submit handler, so a no-JS submit re-GET
+  the page it was on, which ignores `?code=`. It now GETs `/join`, which upper-cases and trims and
+  redirects to the booth URL — nothing is looked up there, so an unknown code meets the same 404
+  that names it. `robots.txt` disallows it, because it only ever leads into `/e/`.
+- **`errors/403|419|429.blade.php`** are the 404's layout with different words — someone else's
+  event, a page that sat open too long, too many tries. Before them every refusal but a 404 served
+  Laravel's bare page, with no wordmark, no code entry and no way onward.
+- **`capture.blade.php` asks "is there a booth here" exactly once**, into `$boothIsOpen`. The
+  script gate in `<head>` and the body used to ask different questions — `isClosed()` there,
+  `acceptsUploads()` here — so an expired-but-open event loaded `capture.ts` against a page with
+  none of its elements, and it threw before its own error handlers were registered.
 - **The caption is fitted, never clipped:** it defaults to the event name, which is 100 characters
   against a 600px mat, so `strip-footer.ts` measures it through the compose canvas and steps the
   font down from 40% of the footer band to a 25% floor before ellipsising. It is never wider than

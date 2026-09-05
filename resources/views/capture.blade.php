@@ -1,3 +1,9 @@
+{{-- Whether there is a booth on this page at all. The script gate in <head> and
+     the body below have to agree, and they did not: isClosed() up there,
+     acceptsUploads() down here, so an expired-but-open event loaded capture.ts
+     against a page holding none of its elements and threw before its own error
+     handlers were registered. One variable cannot disagree with itself. --}}
+@php($boothIsOpen = $event->acceptsUploads())
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,9 +16,9 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $event->name }} — Quikbooth</title>
     @include('partials.theme')
-    @unless ($event->isClosed())
+    @if ($boothIsOpen)
         @vite('resources/js/capture.ts')
-    @endunless
+    @endif
     <style>
         /* One screen at a time, each one the whole viewport — the booth is a
            kiosk, not a document. capture.ts toggles [hidden] on these sections. */
@@ -46,6 +52,10 @@
         .rec-dot { width: 12px; height: 12px; border-radius: 50%; background: #fff; }
         .tally { margin: var(--space-lg) 0 0; text-align: center; }
         .invite { margin-top: var(--space-md); justify-content: center; }
+        /* The quiet door out of a screen: never the thing to tap, always there. */
+        .way-out { margin: var(--space-md) 0 0; text-align: center; font-size: var(--text-sm); }
+        .way-out a { color: var(--text-muted); text-decoration: none; }
+        .way-out a:hover { color: var(--text); text-decoration-line: underline; }
 
         /* --- 03 · shooting --- */
         #camera-screen { padding: 0; background: var(--ink); display: grid; place-items: center; }
@@ -159,7 +169,7 @@
          really going to see the strip, because that is the promise the guest
          taps Share on. --}}
     @php($albumIsHidden = $event->albumIsHidden())
-    @if (! $event->acceptsUploads())
+    @if (! $boothIsOpen)
     <main class="screen screen--center">
         <div class="inner">
             <p class="eyebrow">The booth</p>
@@ -174,6 +184,10 @@
                 <p class="muted">This booth is closed — the album is still open.</p>
                 <a class="btn btn--ghost" href="/e/{{ $event->code }}/gallery">See the album</a>
             @endif
+            @if ($isHost)
+                <p class="way-out"><a href="/events/{{ $event->code }}">Manage this event →</a></p>
+            @endif
+            <p class="way-out"><a href="/">Got another code? →</a></p>
         </div>
     </main>
     @else
@@ -213,6 +227,10 @@
                         <button type="button" class="btn--ghost btn--small share-copy" data-copy="{{ url('/e/'.$event->code) }}">Copy link</button>
                         <span class="link-chip">{{ url('/e/'.$event->code) }}</span>
                     </div>
+
+                    @if ($isHost)
+                        <p class="way-out"><a href="/events/{{ $event->code }}">Manage this event →</a></p>
+                    @endif
                 </div>
             </div>
         </section>
@@ -231,6 +249,7 @@
             <div id="filter-controls" hidden>
                 <div id="filter-rail"></div>
                 <button id="customise-start" class="btn--hero">Start shooting</button>
+                <button id="customise-back" class="secondary">Back</button>
             </div>
         </section>
 
@@ -259,6 +278,10 @@
                         <a id="save-review" class="btn btn--ghost" download aria-disabled="true">Save to phone</a>
                         <button id="retake" class="secondary">Retake</button>
                     </div>
+                    {{-- Save sits directly above this on purpose: this is the one
+                         exit that costs a guest their strip, because until it is
+                         shared or saved the booth holds the only copy of it. --}}
+                    <button id="review-back" class="secondary">Back to the start</button>
                 </div>
             </div>
         </section>
@@ -293,6 +316,9 @@
                             <a class="btn btn--ghost" href="/e/{{ $event->code }}/gallery">See the album</a>
                         @endunless
                     </div>
+                    @if ($isHost)
+                        <p class="way-out"><a href="/events/{{ $event->code }}">Manage this event →</a></p>
+                    @endif
                     <div class="share invite">
                         <button type="button" class="btn--ghost btn--small share-btn" data-share-url="{{ url('/e/'.$event->code) }}" data-share-title="{{ $event->name }}">Invite others</button>
                         <button type="button" class="btn--ghost btn--small share-copy" data-copy="{{ url('/e/'.$event->code) }}">Copy link</button>
@@ -307,6 +333,7 @@
                 <p class="eyebrow">Hold on</p>
                 <h1>The camera stopped</h1>
                 <button id="camera-retry">Turn it back on</button>
+            <button id="lost-back" class="secondary">Back to the start</button>
             </div>
         </section>
 
@@ -321,6 +348,12 @@
                 <p class="muted" id="upload-failed-detail"></p>
                 <button id="upload-retry">Retry upload</button>
                 <a id="save-failed" class="btn btn--ghost" download aria-disabled="true">Save to phone</a>
+                <div class="btn-row">
+                    <button id="failed-again" class="secondary">Take another</button>
+                    @unless ($albumIsHidden)
+                        <a class="btn btn--ghost" href="/e/{{ $event->code }}/gallery">See the album</a>
+                    @endunless
+                </div>
             </div>
         </section>
 
@@ -333,6 +366,15 @@
                     <p id="denied-android" hidden>Tap the icon left of the address bar → <strong>Site settings</strong> → <strong>Camera</strong> → Allow, then tap below.</p>
                 </div>
                 <button id="denied-retry">I've enabled it — try again</button>
+                {{-- The retry above loops back here while permission is still off
+                     (beginQuick fails, handleCameraError shows this screen), so
+                     without these the guest had nowhere at all to go. --}}
+                <div class="btn-row">
+                    <button id="denied-back" class="secondary">Back</button>
+                    @unless ($albumIsHidden)
+                        <a class="btn btn--ghost" href="/e/{{ $event->code }}/gallery">Browse the album</a>
+                    @endunless
+                </div>
             </div>
         </section>
 

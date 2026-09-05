@@ -21,7 +21,7 @@ event's album. Event owners view the album on the website.
 | Testing | Pest (server, red/green TDD) + Vitest (pure client modules) | Camera glue is device-tested manually, everything else is unit-tested. |
 | Pricing shape (2026-09-05) | **One purchase per event**, through Stripe Checkout | The only shape that passes the market-anger checklist — a purchase, not a subscription; nothing metered mid-event; the limit is one sentence — and the only one the schema already carries (the per-event window column). The days, the AUD price, the GST stance and what the window counts from are settled in the sitting that builds Stripe, so the Price object is created once. |
 | Guest device (2026-09-05) | **The guest's own phone** | It decides real code: a device token identifies one guest rather than one kiosk, and behaviour that only makes sense passed around a room is not worth preserving. Kiosk mode, if it ever comes, is a future functionality change, not a variant to keep the code ready for. |
-| Wordmark link (2026-09-05) | `/` on every page that has a header, one context button beside it ("Your events" / "Back to the booth" / "Manage this event") | There is no `href="/"` anywhere in the app today, so a guest on a dead end has no door. The booth's fixed kiosk screens keep in-screen exits and never grow a bar. A starting point rather than finished navigation — worth revisiting after launch. |
+| Wordmark link (2026-09-05) | `/` on every page that has a header, one context button beside it ("Your events" / "Back to the booth" / "Manage this event") | Decided because there was no `href="/"` anywhere in the app, so a guest on a dead end had no door. The booth's fixed kiosk screens keep in-screen exits and never grow a bar. A starting point rather than finished navigation — worth revisiting after launch. |
 
 ## Architecture notes
 
@@ -123,7 +123,8 @@ components, and the three places the implementation deliberately departs from th
 changed behind the paint:
 
 - **Join** is six code tiles over a hidden input. Without JS the field is still a plain ruled
-  input, but the form has no `action`, so submitting it goes nowhere — see HANDOVER item 24.
+  input, and the form GETs `/join`, which normalises the code and redirects into the booth — the
+  tiles are the only part that needs JavaScript.
 - **Booth** start screen leads with the event name and one blue CTA; the camera screen gets a HUD
   (`Shot 1 / 3`, the active look) and shot dashes; the looks picker shows the guest's own face
   under each filter (one still grabbed on entry, each tile CSS-filtered from the same op list).
@@ -178,6 +179,13 @@ has exactly one obvious thing to do. (Imported from the Claude Design canvas `Re
 - Invite affordance (`.share` + `.share-btn`/`.share-copy`/`.link-chip`) driven by
   `partials/share-script.blade.php`: native share sheet where available, copy-link everywhere else,
   raw URL always visible. Strip file-share lives in `capture.ts` (needs the built File up-front).
+
+**Getting out of a page (D3, 2026-09-05).** The wordmark links to `/` on every page that carries
+one, with a single context button beside it — "Your events", "Back to the booth", "Manage this
+event". The booth's fixed kiosk screens keep their in-screen exits and never grow a bar. Quiet
+text links (`.way-out`) carry the rest: "Got another code? →" wherever a guest has run out of
+event. Phill's note on the decision: this is a starting point to revisit after launch, not settled
+navigation — it is an href and a button, and nothing downstream is built on its being final.
 
 ### Deliberate departures from the canvas
 

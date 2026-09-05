@@ -4,6 +4,7 @@
 # images say the same thing again, for anything that never reads this file.
 User-agent: *
 Disallow: /e/
+Disallow: /join
 Disallow: /dashboard
 Disallow: /new
 Disallow: /events

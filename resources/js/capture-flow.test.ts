@@ -122,9 +122,40 @@ describe('retakes', () => {
             .toEqual({ screen: 'countdown', shotIndex: 0, secondsLeft: COUNTDOWN_SECONDS });
     });
 
-    it('starts a fresh set from done', () => {
-        expect(walk({ screen: 'done' }, [{ type: 'retake' }]))
-            .toEqual({ screen: 'countdown', shotIndex: 0, secondsLeft: COUNTDOWN_SECONDS });
+    it('no longer restarts from done — "Take another" resets to the start screen instead', () => {
+        expect(walk({ screen: 'done' }, [{ type: 'retake' }])).toEqual({ screen: 'done' });
+    });
+});
+
+describe('starting over', () => {
+    it('sends a finished guest to the start screen, not straight into a countdown', () => {
+        expect(walk({ screen: 'done' }, [{ type: 'reset' }])).toEqual({ screen: 'start' });
+    });
+
+    it('is a way out of every screen a guest can be left standing on', () => {
+        const stuck: FlowState[] = [
+            { screen: 'review' },
+            { screen: 'done' },
+            { screen: 'customise' },
+            { screen: 'cameraLost', shotIndex: 1 },
+            { screen: 'uploadFailed', total: 4, uploaded: 1, reason: 'rejected' },
+        ];
+
+        for (const state of stuck) expect(walk(state, [{ type: 'reset' }])).toEqual({ screen: 'start' });
+    });
+
+    it('leaves a run in progress alone — the countdown belongs to whoever is in front of the camera', () => {
+        const counting: FlowState = { screen: 'countdown', shotIndex: 1, secondsLeft: 2 };
+        const flashing: FlowState = { screen: 'flash', shotIndex: 1 };
+
+        expect(walk(counting, [{ type: 'reset' }])).toEqual(counting);
+        expect(walk(flashing, [{ type: 'reset' }])).toEqual(flashing);
+    });
+
+    it('leaves an upload alone — it is still carrying a strip somebody shared', () => {
+        const uploading: FlowState = { screen: 'uploading', uploaded: 1, total: 4 };
+
+        expect(walk(uploading, [{ type: 'reset' }])).toEqual(uploading);
     });
 });
 

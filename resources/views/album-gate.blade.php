@@ -65,12 +65,17 @@
                 </form>
             @endif
 
-            @unless ($state === 'expired')
-                <div class="back">
+            <div class="back">
+                @if ($state === 'expired')
+                    {{-- No booth to send them back to — this event is over — so
+                         the only honest door is the front one. --}}
+                    <p>At another event?</p>
+                    <a href="/">Got another code? →</a>
+                @else
                     <p>Still shooting?</p>
                     <a href="/e/{{ $event->code }}">Back to the booth →</a>
-                </div>
-            @endunless
+                @endif
+            </div>
         </main>
         <div class="perf-edge"></div>
     </div>

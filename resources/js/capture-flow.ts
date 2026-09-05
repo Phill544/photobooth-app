@@ -26,11 +26,22 @@ export type FlowEvent =
     | { type: 'uploadFailed'; reason: UploadFailureKind }
     | { type: 'retryUpload' }
     | { type: 'cameraLost' }
-    | { type: 'cameraBack' };
+    | { type: 'cameraBack' }
+    | { type: 'reset' };
 
 export const COUNTDOWN_SECONDS = 3;
 
+// The screens a guest can be left standing on with nowhere to go. Every one of
+// them gets a control that resets the booth for whoever is next; the screens
+// that are missing from this list are missing on purpose — a countdown belongs
+// to the guest in front of the camera, and an upload is still carrying a strip.
+const RESETTABLE: ReadonlyArray<FlowState['screen']> = ['review', 'done', 'customise', 'cameraLost', 'uploadFailed'];
+
 export function nextState(state: FlowState, event: FlowEvent, template: StripTemplate): FlowState {
+    if (event.type === 'reset') {
+        return RESETTABLE.includes(state.screen) ? { screen: 'start' } : state;
+    }
+
     if (event.type === 'cameraLost') {
         if (state.screen === 'countdown' || state.screen === 'flash') {
             return { screen: 'cameraLost', shotIndex: state.shotIndex };
@@ -87,7 +98,6 @@ export function nextState(state: FlowState, event: FlowEvent, template: StripTem
             return state;
 
         case 'done':
-            if (event.type === 'retake') return countdownFor(0);
             return state;
 
         case 'cameraLost':

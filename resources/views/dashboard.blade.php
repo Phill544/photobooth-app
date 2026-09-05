@@ -63,7 +63,7 @@
 </head>
 <body class="ctx-dark">
     <header class="topbar">
-        <a class="wordmark" href="/dashboard">Quikbooth</a>
+        <a class="wordmark" href="/">Quikbooth</a>
         <div class="topbar-right">
             <span>{{ auth()->user()->name }}</span>
             <span aria-hidden="true">·</span>

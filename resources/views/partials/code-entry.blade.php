@@ -1,7 +1,10 @@
 {{-- The join form — six tiles over a hidden input — shared by the home page
      and the unknown-code page, so both check a code the same way. Styles live
      with the rest of the design system in partials/theme.blade.php. --}}
-<form id="join" class="join-form">
+{{-- action + method matter: without JavaScript the submit used to re-GET the
+     page it was already on, which ignores ?code=, so the guest saw an empty
+     field and nothing moved — and on the 404 a retry re-served the same 404. --}}
+<form id="join" class="join-form" action="/join" method="get">
     <label class="sr-only" for="code">Event code</label>
     <div class="code-entry">
         <input id="code" name="code" maxlength="6" autocapitalize="characters"

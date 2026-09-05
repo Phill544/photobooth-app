@@ -17,6 +17,9 @@
         /* The one confirmation this page can give, and it deliberately says the
            same thing whether or not the address has an account. */
         .status { margin: var(--space-lg) 0 0; color: var(--ok); font-size: var(--text-sm); }
+        .way-out { margin: var(--space-lg) 0 0; font-size: var(--text-sm); }
+        .way-out a { color: var(--text-muted); text-decoration: none; }
+        .way-out a:hover { color: var(--text); text-decoration-line: underline; }
     </style>
 </head>
 <body class="ctx-dark">
@@ -52,6 +55,7 @@
             @endif
 
             <p class="alt"><a href="/login">Back to log in</a></p>
+            <p class="way-out"><a href="/">Got an event code? →</a></p>
         </main>
         <div class="perf-edge"></div>
     </div>

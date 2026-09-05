@@ -1,9 +1,13 @@
+{{-- Too many tries: a rate limiter, most often the album PIN or a burst of
+     uploads from a venue that is all one address. Say how long, because
+     "too many requests" tells a guest at a party nothing they can act on. --}}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Quikbooth</title>
+    <meta name="robots" content="noindex, nofollow">
+    <title>Too many tries — Quikbooth</title>
     @include('partials.theme')
     <style>
         .room { display: flex; min-height: 100dvh; }
@@ -28,20 +32,16 @@
     <div class="room">
         <div class="perf-edge"></div>
         <main>
-            <p class="eyebrow">Quikbooth</p>
-            <h1>Got a code?</h1>
-            <p class="lede">Six characters on the sign, the table card, or the QR.</p>
+            <p class="eyebrow">Slow down</p>
+            <h1>Too many tries — wait a minute.</h1>
+            <p class="lede">This clears by itself, so give it a moment and have another go. If you were typing
+                an album PIN, it is worth checking it with the host first:</p>
 
             @include('partials.code-entry')
 
             <div class="host">
-                @auth
-                    <p>Signed in as a host.</p>
-                    <a href="/dashboard">Your events →</a>
-                @else
-                    <p>Running an event?</p>
-                    <a href="/dashboard">Host sign in →</a>
-                @endauth
+                <p>Running an event?</p>
+                <a href="/dashboard">Host sign in →</a>
             </div>
         </main>
         <div class="perf-edge"></div>

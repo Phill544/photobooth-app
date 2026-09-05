@@ -1,9 +1,13 @@
+{{-- Someone else's event. Almost always a host signed in as the wrong
+     account, or a bookmarked owner page for an event that was handed on —
+     so this says whose it is rather than accusing anyone of anything. --}}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Quikbooth</title>
+    <meta name="robots" content="noindex, nofollow">
+    <title>Not your event — Quikbooth</title>
     @include('partials.theme')
     <style>
         .room { display: flex; min-height: 100dvh; }
@@ -28,20 +32,16 @@
     <div class="room">
         <div class="perf-edge"></div>
         <main>
-            <p class="eyebrow">Quikbooth</p>
-            <h1>Got a code?</h1>
-            <p class="lede">Six characters on the sign, the table card, or the QR.</p>
+            <p class="eyebrow">Locked</p>
+            <h1>This isn’t your event.</h1>
+            <p class="lede">Whoever created it manages it. If you are the host, you may be signed in with a
+                different account. Guests only ever need the six-character code:</p>
 
             @include('partials.code-entry')
 
             <div class="host">
-                @auth
-                    <p>Signed in as a host.</p>
-                    <a href="/dashboard">Your events →</a>
-                @else
-                    <p>Running an event?</p>
-                    <a href="/dashboard">Host sign in →</a>
-                @endauth
+                <p>Running an event?</p>
+                <a href="/dashboard">Host sign in →</a>
             </div>
         </main>
         <div class="perf-edge"></div>

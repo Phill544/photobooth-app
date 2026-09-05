@@ -192,6 +192,9 @@ function runEffects(previous: FlowState) {
     if (state.screen === 'review' && previous.screen !== 'review') { showStripPreview(); prepareStripShare(); }
     if (state.screen === 'uploading' && previous.screen !== 'uploading') void runUpload();
     if (state.screen === 'done' && previous.screen !== 'done') void releaseWakeLock();
+    // Reset can now land on the start screen holding the lock the camera took —
+    // nothing there needs the screen kept awake, and it is the guest's battery.
+    if (state.screen === 'start' && previous.screen !== 'start') void releaseWakeLock();
 }
 
 // A single tracked timer: no tap or stale dispatch can spawn a second chain.
@@ -468,6 +471,13 @@ function clearTakeover() {
     takeover = false;
 }
 
+// showTakeover already parked the flow on 'start', so leaving one is just
+// showing that screen again — which is what both of its exits want.
+function leaveTakeover() {
+    clearTakeover();
+    showOnly('start');
+}
+
 function showError(message: string) {
     failed = true;
     void releaseWakeLock();
@@ -524,7 +534,13 @@ $('#add-filter').addEventListener('click', beginCustomise);
 $('#customise-start').addEventListener('click', () => void enterCamera(() => dispatch({ type: 'start' })));
 $('#share').addEventListener('click', () => void shareToAlbum().catch(shareFailed));
 $('#retake').addEventListener('click', retake); // same guest, same run — keep their filter
-$('#again').addEventListener('click', () => { setFilter('none'); retake(); }); // fresh run — drop the last guest's look
+// Every screen a guest can be left standing on gets the same door: back to the
+// start, where "Start shooting" and "Pick a look" already live. It is where a
+// real booth leaves you, and on the guest's own phone (D2) there is no last
+// guest whose look needs dropping — beginQuick clears the filter anyway.
+for (const id of ['#again', '#review-back', '#failed-again', '#lost-back', '#customise-back']) {
+    $(id).addEventListener('click', () => dispatch({ type: 'reset' }));
+}
 $('#camera-retry').addEventListener('click', async () => {
     try {
         if (await ensureCamera()) { void requestWakeLock(); dispatch({ type: 'cameraBack' }); }
@@ -534,6 +550,7 @@ $('#camera-retry').addEventListener('click', async () => {
 });
 $('#upload-retry').addEventListener('click', () => dispatch({ type: 'retryUpload' }));
 $('#denied-retry').addEventListener('click', beginQuick);
+$('#denied-back').addEventListener('click', leaveTakeover);
 $('#save-strip').addEventListener('click', saveStrip);
 // A plain download link by default, upgraded to the share sheet where the
 // platform can take a file — which is what a phone actually wants.
@@ -544,7 +561,7 @@ for (const link of [saveReview, saveFailed]) {
         void saveStrip();
     });
 }
-$('#continue-anyway').addEventListener('click', (event) => { event.preventDefault(); clearTakeover(); showOnly('start'); });
+$('#continue-anyway').addEventListener('click', (event) => { event.preventDefault(); leaveTakeover(); });
 
 // An in-app browser (Instagram/Facebook/etc.) blocks getUserMedia — warn before the dead camera.
 if (detectInApp(navigator.userAgent)) showTakeover('inApp');
