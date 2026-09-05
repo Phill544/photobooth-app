@@ -149,12 +149,15 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
 
 **Client (`resources/js/`)** — pure, unit-tested logic vs dumb browser glue:
 - Pure (Vitest): `capture-flow.ts` (the whole booth as a state machine), `strip-layout.ts` (grid
-  geometry), `strip-compose.ts`, `templates.ts`, `strip-theme.ts`, `filters.ts` (CSS strings +
-  colour matrices), `upload-queue.ts`, `in-app.ts`, `pending-session.ts` (the IndexedDB store,
-  tested for real against `fake-indexeddb`).
+  geometry), `strip-footer.ts` (the footer band — the logo box, and the caption's typesetting),
+  `strip-theme.ts`, `filters.ts` (CSS strings + colour matrices), `upload-queue.ts`, `in-app.ts`,
+  `pending-session.ts` (the IndexedDB store, tested for real against `fake-indexeddb`).
+  `templates.ts` is pure too but has no test of its own: it is the registry the rest read, and it
+  is exercised through them.
 - Glue (device-tested): `camera.ts` (getUserMedia + filtered frame grab), `capture.ts` (wires the
-  state machine to the DOM), `wake-lock.ts`, `strip-preview.ts` (live preview on create/edit forms),
-  `upload.ts`.
+  state machine to the DOM), `strip-compose.ts` (draws the strip; every measurement it uses comes
+  from `strip-layout.ts` and `strip-footer.ts`, which is where the tests are), `wake-lock.ts`,
+  `strip-preview.ts` (live preview on create/edit forms), `upload.ts`.
 - **A failed upload is a branch, not a message:** `upload.ts` turns a refused upload into a typed
   `UploadError` — `closed` (410), `throttled` (429, honouring `Retry-After`), `rejected` (422) or
   `network` — and `upload-queue.ts` decides from that: terminal kinds stop at once, the rest get a

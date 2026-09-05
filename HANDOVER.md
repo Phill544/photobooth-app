@@ -45,7 +45,7 @@ thirty days later on a schedule → **a host account that can look after itself*
 and email verification over a real mail transport (Resend), behind the same kind of deploy gate the
 storage disk has → **download-all**: a queued job zips a whole night into one file and emails the
 host a signed, expiring link.
-**330 Pest + 83 Vitest tests green.** Every feature slice was built red/green and then put
+**330 Pest + 94 Vitest tests green.** Every feature slice was built red/green and then put
 through an adversarial review (see Conventions).
 
 ## Stack & how to run
@@ -227,16 +227,13 @@ for an AU business.
     client errors) out of it and grow `SearchIndexingTest`. Until 31 ships, the policy points
     account deletion at the support inbox (D4). Keep `HomePageTest`, `EventCreationTest` (`/`
     contains `/dashboard`) and `SearchIndexingTest` green.
-27. **Caption overflow on the strip.** `strip-compose.ts` typesets `bold 38px system-ui` with a
-    bare `fillText` — no `measureText`, no `maxWidth`. Single-column strips are 648px wide (600
-    cell + 2×24), captions allow 60 characters and default to the event name (100), so anything
-    past roughly 28 characters clips off both ends of the hero artefact. **Verify first** with a
-    45-character name on `/new` — the live preview uses the same compose, so it shows on desktop.
-    First commit: extract the footer typesetting into a pure `strip-footer.ts` with a Vitest file
-    — `strip-compose.ts` has no test today although ARCHITECTURE.md lists it as pure; correct that
-    line in the same commit. Then measure and shrink-to-fit (step the font down to a floor, then
-    ellipsise) or wrap to two lines inside the 96px footer. Every later strip slice (32, 47) writes
-    its failing test in that module.
+27. **Caption overflow on the strip.** The caption is drawn with a bare `fillText` — no
+    `measureText`, no `maxWidth`. Single-column strips are 648px wide (600 cell + 2×24), captions
+    allow 60 characters and default to the event name (100), so anything past **31** characters
+    clips off both ends of the hero artefact: measured on the real canvas, a 45-character name
+    inks from x=0 to x=647. The typesetting now lives in a tested `strip-footer.ts`, so what is
+    left is to measure and shrink-to-fit inside `band.innerWidth` — step the font down to a floor,
+    then ellipsise. Every later strip slice (32, 47) writes its failing test in that module.
 28. **Every guest page has a way out.** The navigation audit found these literal dead ends — no
     way onward without the back button: the expired booth page and the expired album gate (zero
     links; the gate hides its only one on purpose); the closed-booth page when the album is hidden;

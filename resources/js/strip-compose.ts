@@ -1,3 +1,4 @@
+import { captionLine, footerBand, logoBox } from './strip-footer';
 import { cellRects, stripSize } from './strip-layout';
 import type { StripColours } from './strip-theme';
 import type { StripTemplate } from './templates';
@@ -23,21 +24,17 @@ export function composeStrip(
         ctx.drawImage(shots[index], cell.x, cell.y, cell.width, cell.height);
     });
 
-    const footerCenterY = height - template.footerHeight / 2;
+    const band = footerBand({ width, height }, template);
     if (branding.logo) {
-        // A logo takes the footer instead of the caption text — one or the other.
-        const maxHeight = template.footerHeight * 0.62;
-        const maxWidth = width * 0.7;
-        const scale = Math.min(maxHeight / branding.logo.height, maxWidth / branding.logo.width);
-        const w = branding.logo.width * scale;
-        const h = branding.logo.height * scale;
-        ctx.drawImage(branding.logo, (width - w) / 2, footerCenterY - h / 2, w, h);
+        const box = logoBox(branding.logo, band);
+        ctx.drawImage(branding.logo, box.x, box.y, box.width, box.height);
     } else {
+        const line = captionLine(branding.caption, band);
         ctx.fillStyle = branding.textColor;
-        ctx.font = `bold ${Math.round(template.footerHeight * 0.4)}px system-ui, sans-serif`;
+        ctx.font = line.font;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(branding.caption, width / 2, footerCenterY);
+        ctx.fillText(line.text, band.width / 2, band.centerY);
     }
 
     return canvas;
