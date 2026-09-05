@@ -19,6 +19,9 @@ event's album. Event owners view the album on the website.
 | Photo serving | Private disk behind a controller route (`Storage::response`) | Same effort as public disk now; future auth becomes a one-middleware change. |
 | Database | SQLite (WAL) | Zero setup; swap to MySQL is a `.env` change if a big event needs it. |
 | Testing | Pest (server, red/green TDD) + Vitest (pure client modules) | Camera glue is device-tested manually, everything else is unit-tested. |
+| Pricing shape (2026-09-05) | **One purchase per event**, through Stripe Checkout | The only shape that passes the market-anger checklist — a purchase, not a subscription; nothing metered mid-event; the limit is one sentence — and the only one the schema already carries (the per-event window column). The days, the AUD price, the GST stance and what the window counts from are settled in the sitting that builds Stripe, so the Price object is created once. |
+| Guest device (2026-09-05) | **The guest's own phone** | It decides real code: a device token identifies one guest rather than one kiosk, and behaviour that only makes sense passed around a room is not worth preserving. Kiosk mode, if it ever comes, is a future functionality change, not a variant to keep the code ready for. |
+| Wordmark link (2026-09-05) | `/` on every page that has a header, one context button beside it ("Your events" / "Back to the booth" / "Manage this event") | There is no `href="/"` anywhere in the app today, so a guest on a dead end has no door. The booth's fixed kiosk screens keep in-screen exits and never grow a bar. A starting point rather than finished navigation — worth revisiting after launch. |
 
 ## Architecture notes
 
@@ -52,7 +55,8 @@ event's album. Event owners view the album on the website.
 
 Back-camera toggle · GIF/boomerang · PWA install · live client-side gallery · file-upload
 fallback · resumable uploads · multi-language · password reset + email verification (deferred
-with owner accounts).
+with owner accounts) · **kiosk mode** (one phone passed around a room — 2026-09-05, see the
+Locked decisions table).
 
 Two of these came back in P1 and shipped: **IndexedDB persistence / offline queue** (an
 interrupted share now finishes itself) and **thumbnails** (a queued derivative per photo). And
