@@ -60,6 +60,14 @@ through an adversarial review (see Conventions).
 - **Phone testing needs HTTPS** (camera APIs require a secure context): run a cloudflared tunnel at
   the dev server and open the printed URL on the phone. Quick-tunnel URLs change on every restart,
   so don't print QR codes against them.
+- **Over a tunnel, build the assets and delete `public/hot`.** Vite writes that file when
+  `composer run dev` starts, and while it exists `@vite` points every script at
+  `http://[::1]:5173` — plain HTTP, from an HTTPS page. The browser upgrades the module script,
+  Vite has no TLS, and it fails with `ERR_SSL_PROTOCOL_ERROR`. `capture.ts` never loads, so the
+  booth's own controls are dead while the rest of the page (plain links, the inline share script)
+  carries on working — which reads exactly like a code bug and is not one. Deleting `public/hot`
+  makes the app serve `/build/...` same-origin, and `trustProxies(at: '*')` gets the scheme and
+  host right. Cost: `npm run build` after every JS change while the file is gone.
 
 ### Windows gotchas (this machine)
 - **PHP/Composer aren't on PATH.** They live in the winget package dir; prepend it, e.g.

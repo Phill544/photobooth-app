@@ -23,8 +23,19 @@ Its siblings: [HANDOVER.md](HANDOVER.md) (the map + conventions),
 - [ ] `composer run dev` — **not** `php artisan serve` alone. The queue matters now: thumbnails,
       download-all archives and every email are queued jobs, and without a worker they sit in the
       `jobs` table doing nothing.
+- [ ] **Then delete `public/hot`.** Vite writes that file when `composer run dev` starts it, and
+      while it exists `@vite` ignores the build you just made and points every script at the Vite
+      dev server instead — so the build above does nothing. Deleting it is what actually makes the
+      app serve `/build/...`. Vite does not rewrite the file while it is running, so the worker and
+      the server carry on; you just have to `npm run build` again after any JS change.
 - [ ] Start a cloudflared tunnel at the dev server and open the printed HTTPS URL on the phone.
       **Camera APIs need a secure context** — plain `http://` will not offer the camera at all.
+- [ ] **If the booth's buttons do nothing** — "Start shooting" and "Pick a look" dead while the
+      album link, Copy link and Invite others all work — that is `public/hot` still there. The Vite
+      dev server speaks plain HTTP on `[::1]:5173`, the tunnel page is HTTPS, so the browser
+      upgrades the module script and gets `ERR_SSL_PROTOCOL_ERROR` from a server with no TLS.
+      `capture.ts` never loads, and it holds its own `window.error` handlers, so nothing says so.
+      Everything else on the page still works, which is what makes it read as a code bug.
 - [ ] Don't print a QR code against a quick-tunnel URL; they change on every restart.
 
 **Dev login:** `demo@example.com` / `password` (seeded admin).
