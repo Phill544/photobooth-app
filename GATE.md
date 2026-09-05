@@ -149,7 +149,11 @@ check in the pending rewrite of this file.
       `maxlength` that disagreed with the validator was a real bug caught in review.
 - [x] The wrong PIN shows the error and keeps the album shut.
 - [ ] The unlock survives backgrounding the tab, and does **not** unlock a second PIN'd album.
-NOTE: Changing the pin doesn't require guests to put in new pin. Bug? Switching to private will correctly kick people out.
+- [ ] **Changing the PIN makes an already-unlocked guest type the new one.** Was a real bug found on
+      the first gate pass — the unlock was a flag, so a rotated PIN evicted nobody. It now stores a
+      fingerprint of the PIN. Switching to "Only me" still evicts immediately; switching *back* to
+      the same PIN readmits the guests who already typed it (same door, same key), and back to a
+      **different** PIN must not.
 - [x] **Hidden**: switch `PARTY2` to "Only me". The booth must offer **no** album link on either
       platform, and the consent line above Share must say *only the host* before you tap it.
 - [x] **Open**: the consent line says *anyone with the link*.

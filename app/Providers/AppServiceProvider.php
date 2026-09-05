@@ -51,16 +51,10 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by('uploads:'.self::eventCode($request));
         });
 
-        // Guessing at an album PIN, keyed on the code for the same reason: a
-        // venue is one NAT address, so an IP key throttles the room rather than
-        // the attacker. Twenty a minute is far more than a real album ever
-        // needs — every guest types the PIN once — and it caps a brute force at
-        // a rate no free-text PIN falls to. The trade is that one attacker can
-        // hold an album's guests out for a minute at a time, which is the same
-        // bargain the upload limiter above already makes.
-        RateLimiter::for('album-pin', function (Request $request) {
-            return Limit::perMinute(20)->by('album-pin:'.self::eventCode($request));
-        });
+        // Album PINs are rationed too, but in EventController::unlock() rather
+        // than here: a route throttle charges every caller, and once a changed
+        // PIN can send a whole room back through that door at once, only the
+        // wrong guesses can be allowed to count.
     }
 
     // The code out of the URL. Upper-cased, because a limiter runs BEFORE route

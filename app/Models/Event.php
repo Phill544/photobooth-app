@@ -86,6 +86,16 @@ class Event extends Model
             && strcasecmp(trim((string) $attempt), $this->album_pin) === 0;
     }
 
+    // What an unlock is remembered as, so that changing the PIN ends every
+    // unlock the old one bought — the host who changes it is doing so because
+    // the wrong people have the old one. Trimmed and case-folded, so that
+    // re-saving the same word with a stray space or a capital does not shut a
+    // room out over a PIN that still opens the album.
+    public function pinFingerprint(): string
+    {
+        return substr(hash('sha256', strtolower(trim((string) $this->album_pin))), 0, 12);
+    }
+
     // The photos are gone. Recorded rather than inferred from an empty album: a
     // host who deleted every session by hand has not had theirs swept, and must
     // not be told they have.

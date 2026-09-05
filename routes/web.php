@@ -17,8 +17,8 @@ Route::middleware('guest')->group(function () {
     // address, so register and login share one budget — which suits these two,
     // since both are guesses at an account from the same place. It does mean a
     // venue behind one NAT address shares it, which is why the guest-facing
-    // limiters (uploads, album-pin) are named ones keyed on the event code
-    // instead.
+    // ones are keyed on the event code instead — `uploads` as a named limiter
+    // below, and album PINs inside EventController::unlock().
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
@@ -71,7 +71,7 @@ Route::middleware('auth')->group(function () {
 // --- Guests: join by code, no login (the event code is the credential) ---
 Route::get('/e/{event:code}', [EventController::class, 'capture']);
 Route::get('/e/{event:code}/gallery', [EventController::class, 'gallery']);
-Route::post('/e/{event:code}/gallery/unlock', [EventController::class, 'unlock'])->middleware('throttle:album-pin');
+Route::post('/e/{event:code}/gallery/unlock', [EventController::class, 'unlock']); // rationed inside, where a wrong guess can be told from a guest
 Route::post('/e/{event:code}/photos', [PhotoController::class, 'store'])->middleware('throttle:uploads');
 
 // Taking the night home. No `auth`: the signature IS the credential, because

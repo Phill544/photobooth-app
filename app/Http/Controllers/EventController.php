@@ -11,6 +11,7 @@ use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -22,6 +23,13 @@ class EventController extends Controller
     // their ~72 originals in the second panel, which starts hidden. Every tile
     // is lazy, so a page costs the strips a guest can actually see.
     public const SESSIONS_PER_PAGE = 24;
+
+    // Wrong PIN guesses a minute, per album. Far more than a room ever needs and
+    // a rate no free-text PIN falls to. Keyed on the album rather than the
+    // caller because a venue is one NAT address, so an IP key would throttle the
+    // room instead of the attacker; the trade — one attacker can hold an album's
+    // guests out a minute at a time — is the same one the upload limiter makes.
+    public const PIN_GUESSES_PER_MINUTE = 20;
 
     public function dashboard(Request $request)
     {
@@ -261,14 +269,17 @@ class EventController extends Controller
             return 'hidden';
         }
 
-        if ($event->albumNeedsPin() && $request->session()->get($this->unlockKey($event)) !== true) {
+        if ($event->albumNeedsPin() && $request->session()->get($this->unlockKey($event)) !== $event->pinFingerprint()) {
             return 'pin';
         }
 
         return null;
     }
 
-    // Per event, because a guest can be at two of them in one session.
+    // Per event, because a guest can be at two of them in one session. What is
+    // stored under it is the PIN's fingerprint rather than a flag, so a changed
+    // PIN invalidates the unlocks the old one bought without anything having to
+    // go and find them.
     private function unlockKey(Event $event): string
     {
         return "album-unlocked.{$event->id}";
@@ -292,13 +303,29 @@ class EventController extends Controller
     {
         $album = "/e/{$event->code}/gallery".$this->albumQuery($request);
 
+        // Counted here rather than by a throttle on the route, because the route
+        // middleware charges every caller and only wrong guesses are what this
+        // is rationing. Changing the PIN sends a whole room back through this
+        // door inside one minute — the host is standing there reading the new
+        // word out, which is why they changed it — and a budget those spent
+        // would lock out the guests the change was meant to keep. Clearing it on
+        // success instead would have handed an attacker a fresh twenty every
+        // time somebody legitimately walked in.
+        $guesses = 'album-pin:'.$event->code;
+
+        if (RateLimiter::tooManyAttempts($guesses, self::PIN_GUESSES_PER_MINUTE)) {
+            abort(429);
+        }
+
         if (! $event->pinMatches($request->input('pin'))) {
+            RateLimiter::hit($guesses);
+
             throw ValidationException::withMessages([
                 'pin' => 'That PIN does not open this album.',
             ])->redirectTo($album);
         }
 
-        $request->session()->put($this->unlockKey($event), true);
+        $request->session()->put($this->unlockKey($event), $event->pinFingerprint());
 
         return redirect($album);
     }

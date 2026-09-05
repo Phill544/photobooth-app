@@ -16,13 +16,24 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
 
 **Routing** splits cleanly across two files:
 - **Guest, public (no login), `routes/web.php`:** `GET /e/{code}` (capture), `/e/{code}/gallery`,
-  `POST /e/{code}/gallery/unlock` (throttled), `POST /e/{code}/photos` (throttled, CSRF-exempt).
+  `POST /e/{code}/gallery/unlock` (rationed inside the action, so only wrong guesses count — a
+  changed PIN sends a whole room back through that door at once), `POST /e/{code}/photos`
+  (throttled, CSRF-exempt).
   The event code is the credential.
   **The album has a front door** (`EventController::albumGate()`): a host or admin is never turned
   away, and a guest meets whatever `events.album_privacy` says — `open` (what every album that
   existed before this had, and the default), `pin`, or `hidden`. Hidden is a refusal and answers
-  403; a PIN is a door, so it is a 200 with a form in it, and the unlock is a session flag keyed
-  per event (a guest can be at two). Expiry outranks both: a guest holding a PIN that would open
+  403; a PIN is a door, so it is a 200 with a form in it, and the unlock is a session entry keyed
+  per event (a guest can be at two) holding a **fingerprint of the PIN it was bought with**, not a
+  flag. That is what makes changing the PIN mean something: a host changes it because the wrong
+  people have the old one, and a flag would have left every one of them inside — their only working
+  lever being `hidden`, which shuts out the guests who should be there too. The fingerprint is
+  normalised the way `pinMatches()` compares (trimmed, case-folded), so re-saving the same word in
+  different capitals does not evict a room over a PIN that still opens the album; putting an old PIN
+  back does readmit the guests who already typed it, which is the same door and the same key.
+  Hiding an album evicts a guest who is already inside without consulting their unlock at all —
+  privacy is one column, so `hidden` is simply not `pin` — which is why rotating the PIN, not
+  hiding the album, is the lever for shutting one person out. Expiry outranks both: a guest holding a PIN that would open
   nothing is told the album is over rather than asked to type it. Both sides of the gate carry the
   page of the album the guest was on, rebuilt from `order`/`after` server-side rather than echoed,
   so the only place an unlock can ever redirect to is this album. **The PIN gates the album page

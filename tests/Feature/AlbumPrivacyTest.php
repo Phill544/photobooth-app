@@ -132,12 +132,97 @@ it('does not make the host type the PIN for their own album', function () {
 // One unlock is one album's. The session carries them separately, or a guest at
 // two events walks into the second one.
 it('does not open a second album with the first unlock', function () {
-    Event::create(['name' => 'Other Party', 'code' => 'OTHER2', 'album_privacy' => 'pin', 'album_pin' => 'secret']);
+    // The same PIN on both, or this passes on the PINs differing rather than on
+    // the key being per event — which is the whole claim.
+    Event::create(['name' => 'Other Party', 'code' => 'OTHER2', 'album_privacy' => 'pin', 'album_pin' => 'bridesmaids']);
     $this->event->update(['album_privacy' => 'pin', 'album_pin' => 'bridesmaids']);
 
     $this->post('/e/PARTY2/gallery/unlock', ['pin' => 'bridesmaids']);
 
     $this->get('/e/OTHER2/gallery')->assertOk()->assertSee('name="pin"', false);
+});
+
+// The reason a host changes a PIN is that the wrong people have it. An unlock
+// that outlives the PIN it was bought with leaves them only "Only me", which
+// shuts out the guests who should be there along with the ones who shouldn't.
+it('makes a guest type the new PIN when the host changes it', function () {
+    $id = uploadPhoto('PARTY2')->json('id');
+    $this->event->update(['album_privacy' => 'pin', 'album_pin' => 'bridesmaids']);
+
+    $this->post('/e/PARTY2/gallery/unlock', ['pin' => 'bridesmaids']);
+    $this->get('/e/PARTY2/gallery')->assertOk()->assertSee("photos/$id", false);
+
+    // Changed on the model, not through the host's route: actingAs persists
+    // into the next request, so the guest below would walk in as the owner and
+    // green a test that proves nothing.
+    $this->event->update(['album_pin' => 'groomsmen']);
+
+    $this->get('/e/PARTY2/gallery')
+        ->assertOk()
+        ->assertSee('name="pin"', false)
+        ->assertDontSee("photos/$id", false);
+
+    $this->post('/e/PARTY2/gallery/unlock', ['pin' => 'groomsmen'])
+        ->assertRedirect('/e/PARTY2/gallery');
+
+    $this->get('/e/PARTY2/gallery')->assertOk()->assertSee("photos/$id", false);
+});
+
+// Hiding an album is how a host shuts it right now, and it must take effect
+// against a guest already inside — the unlock they are holding is not consulted,
+// because privacy is one column and 'hidden' is not 'pin'.
+it('shuts an unlocked guest out the moment the host hides the album', function () {
+    $id = uploadPhoto('PARTY2')->json('id');
+    $this->event->update(['album_privacy' => 'pin', 'album_pin' => 'bridesmaids']);
+
+    $this->post('/e/PARTY2/gallery/unlock', ['pin' => 'bridesmaids']);
+    $this->get('/e/PARTY2/gallery')->assertOk()->assertSee("photos/$id", false);
+
+    $this->event->update(['album_privacy' => 'hidden']);
+
+    $this->get('/e/PARTY2/gallery')->assertForbidden()->assertDontSee("photos/$id", false);
+});
+
+// Same door, same key. Putting the old PIN back is not a new secret, so a guest
+// who already typed that word is not made to type it again — changing the PIN
+// is what locks somebody out, and hiding the album is what locks everybody out.
+it('lets a guest back in when the host hides an album and puts the same PIN back', function () {
+    $this->event->update(['album_privacy' => 'pin', 'album_pin' => 'bridesmaids']);
+    $this->post('/e/PARTY2/gallery/unlock', ['pin' => 'bridesmaids']);
+
+    $this->event->update(['album_privacy' => 'hidden']);
+    $this->get('/e/PARTY2/gallery')->assertForbidden();
+
+    $this->event->update(['album_privacy' => 'pin']);
+    $this->get('/e/PARTY2/gallery')->assertOk()->assertDontSee('name="pin"', false);
+});
+
+// The stored PIN is what the fingerprint is taken from, and a host who re-saves
+// the same word with a stray space or a capital has not changed it — pinMatches()
+// still opens the album on the old typing, so the room must not be shut out.
+it('does not evict anyone when the host re-saves the same PIN differently typed', function () {
+    $id = uploadPhoto('PARTY2')->json('id');
+    $this->event->update(['album_privacy' => 'pin', 'album_pin' => 'bridesmaids']);
+
+    $this->post('/e/PARTY2/gallery/unlock', ['pin' => 'bridesmaids']);
+
+    $this->event->update(['album_pin' => '  Bridesmaids ']);
+
+    $this->get('/e/PARTY2/gallery')->assertOk()->assertSee("photos/$id", false);
+});
+
+// Sessions outlive a deploy. The ones carrying the flag this replaced match no
+// fingerprint, so those guests meet the door once more — the PIN still opens it,
+// and being asked once beats the alternative of honouring a flag forever.
+it('makes a guest unlocked before the fingerprint type the PIN again', function () {
+    $id = uploadPhoto('PARTY2')->json('id');
+    $this->event->update(['album_privacy' => 'pin', 'album_pin' => 'bridesmaids']);
+
+    $this->withSession(['album-unlocked.'.$this->event->id => true])
+        ->get('/e/PARTY2/gallery')
+        ->assertOk()
+        ->assertSee('name="pin"', false)
+        ->assertDontSee("photos/$id", false);
 });
 
 // Keyed on the event code like the upload limiter: a venue is one NAT address,
@@ -150,6 +235,21 @@ it('throttles PIN guesses per event', function () {
     }
 
     $this->post('/e/PARTY2/gallery/unlock', ['pin' => 'guess'])->assertStatus(429);
+});
+
+// Changing the PIN sends a whole room back through this door inside one minute,
+// which is more guests than the guess budget has room for. Only wrong ones are
+// rationed, or the rotation locks out the guests it was meant to keep.
+it('does not spend the guess budget on guests who type the PIN correctly', function () {
+    $this->event->update(['album_privacy' => 'pin', 'album_pin' => 'bridesmaids']);
+
+    foreach (range(1, 40) as $guest) {
+        $this->post('/e/PARTY2/gallery/unlock', ['pin' => 'bridesmaids'])
+            ->assertRedirect('/e/PARTY2/gallery');
+    }
+
+    // And the budget is still there for the guesses it is actually for.
+    $this->post('/e/PARTY2/gallery/unlock', ['pin' => 'guess'])->assertStatus(302);
 });
 
 // A guest types the PIN into a form, and maxlength truncates typing AND paste —

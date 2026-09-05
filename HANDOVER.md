@@ -45,7 +45,7 @@ thirty days later on a schedule → **a host account that can look after itself*
 and email verification over a real mail transport (Resend), behind the same kind of deploy gate the
 storage disk has → **download-all**: a queued job zips a whole night into one file and emails the
 host a signed, expiring link.
-**324 Pest + 83 Vitest tests green.** Every feature slice was built red/green and then put
+**330 Pest + 83 Vitest tests green.** Every feature slice was built red/green and then put
 through an adversarial review (see Conventions).
 
 ## Stack & how to run
@@ -128,7 +128,7 @@ dependency); nothing breaks without one, every guest just pays for it in bandwid
 
 ## What's next — prioritised work list
 
-One known defect is on this list (24), found on the 2026-09-05 gate pass and deliberately
+Two known defects are on this list (24, 25) — both found on 2026-09-05, both deliberately
 deferred with the reasoning written down; nothing is half-done. The numbered phases came out
 of the 2026-08-26 competitive review
 ("State of the Booth" — https://claude.ai/code/artifact/63d587ad-5a7a-4bd5-9b8e-6a89a1dacca0,
@@ -157,6 +157,15 @@ seeded event codes for each state.
 9. Live wall: full-screen `/e/{code}/wall` for venue TVs — strips animating in via 3–5s
    cursor polling, event QR + code always in a corner, Screen Wake Lock, watchdog reload when
    polls stall (tab-sleep is the #1 documented live-wall failure).
+   **Give the wall its own rate limiter in the first commit.** The two guest-facing limiters are
+   keyed on the *event code* rather than the client — `uploads` (60/min, `AppServiceProvider`) and
+   the PIN guesses counted inside `EventController::unlock()` — deliberately, because a venue is
+   one NAT address and an IP key would throttle the room instead of an attacker. (The auth routes
+   are the ordinary IP-keyed throttles; it is only the guest side that works this way.) A wall
+   polling every 3–5s all night is thousands of requests against that event's bucket, so if the
+   poll route lands in `uploads`, the TV starves the guests' strips at exactly the busiest moment.
+   One TV per event is the shape to size for, and the poll is cheap and cacheable in a way an
+   upload is not.
 10. Moderation shipped WITH the wall: approve/hide per session from the host's phone, pending
     count visible on the wall page. (Host-uploaded sponsor slides between strips: follow-up.)
 11. Photo missions: host-picked prompt packs; a mission deep-links into capture and stamps
@@ -221,6 +230,15 @@ seeded event codes for each state.
     Deliberately deferred: the destination needs JS and a camera anyway, so this buys honesty
     rather than a working booth. The fix is an `action="/join"` plus a route that upper-cases and
     redirects — do it next time the 404 page is open, and both pages get it at once.
+25. A guest re-gated mid-scroll is told "That's the whole album". **Found reviewing the PIN relock
+    slice, 2026-09-05.** The album pager fetches the next page and appends its panels; a gated
+    response has none, which it reads as the album having emptied under it, so it calls `finish()`
+    and replaces the link with "That's the whole album." Correct for the case it was written for
+    (a host deleting the last session), wrong now that a PIN rotation can gate a guest who is
+    already scrolling — they should be sent to the door, not told the album ended. Needs the gate
+    response to be distinguishable to the pager (a header, or an id on the gate body) and a
+    `location.reload()` on that branch. Narrow: it needs a rotation during a scroll of a 24+
+    session album, and a reload already fixes it for the guest.
 
 ### P4 — New output modes (independent slices, in effort order)
 17. 9:16 story-strip variant of every layout from the same frames (share-sheet ready; build
