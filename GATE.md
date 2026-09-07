@@ -195,9 +195,14 @@ check in the pending rewrite of this file.
       fingerprint of the PIN. Switching to "Only me" still evicts immediately; switching *back* to
       the same PIN readmits the guests who already typed it (same door, same key), and back to a
       **different** PIN must not.
-- [x] **Hidden**: switch `PARTY2` to "Only me". The booth must offer **no** album link on either
-      platform, and the consent line above Share must say *only the host* before you tap it.
-- [x] **Open**: the consent line says *anyone with the link*.
+- [ ] **Hidden**: switch `PARTY2` to "Only me". The booth must offer **no** album link on either
+      platform, and the consent line above Share must say *it stays off the album wall* before you
+      tap it. Re-check: this line changed when the copy was made to match what the image routes
+      actually deliver.
+- [ ] **Open**: the consent line says *anyone with the link*.
+- [ ] **All three**: the line beneath it reads *Photo links work for anyone who has them*. It is
+      the honest half of the promise — the privacy setting gates the album wall, never the files —
+      and no phone has rendered it yet.
 - [x] As the host, all three states still show you the album.
 
 ## 9. Retention — the end-of-life screens
@@ -222,8 +227,11 @@ The host does half of this from their own phone at a venue, not from a desk.
 - [x] Owner page: the poster panel, the QR, the stats. "Print the poster" from a phone.
 - [x] **"Edit the look"** fold: the layout and colour swatch pickers are painted by JS — check they
       render, and that the live strip preview redraws as you change things.
-- [x] **"Album · …"** fold: the three privacy choices are prose radios, not swatches, and the
-      summary line states the current setting without opening the fold.
+- [ ] **"Album · …"** fold: the three privacy choices are prose radios, not swatches, and the
+      summary line states the current setting without opening the fold. **Re-check at 375px:** the
+      fold grew a second hint — "This controls who can open the *album*. A photo's own link still
+      works for anyone who has it" — so the host reads the same truth the guest is told before they
+      share. Two stacked hints under a form is a shape this panel has not had on a phone.
 - [ ] **"Photos · …"** fold: the `type="date"` field. **iOS renders its own picker and this is the
       app's first date input.** Check the summary still reads as a state ("Photos · kept until
       29 Nov 2026") at 375px.

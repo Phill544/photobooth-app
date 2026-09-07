@@ -350,7 +350,34 @@ it('tells a guest who will see the strip they are about to share', function () {
     $this->get('/e/PARTY2')->assertSee('guests with the album PIN');
 
     $this->event->update(['album_privacy' => 'hidden']);
-    $this->get('/e/PARTY2')->assertSee('only the host');
+    $this->get('/e/PARTY2')->assertSee('it stays off the album wall');
+});
+
+// The privacy setting gates the album page and nothing else (Phill's call,
+// 2026-08-31, pinned above). The booth used to tell a guest choosing to share
+// into a hidden album that "only the host can see it", which the image routes
+// do not deliver: a photo URL opens for anyone holding it. The promise moved
+// to match the code rather than the other way round, so the consent note now
+// says so under every one of the three settings.
+it('never promises a guest more privacy than the image routes deliver', function () {
+    foreach (['open', 'pin', 'hidden'] as $setting) {
+        $this->event->update(['album_privacy' => $setting, 'album_pin' => 'bridesmaids']);
+
+        $page = $this->get('/e/PARTY2');
+
+        $page->assertSee('Photo links work for anyone who has them');
+        $page->assertDontSee('only the host can see it');
+    }
+});
+
+// The guest is told this on the review screen before they share; the host
+// choosing the setting is owed the same sentence.
+it('tells the host that album privacy does not gate the files', function () {
+    $this->actingAs($this->owner)->get('/events/PARTY2')
+        ->assertOk()
+        // A fragment that sits on one source line: the hint wraps in the Blade
+        // template, so the rendered HTML carries the newline and indentation.
+        ->assertSee('still works for anyone who has it', false);
 });
 
 it('refuses the album without deleting anything behind it', function () {

@@ -38,11 +38,16 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
   page of the album the guest was on, rebuilt from `order`/`after` server-side rather than echoed,
   so the only place an unlock can ever redirect to is this album. **The PIN gates the album page
   and nothing else** — the image routes stay session-free and immutably cached exactly as P1 left
-  them, so a leaked photo URL still opens (Phill's call, 2026-08-31, pinned by a test). The PIN is
+  them, so a leaked photo URL still opens (Phill's call, 2026-08-31, pinned by a test). **The
+  booth's consent note says so**: it used to tell a guest sharing into a hidden album that
+  "only the host can see it", which is more privacy than this design delivers, and the promise
+  was moved to match the code rather than the other way round. A third line — "Photo links work
+  for anyone who has them" — is true under all three settings, and is what makes a guest's consent
+  informed. The PIN is
   stored in the clear, because the host reads it out to a room and has to be able to read it back;
-  it sits beside the event code, also in the clear, guarding the same album. Its bounds live once
-  on `Event::PIN_MIN_LENGTH`/`PIN_MAX_LENGTH` — the guest's field is the one that silently
-  truncates typing *and* paste, so a literal there that drifts below the validator is a PIN the
+  it sits beside the event code, also in the clear, guarding the same album.
+  Its bounds live once on `Event::PIN_MIN_LENGTH`/`PIN_MAX_LENGTH` — the guest's field is the one
+  that silently truncates typing *and* paste, so a literal there that drifts below the validator is a PIN the
   host can set and no guest can enter.
   **The album is paged, and a page is a page of *sessions*** (`EventController::SESSIONS_PER_PAGE`,
   24) — a strip and the shots it was composed from are one card, so half a session is not a thing

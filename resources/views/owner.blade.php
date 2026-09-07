@@ -303,6 +303,11 @@
                     </form>
                     <p class="hint">The booth is never gated — guests can always shoot, and always
                         save their own strip to their phone.</p>
+                    {{-- The guest is told this on the review screen before they
+                         share, so the host choosing the setting is owed it too:
+                         this gates the album page, never the files behind it. --}}
+                    <p class="hint">This controls who can open the <em>album</em>. A photo's own link
+                        still works for anyone who has it, whichever option you pick.</p>
                 </div>
             </details>
 

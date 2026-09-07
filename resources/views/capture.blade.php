@@ -260,12 +260,19 @@
                     <img id="strip-preview" alt="Your photo strip">
                 </div>
                 <div class="bottom">
+                    {{-- What the setting really controls is the album wall, not the
+                         files: the image routes stay session-free by design, so a
+                         photo URL opens for whoever holds it (ARCHITECTURE, "The PIN
+                         gates the album page and nothing else"). The second line is
+                         the part a guest is owed at the moment they choose to share,
+                         and it is true under all three settings. --}}
                     <p class="consent-note">Sharing puts your strip in the event album —
-                        @if ($albumIsHidden) only the host can see it.
+                        @if ($albumIsHidden) it stays off the album wall; only the host opens that.
                         @elseif ($event->albumNeedsPin()) guests with the album PIN can see it.
                         @else anyone with the link can see it.
                         @endif
                     </p>
+                    <p class="consent-note">Photo links work for anyone who has them.</p>
                     @if ($event->photos_expire_at)
                         <p class="consent-note">Photos are kept until {{ $event->photos_expire_at->format('j M Y') }}.</p>
                     @endif
