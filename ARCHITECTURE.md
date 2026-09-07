@@ -220,6 +220,22 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
   `grabFrame` feature-detects it and falls back to a `getImageData` colour-matrix pass — verified to
   match the CSS path within 1–2/255.
 
+**The fonts are ours.** The three families are served from `public/fonts` rather than Google Fonts.
+A third-party font host receives the IP address and User-Agent of everyone who loads a page, which
+for this app is every guest at every event, **before the camera opens and before any notice is
+shown** — so it was a disclosure `/privacy` would have had to make about the party that touched the
+most people. The `@font-face` rules are generated from Google's own stylesheet so the
+`unicode-range` split survives: a visitor downloads only `latin` unless the page actually contains
+extended characters (verified in a browser — no `latin-ext` fetched). **Fourteen rules over ten
+files**: Instrument Sans is a variable font, so Google points 400/500/600 at one file and lets three
+rules share it — generating a file per rule produced three byte-identical copies under three names,
+and browsers cache by URL, so a phone fetched 90KB where 30KB would do. One file per source URL;
+`SelfHostedFontsTest` fails on any two files with the same bytes. 154KB total, SIL OFL 1.1 with the
+licence beside them, and `*.woff2 binary` in `.gitattributes` because `text=auto` guessing wrong on
+a font is a silent corruption. No preconnect: same origin. The test also fails if any response so
+much as mentions either Google host, which is why the reasoning above the rules is a Blade comment
+rather than a CSS one.
+
 **Durability (the app's most expensive lesson).** Photos live in Laravel Cloud object storage;
 the container's own filesystem is wiped on every deploy. Before a bucket was attached the default
 disk silently fell back to `local` and every photo written was lost, with no error anywhere — so

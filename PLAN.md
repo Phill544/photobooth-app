@@ -166,6 +166,14 @@ has exactly one obvious thing to do. (Imported from the Claude Design canvas `Re
   on the owner page) — `.ctx-dark, .ctx-light { color: var(--text) }` exists so a nested island
   re-reads its own text colour instead of inheriting the parent's already-computed one.
 - **Type**: Instrument Serif (display), Instrument Sans (body), DM Mono (codes, counts, labels).
+  **Self-hosted from `public/fonts`** (2026-09-06, SIL OFL 1.1, licence ships beside them) — a
+  third-party font host receives every visitor's IP address, which here means every guest at every
+  event, before the camera opens. Adding a fourth family means adding files, not editing a URL, and
+  `SelfHostedFontsTest` fails if either Google font host reappears in a response (it names those
+  two — it is not a general CDN check). **Adding a weight is not always adding a
+  file**: Instrument Sans is variable, so 400/500/600 all come from one file that three rules share
+  — the test fails on any two files with the same bytes, which is what caught shipping it three
+  times.
 - **Palette**: ink `#0B0B10` / ivory `#F4F2ED`, accent blue `#3A86FF` (the one CTA colour, with a
   glow shadow), purple `#8338EC` (the celebration screen), pink `#FF006E` (live / in-progress),
   yellow `#FFBE0B` (the looks picker). Strip **theme** colours are unrelated and stay in

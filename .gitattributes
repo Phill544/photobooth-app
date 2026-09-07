@@ -1,5 +1,12 @@
 * text=auto eol=lf
 
+# The self-hosted fonts. `* text=auto` above already leaves them alone — git's
+# heuristic sees the NUL bytes and declines to convert — but a heuristic is a
+# poor guard for the one class of file where being wrong is silent: an eol=lf
+# rewrite of a woff2 produces a file that is still committed, still checked out,
+# and no longer a font. Say it explicitly.
+*.woff2 binary
+
 *.blade.php diff=html
 *.css diff=css
 *.html diff=html

@@ -45,7 +45,7 @@ thirty days later on a schedule → **a host account that can look after itself*
 and email verification over a real mail transport (Resend), behind the same kind of deploy gate the
 storage disk has → **download-all**: a queued job zips a whole night into one file and emails the
 host a signed, expiring link.
-**366 Pest + 107 Vitest tests green.** Every feature slice was built red/green and then put
+**377 Pest + 107 Vitest tests green.** Every feature slice was built red/green and then put
 through an adversarial review (see Conventions).
 
 ## Stack & how to run
@@ -205,9 +205,10 @@ does not.
   jurisdiction `default`**, which guarantees residency only for `eu`/`us`/`fedramp` — so the
   photographs have no country guarantee and the jurisdiction cannot be changed after bucket
   creation. Resend is **us-east-1** and sends through Amazon SES there. Disclose Resend and
-  Nightwatch as overseas providers — **and Google**, which D4 missed and the audit found (item 26a).
-  Nightwatch's *storage* region is Sydney; it is a third party, not necessarily a border crossing,
-  and the clause should say which. The **app icon** (the strip-in-a-mat or sprocket
+  Nightwatch as overseas providers. **Not Google** — D4 missed it and the audit found it, but the
+  fonts are ours as of 2026-09-06, so the disclosure is gone rather than written. Nightwatch's
+  *storage* region is Sydney; it is a third party, not necessarily a border crossing, and the clause
+  should say which. The **app icon** (the strip-in-a-mat or sprocket
   motif, ink ground, blue accent) waits for the Stripe sitting — item 36 cannot start without it,
   so it stays parked rather than half-built against a placeholder.
 - **D5 — Both, before launch.** Two settings on the Laravel Cloud dashboard, Phill's hands only.
@@ -268,12 +269,10 @@ answered everything a read could answer:
     dimensions, each adversarially verified, plus a completeness critic against the Australian
     Privacy Principles). What it turned up that no doc had recorded, all verified against the code
     or the live account:
-    **(a)** every page — the guest booth included, before any notice — loads Google Fonts from
-    `fonts.googleapis.com`, so **Google is an undisclosed overseas recipient of every guest's IP
-    address**. D4 named only Resend and Nightwatch, so a policy written from that list misses the
-    third party that touches the most people. **Self-hosting the three families deletes the
-    disclosure outright** — do it before the policy is written, not after, or 26 has to name Google
-    and then be rewritten.
+    **(a) — resolved, and the policy must NOT name Google.** Every page used to load Google Fonts,
+    making Google an undisclosed overseas recipient of every guest's IP address. Fixed on
+    2026-09-06: the three families are served from `public/fonts` and `SelfHostedFontsTest` fails if
+    a response so much as mentions either Google host. The disclosure is gone rather than written.
     **(b)** Photos live on **Cloudflare R2 with jurisdiction `default`** — the app and Postgres are
     `ap-southeast-2`, but R2 guarantees residency only for `eu`/`us`/`fedramp`, so the photographs
     have **no country guarantee**, and the jurisdiction cannot be changed after bucket creation.
@@ -289,7 +288,8 @@ answered everything a read could answer:
     `app/` is empty), so both are platform-injected — ask Laravel Cloud what the second is before
     the cookie table claims to be complete.
     **(e)** No **DPA or sub-processor agreement** is evidenced anywhere for Laravel Cloud, Resend,
-    Nightwatch or Google, which is the APP 8.1 "reasonable steps" the policy will have to describe.
+    Nightwatch, which is the APP 8.1 "reasonable steps" the policy will have to describe. (Google is
+    no longer on that list — see (a).)
     **(f)** **Nightwatch is live** (Sydney), and its default resolver attaches every signed-in host's
     **name and email** to each recorded request while its sampling defaults to **1.0**. It also
     records **full URLs including query strings**, and the reset link carries the address in its

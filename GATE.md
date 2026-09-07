@@ -275,6 +275,13 @@ NOTE: Can't test this on prod yet
 
 ## 12. Worth a look while you are there
 
+- [ ] **Type renders from our own origin.** The three families moved out of Google Fonts into
+      `public/fonts` — no phone has rendered them from here yet. Check on both that headings are
+      Instrument Serif, body is Instrument Sans and the codes/counts are DM Mono rather than a
+      system fallback, and that nothing flashes unstyled for longer than it used to. An iPhone on a
+      cold cache is the one to watch: `font-display: swap` paints a fallback first either way. All
+      three Instrument Sans weights come from **one** file, so if 500 or 600 renders as a fallback
+      while 400 is fine, the shared-file rules are wrong rather than the network being slow.
 - [ ] The album and host pages in both light and dark system settings.
 - [ ] Any screen with `prefers-reduced-motion` on (the caret pulse and strip tilt should stop).
 - [ ] A slow connection (throttle to 3G): the album's lazy tiles and the upload screens.
