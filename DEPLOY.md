@@ -37,8 +37,14 @@ yours to set by hand, and `photobooth:check-mail` fails the release until they a
 transport actually builds. What it cannot tell you is whether the key is *accepted*; only a real
 send does that. See **Mail (password reset)** below.
 
-`SESSION_DRIVER` is whatever you choose; production runs `cookie`, which suits serverless (no
-shared store to reach, nothing to clean up). `database` works too — the `sessions` table exists.
+**`SESSION_DRIVER` is unset in production, so it takes the config default `database`** — checked
+against the account (only four variables are set) and against the live site's `Set-Cookie`, which
+returns a session id rather than a payload. That matters beyond serverless tidiness: on `database`
+Laravel writes an `ip_address` and a `user_agent` row for **every guest who opens a booth page**,
+with no login and no PIN, and `SESSION_ENCRYPT` is false so the row is readable. **Set
+`SESSION_DRIVER=cookie`** — it suits serverless (no shared store to reach, nothing to clean up) and
+it is what this doc, ARCHITECTURE and HANDOVER all assumed until 2026-09-06. `database` works too;
+it just has to be disclosed in the privacy policy.
 
 ### Object storage — the one that keeps guests' photos
 

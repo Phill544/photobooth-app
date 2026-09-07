@@ -180,13 +180,12 @@ does not.
   copy and drops the limits line, 26's terms carry no refund figure, 23 leaves `RETENTION_DAYS =
   90` where it is, and each event goes on showing its own keep-until date exactly as it does today.
   **One number 41 must settle before a stranger ever shoots: what the window counts from.** Today
-  the `creating` hook in `Event::booted()` anchors it to event *creation* — `photos_expire_at ??=
-  now()->addDays(90)` — so a host who sets a wedding up four weeks early has burned a month of the
-  window before the party, and the consent line promises guests a date that is already passing.
-  Recommend counting from the **first photo** (until then the copy reads "kept for N days after
-  your first photo"). It is the one part of D1 that cannot be revised afterwards: the window is a
-  promise made to guests at the moment of consent — the review screen's second consent line, the
-  album header — and once a stranger has run an event, it has been made.
+  the `creating` hook in `Event::booted()` anchors it to event *creation*, so a host who sets a
+  wedding up four weeks early has burned a month of the window before the party, and the consent
+  line promises guests a date that is already passing. Recommend counting from the **first photo**.
+  It is the one part of D1 that cannot be revised afterwards: the window is a promise made to guests
+  at the moment of consent — the review screen's second consent line, the album header — and once a
+  stranger has run an event, it has been made.
 - **D2 — The guest's own phone.** That is the model, so item 12's device token can group a
   returning guest's strips. **Kiosk mode, if it ever comes, is a future functionality change** —
   not a variant to keep the code ready for, so don't preserve behaviour that only makes sense
@@ -203,22 +202,55 @@ does not.
   and terms text** are needed before the doors open — item 26 is blocked on both, guests' faces
   are personal information under the AU Privacy Act regardless of payment, and Stripe's business
   settings will want the same inbox. Write the policy from ARCHITECTURE's real behaviour, never
-  aspiration; read the Cloud region off the dashboard before the policy names a country; disclose
-  Resend and Nightwatch as overseas providers. The **app icon** (the strip-in-a-mat or sprocket
+  aspiration. **The regions were read on 2026-09-06 and are settled**: the app and Postgres are
+  `ap-southeast-2` (Sydney) and Nightwatch is Sydney, but **photos are on Cloudflare R2 with
+  jurisdiction `default`**, which guarantees residency only for `eu`/`us`/`fedramp` — so the
+  photographs have no country guarantee and the jurisdiction cannot be changed after bucket
+  creation. Resend is **us-east-1** and sends through Amazon SES there. Disclose Resend and
+  Nightwatch as overseas providers — **and Google**, which D4 missed and the audit found (item 26a).
+  Nightwatch's *storage* region is Sydney; it is a third party, not necessarily a border crossing,
+  and the clause should say which. The **app icon** (the strip-in-a-mat or sprocket
   motif, ink ground, blue accent) waits for the Stripe sitting — item 36 cannot start without it,
   so it stays parked rather than half-built against a placeholder.
 - **D5 — Both, before launch.** Two settings on the Laravel Cloud dashboard, Phill's hands only.
   **`SESSION_LIFETIME=720`**: the session cookie expires after 120 minutes by default, so a host
   whose owner page sat open through a three-hour event taps "Close the booth" into a 419 — 720
-  minutes covers an event, and production is on the cookie driver, so there is no session store
-  that a longer life would grow. Record it in DEPLOY.md's env block when item 29 lands. And the
+  minutes covers an event. **The reasoning that used to sit here was wrong** and the 2026-09-06
+  audit corrected it (item 26(c)): production is **not** on the cookie driver — nothing sets
+  `SESSION_DRIVER`, so it falls back to the config default `database`, and there *is* a session
+  store that a longer life grows. It is a table of guest IP addresses and user agents, so six times
+  the lifetime is six times their retention. **Set `SESSION_DRIVER=cookie` in the same sitting**,
+  which is what every doc already believed and what suits serverless; then 720 costs nothing.
+  Record both in DEPLOY.md's env block when item 29 lands. And the
   **spend notification** turned on, the only cost alarm until a cap is ever needed.
 - **D6 — Confirmed as work rather than a question: it is item 49**, in the blockers below.
 
-**Still Phill's own hands, and no commit can start them.** The support inbox and the privacy and
-terms text (D4 — blocking 26); `SESSION_LIFETIME=720` and the spend notification (D5); then, in
-the Stripe sitting, the app icon, the AUD price with an accountant, and a Stripe account verified
-for an AU business.
+**Still Phill's own hands, and no commit can start them.** Updated 2026-09-06, after the audit
+answered everything a read could answer:
+
+- **Stand up the support inbox** (D4, blocking 26). Use **Cloudflare Email Routing** — DNS for
+  `quikbooth.com` is already on Cloudflare (`cass`/`finley.ns.cloudflare.com`) and the root domain
+  has **no MX**, so `hello@` and `support@` can forward to a real mailbox for free without touching
+  Resend's `send.` subdomain. **Not Resend**: its inbound product delivers to a webhook rather than
+  a mailbox, and it warns against putting inbound on a root domain. Email Routing is receive-only,
+  so also set up Gmail's "Send mail as" over Resend SMTP — an inbox the policy names as the contact
+  point has to be one you can reply *from*.
+- **Two Laravel Cloud dashboard settings** (D5): `SESSION_LIFETIME=720` **and
+  `SESSION_DRIVER=cookie`**, which is the one that stops a `sessions` row being written for every
+  guest who opens a booth page. Plus the **spend notification**.
+- **Three dashboard reads for 49 and 26**: the Postgres **point-in-time-recovery window** and
+  snapshot retention (every cluster-level CLI read is broken in v0.5.2 — `database:list`,
+  `database-cluster:list` and `database-snapshot:list` all send a disallowed `include` and 400,
+  even when addressed by name, so this is a canvas read).
+- **One support ticket to Laravel Cloud**, two questions: is **R2 object versioning** on for
+  `photobooth_app_production` (the CLI exposes only name and visibility, and the bucket sits under
+  a Cloudflare account that is not ours, so there is nothing to read); and what is the
+  **randomly-named 40-character cookie** every response sets? It is stable per visitor and does not
+  accumulate (tested with a persistent jar), and it carries Laravel's own encrypted-payload format
+  rather than Cloudflare's, so it comes from something in Cloud's stack. Neither blocks drafting —
+  the policy can describe a platform operational cookie honestly — but both belong in the answer.
+- **Then, in the Stripe sitting**: the app icon, the AUD price with an accountant, and a Stripe
+  account verified for an AU business.
 
 ### Stage 1 — everything a stranger needs on the night
 
@@ -234,6 +266,71 @@ for an AU business.
     client errors) out of it and grow `SearchIndexingTest`. Until 31 ships, the policy points
     account deletion at the support inbox (D4). Keep `HomePageTest`, `EventCreationTest` (`/`
     contains `/dashboard`) and `SearchIndexingTest` green.
+    **The facts to write it from were established by an eighteen-agent audit on 2026-09-06** (eight
+    dimensions, each adversarially verified, plus a completeness critic against the Australian
+    Privacy Principles). What it turned up that no doc had recorded, all verified against the code
+    or the live account:
+    **(a)** every page — the guest booth included, before any notice — loads Google Fonts from
+    `fonts.googleapis.com`, so **Google is an undisclosed overseas recipient of every guest's IP
+    address**. D4 named only Resend and Nightwatch, so a policy written from that list misses the
+    third party that touches the most people. **Self-hosting the three families deletes the
+    disclosure outright** — do it before the policy is written, not after, or 26 has to name Google
+    and then be rewritten.
+    **(b)** Photos live on **Cloudflare R2 with jurisdiction `default`** — the app and Postgres are
+    `ap-southeast-2`, but R2 guarantees residency only for `eu`/`us`/`fedramp`, so the photographs
+    have **no country guarantee**, and the jurisdiction cannot be changed after bucket creation.
+    **(c)** Production has **only four environment variables set** (`APP_KEY`, `MAIL_MAILER`,
+    `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`), so `SESSION_DRIVER` falls back to the config default
+    **`database`** — not `cookie`, which DEPLOY, ARCHITECTURE and this file all claim. Confirmed
+    against the live site: `quikbooth-session` returns a short id, not a payload. On that driver
+    Laravel writes an `ip_address` and `user_agent` row **for every guest who opens a booth page**.
+    `SESSION_LIFETIME` is unset too, so D5's 720 has not been done.
+    **(d)** The live site sets **four cookies, two of them nobody has accounted for**: Cloudflare's
+    `__cf_bm` on `Domain=laravel.cloud`, and one with a **randomly generated 40-character name that
+    changes on every response**. The app sets no cookies of its own (`grep` for `Cookie::` in
+    `app/` is empty), so both are platform-injected — ask Laravel Cloud what the second is before
+    the cookie table claims to be complete.
+    **(e)** No **DPA or sub-processor agreement** is evidenced anywhere for Laravel Cloud, Resend,
+    Nightwatch or Google, which is the APP 8.1 "reasonable steps" the policy will have to describe.
+    **(f)** **Nightwatch is live** (Sydney), and its default resolver attaches every signed-in host's
+    **name and email** to each recorded request while its sampling defaults to **1.0**. It also
+    records **full URLs including query strings**, and the reset link carries the address in its
+    query — so a reset click hands it both halves of a live credential. Either fix it or disclose it;
+    fixing is a few lines and shortens the clause to "IP address and technical request data".
+    **Phill answered the drafting questions on 2026-09-06, so these are settled and the document can
+    be written against them:**
+    **Governing law** is **Victoria, Australia** — non-exclusive jurisdiction of its courts, with the
+    standard clause that nothing excludes rights under the Australian Consumer Law that cannot be
+    excluded. **Response commitment** is the conventional **30 days**. **The contracting entity is a
+    blank**: draft both documents with `[ENTITY]` and `[ABN]` placeholders and fill them before
+    publishing — an ABN does not exist yet and one is coming with Stripe anyway, so the alternative
+    was holding the whole draft for it. **Nothing may publish while those placeholders stand.**
+    **No guest-facing takedown control** is being built, and the policy must not imply one. The host
+    already deletes a session from the album and an admin can delete any of them, so the mechanism
+    exists — it is just operated by a person. A guest-facing button would be *unsafe* before item 12's
+    device token: photo rows carry no guest identifier, so the only thing that could gate it is the
+    album link, which every guest at the event holds — it would let anyone delete anyone's photos.
+    The policy therefore describes a **manual** path (ask the host, or write to the inbox and an
+    admin actions it) and says plainly that identifying which session belongs to a requester takes a
+    visual check. **The album's footer is the mechanism** — it is what gives a guest who cannot reach
+    the host somewhere to write, so the footer on the album is not optional in this item.
+    The **only admin on production is `philljm544@gmail.com`**, which is the internal-access answer
+    the policy owes; keep it true or update the clause.
+
+50. **The app cannot tell you it was breached.** **From the 2026-09-06 audit; Phill to rule on
+    whether it blocks.** `grep -rn "Log::\|logger(" app/` returns **nothing** — the application
+    writes no log lines of its own, records no login timestamps, no `last_login`, no admin access
+    and no read of any photograph. OBSERVABILITY.md:32 puts production on a **one-day** platform
+    log tier, in its own words: "An error from Saturday night can be gone by Monday." Under the
+    Notifiable Data Breaches scheme a breach must be assessed within 30 days and the affected
+    individuals identified — neither is possible from one day of logs and no audit trail, and
+    guests could not be notified even if they were identified because the app deliberately holds no
+    contact detail for any of them. This is not a policy paragraph; it is either a slice (an
+    application audit log for the handful of events that matter — sign-in, admin access to another
+    host's event, session delete, purge, retention change) or a written, deliberate acceptance in
+    the policy that notification runs through hosts and a public statement. **Cheap half first:**
+    a `last_login_at` column and a log line on the five events above.
+
 29. **The host page tells the truth about what just happened.** Every owner-page POST (update,
     toggle-closed, privacy, retention) redirects to the top of a long page with no fragment and no
     confirmation — only the archive flashes a status — and the dashboard never renders
@@ -250,6 +347,7 @@ for an AU business.
     `btn--ghost btn--small` to pair with "Reopen the booth", and give the `.btn--danger` tier a
     resting underline so the truly destructive three never read as static copy. Pin the class with
     a one-line Pest assertion first. Its own commit, so it bisects on its own.
+
 23. **Retention as a role split, not a deletion.** The "Photos · …" fold hands every host a
     free-form `type="date"` validated `after_or_equal:today`; the intent is that the window comes
     with what they pay for. Shape: **admins keep the free-form date** (the "someone emailed asking
@@ -264,6 +362,7 @@ for an AU business.
     album's "give it more time" link is *present* for a host (only its absence after a sweep is
     pinned), and make its `#retention` target render open (29). Rewrite ARCHITECTURE's retention
     paragraph: "kept for good" becomes admin-only. Absorbs the retention-fold GATE §10 note.
+
 30. **Limits and the product, stated up front.** The home page is a join screen that says nothing
     about what Quikbooth is or what a host gets, and no page states the free window. **Now:** grow
     the `.host` block *below* the code entry (what it is; what a host gets — QR poster, album,
@@ -272,6 +371,7 @@ for an AU business.
     line reading the anchored window — both need D1's days and its anchor, which that sitting
     settles, and a number written before then is a promise made twice. Copy in the existing
     layout — the marketing artboards (43) wait for a price to show.
+
 49. **Backup and restore, confirmed and rehearsed.** **Phill's, 2026-09-05 — was D6.** No doc
     mentions either, and a retention promise on top of an unverified restore path is a promise
     nobody has checked can be kept: from the moment a stranger runs an event, this app holds the
@@ -282,6 +382,25 @@ for an AU business.
     Record what the rehearsal actually cost in wall-clock time; that number is the answer a host
     gets on the day it matters. The dashboard half is Phill's hands, the DEPLOY.md procedure is
     the deliverable anyone can check.
+    **What the 2026-09-06 audit established, so the rehearsal starts from facts.** The mechanism
+    exists: `cloud database-restore:create` takes either `--snapshot` or `--point-in-time`, and a
+    restore is created as a **named restore** rather than an overwrite — which is what makes a
+    scratch-environment rehearsal possible without touching production. But **every cluster-level
+    read is broken in CLI v0.5.2** (`database:list`, `database-cluster:list` and
+    `database-snapshot:list` all send a disallowed `include=schemas` and 400, even addressed by
+    name), so the retention window is a canvas read and the rehearsal has to be driven from the
+    dashboard or by ID.
+    **The object-storage half is smaller than it looks.** `cloud bucket:update` exposes exactly two
+    settings — name and visibility — so there is no versioning, lifecycle or object-lock knob to
+    confirm or change, and the bucket sits under a Cloudflare account that is not ours. R2
+    versioning is opt-in per bucket and Cloud does not expose it, so it is very likely off; that is
+    an inference, not a read, and it is one of the two questions in the support ticket above. If it
+    turns out to be **on**, 26's deletion clause is wrong as drafted and this becomes urgent —
+    "deleted" photos would survive as noncurrent versions.
+    **Nothing has ever been swept** (`0` events with `photos_purged_at` on 2026-09-06), which is
+    correct rather than alarming: production launched 2026-08-22, so the earliest window closes
+    around 2026-11-20 and the sweep follows 30 days later. It does mean the sweep has never run
+    against real data, which is exactly what this item exists to fix.
 
 **Should — what a stranger hits on their first night, or the first support ticket.**
 
@@ -562,6 +681,12 @@ violates "limits stated up front".
   chrome and never part of the saved JPEG.
 - "Originals" as the album tab label · a generic toast component · Cashier · `is_admin` as the
   vehicle for "unlimited" · an admin UI.
+- **A guest-facing "delete my photo" control** (2026-09-06, PLAN's locked decisions). Not an
+  oversight and not a gap in the legal floor: the host already deletes a session from the album and
+  an admin can delete any of them, so the mechanism exists and a person operates it. Building a
+  guest-facing one before item 12's device token would be *unsafe* — nothing on a photo row
+  identifies a guest, so the only gate available is the album link that every guest already holds,
+  and it would let anyone delete anyone's photos. Revisit **with 12**, never before.
 - Face search (AU Privacy Act sensitive-information obligations; low value for a booth).
 - Admin impersonation — revisit only when third-party owners need hands-on support.
 - 360/glambot (hardware), PWA / Web Push as primary delivery, in-gallery comments,

@@ -87,8 +87,10 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
   that somebody is typically already signed in, where the session guard would otherwise keep
   re-authenticating them from the user id it holds and never look at the hash again. That is
   `$middleware->authenticateSessions()` in `bootstrap/app.php`, which compares a hash carried in the
-  session rather than deleting session rows — so it works on the `cookie` driver production runs as
-  well as on `database`. Rolling the remember token alone only revoked the cookie an intruder who
+  session rather than deleting session rows — so it works on `cookie` as well as on the `database`
+  driver production actually runs (nothing sets `SESSION_DRIVER`, so it takes the config default;
+  verified against the live account and the live `Set-Cookie` on 2026-09-06, correcting three docs
+  that claimed `cookie`). Rolling the remember token alone only revoked the cookie an intruder who
   simply logged in never used. The reset lands on `/login` rather than logging the host straight in.
   The reset pair also has **its own throttle bucket** (`throttle:6,1,reset`): an unnamed throttle
   keys on the IP, not the route, so without it six failed logins would 429 the one form that lets a
