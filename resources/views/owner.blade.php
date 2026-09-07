@@ -319,7 +319,13 @@
                     @if ($event->photosWerePurged())
                         Photos · deleted {{ $event->photos_purged_at->format('j M Y') }}
                     @else
-                        Photos · {{ $event->photos_expire_at ? 'kept until '.$event->photos_expire_at->format('j M Y') : 'kept for good' }}
+                        {{-- Three states, because a null date means two different
+                             things: an album nobody has shot into yet is waiting
+                             for its window, and one with photos and no date is
+                             being kept for good. --}}
+                        Photos · @if ($event->photos_expire_at) kept until {{ $event->photos_expire_at->format('j M Y') }}
+                        @elseif ($event->awaitingFirstPhoto()) kept for {{ $retentionDays }} days from the first photo
+                        @else kept for good @endif
                     @endif
                 </summary>
                 <div class="privacy-body">
@@ -347,9 +353,18 @@
                                    value="{{ old('photos_expire_at', $event->hasExpired()
                                        ? now()->addDays($retentionDays)->toDateString()
                                        : $event->photos_expire_at?->toDateString()) }}">
-                            <p class="hint">Guests are told this date before they share. Clear it to keep
-                                them for good. Photos are deleted {{ $graceDays }} days after it passes,
-                                so there is time to change your mind.</p>
+                            {{-- An empty field means two different things, exactly as
+                                 the summary above says: an album still waiting for its
+                                 window, and one being kept for good. --}}
+                            @if ($event->awaitingFirstPhoto())
+                                <p class="hint">Nobody has shot into this album yet. The clock starts at
+                                    the first photo and runs {{ $retentionDays }} days from there, unless
+                                    you set a date here. Guests are told which before they share.</p>
+                            @else
+                                <p class="hint">Guests are told this date before they share. Clear it to keep
+                                    them for good. Photos are deleted {{ $graceDays }} days after it passes,
+                                    so there is time to change your mind.</p>
+                            @endif
                         </div>
                             <button class="btn--small">Save</button>
                             @error('photos_expire_at') <p class="error">{{ $message }}</p> @enderror

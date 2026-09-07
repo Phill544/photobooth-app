@@ -75,6 +75,11 @@ class PhotoController extends Controller
         $path = $request->file('photo')->store("events/{$event->id}");
         abort_if($path === false, 503, 'The photo could not be stored.');
 
+        // The retention window starts here rather than at setup, so the date a
+        // guest is promised counts from the night. Before the create, because it
+        // is the absence of photos that marks an album as not yet counting.
+        $event->startRetentionWindow();
+
         $photo = $event->photos()->create([
             'kind' => $validated['kind'],
             'group_uuid' => $validated['group'],

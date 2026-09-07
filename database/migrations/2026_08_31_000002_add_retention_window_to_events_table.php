@@ -9,11 +9,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('events', function (Blueprint $table) {
-            // Null on every event that already exists, and only on those: their
-            // guests shared photos having been told nothing about a window, so
-            // backfilling ninety days here would schedule the deletion of an
-            // album somebody thinks is permanent. New events get the window
-            // from Event::booted() instead, where it can be counted from now.
+            // Null on every event that already exists: their guests shared photos
+            // having been told nothing about a window, so backfilling ninety days
+            // here would schedule the deletion of an album somebody thinks is
+            // permanent. Null is also the normal state of a new event until its
+            // first photo — Event::startRetentionWindow(), called from
+            // PhotoController::store, is what sets this column (2026-09-06; it
+            // used to be stamped at creation in Event::booted()). See
+            // Event::awaitingFirstPhoto() for telling those two nulls apart.
             $table->timestamp('photos_expire_at')->nullable();
             // When the sweep actually took them. Recorded rather than inferred
             // from an empty album, because a host who deleted every session by

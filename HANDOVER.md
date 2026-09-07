@@ -45,7 +45,7 @@ thirty days later on a schedule → **a host account that can look after itself*
 and email verification over a real mail transport (Resend), behind the same kind of deploy gate the
 storage disk has → **download-all**: a queued job zips a whole night into one file and emails the
 host a signed, expiring link.
-**356 Pest + 107 Vitest tests green.** Every feature slice was built red/green and then put
+**366 Pest + 107 Vitest tests green.** Every feature slice was built red/green and then put
 through an adversarial review (see Conventions).
 
 ## Stack & how to run
@@ -179,13 +179,11 @@ does not.
   the terms). Until that sitting **no page states a free window**: 30 keeps its "what a host gets"
   copy and drops the limits line, 26's terms carry no refund figure, 23 leaves `RETENTION_DAYS =
   90` where it is, and each event goes on showing its own keep-until date exactly as it does today.
-  **One number 41 must settle before a stranger ever shoots: what the window counts from.** Today
-  the `creating` hook in `Event::booted()` anchors it to event *creation*, so a host who sets a
-  wedding up four weeks early has burned a month of the window before the party, and the consent
-  line promises guests a date that is already passing. Recommend counting from the **first photo**.
-  It is the one part of D1 that cannot be revised afterwards: the window is a promise made to guests
-  at the moment of consent — the review screen's second consent line, the album header — and once a
-  stranger has run an event, it has been made.
+  **What the window counts from is settled (2026-09-06): the first photo.** It was the one part of
+  D1 that could not be revised afterwards — the window is a promise made to guests at the moment of
+  consent, and once a stranger has run an event it has been made — so it was decided ahead of the
+  sitting rather than in it. `Event::startRetentionWindow()` now starts the clock from
+  `PhotoController::store`; only the *number* of days waits for 41.
 - **D2 — The guest's own phone.** That is the model, so item 12's device token can group a
   returning guest's strips. **Kiosk mode, if it ever comes, is a future functionality change** —
   not a variant to keep the code ready for, so don't preserve behaviour that only makes sense
@@ -367,9 +365,10 @@ answered everything a read could answer:
     about what Quikbooth is or what a host gets, and no page states the free window. **Now:** grow
     the `.host` block *below* the code entry (what it is; what a host gets — QR poster, album,
     strips on guests' phones, originals downloadable; "Create an account"). **With 41, not
-    before:** a stated-limits line on `/new` and the home page, and the review screen's consent
-    line reading the anchored window — both need D1's days and its anchor, which that sitting
-    settles, and a number written before then is a promise made twice. Copy in the existing
+    before:** a stated-limits line on `/new` and the home page — it needs D1's *days*, which that
+    sitting settles, and a number written before then is a promise made twice. The review screen's
+    consent line is **done** (2026-09-06): the anchor was settled ahead of the sitting because it
+    could not be revised afterwards, and the line reads the window it starts. Copy in the existing
     layout — the marketing artboards (43) wait for a price to show.
 
 49. **Backup and restore, confirmed and rehearsed.** **Phill's, 2026-09-05 — was D6.** No doc

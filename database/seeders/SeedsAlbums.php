@@ -80,6 +80,25 @@ trait SeedsAlbums
 
         Photo::insert($rows);
         $bar?->finish();
+
+        // `Photo::insert` writes straight past the model, so the upload path that
+        // normally starts the retention window never runs here.
+        //
+        // Counted from the seed, not from `$openedAt`. The nights are fixed
+        // literals in the past — that is what makes a seeded album read like one
+        // that already happened — so anchoring the window to them would hand
+        // every fixture a date that has already gone: NEWYRS opens on New Year's
+        // Eve 2025, and 90 days past that is expired *and* through its grace, so
+        // the 4000-photo album the paging work is measured against would arrive
+        // as an expired page and be one `photobooth:sweep-expired` from deletion.
+        // A fixture has to be live to be worth looking at.
+        //
+        // Left alone where the seeder set a date of its own: LAPSED and SWEPT2
+        // are their windows, and they are the states nothing else can produce.
+        if ($event->photos_expire_at === null) {
+            $event->update(['photos_expire_at' => now()->addDays(Event::RETENTION_DAYS)]);
+        }
+
         $this->command?->line("  {$event->code}: {$sessions} sessions.");
     }
 

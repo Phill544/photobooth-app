@@ -207,6 +207,9 @@ check in the pending rewrite of this file.
 
 ## 9. Retention — the end-of-life screens
 
+- [ ] **`PARTY2`** booth, before anybody shoots: the review screen's third consent line reads
+      "Photos are kept for 90 days from the first photo" rather than a date — the seeded booth is
+      the only place that state shows, because the window now starts at the first photo.
 - [ ] **`LAPSED`** as a guest: the expired album page. Full-screen dark type, no controls — a
       screen shape nothing else on the phone exercises.
 - [ ] **`LAPSED`** as the host: the album still opens, with the countdown banner and a link to give
@@ -214,8 +217,9 @@ check in the pending rewrite of this file.
 - [ ] **`LAPSED`** booth: "This event has finished, and its photos are no longer kept."
 - [ ] **`SWEPT2`** as a guest: same expired page. As the host: "photos were deleted on …", and the
       retention panel offers **no** date field.
-- [ ] **The review screen's second consent line** ("Photos are kept until …"). It fits at 375×812
-      in a desktop pane, but this is the screen with the least room on a real short phone.
+- [ ] **The review screen's later consent lines** ("Photo links work for anyone who has them" and
+      "Photos are kept until …"). They fit at 375×812 in a desktop pane, but this is the screen
+      with the least room on a real short phone, and it now carries three lines rather than two.
 	  NOTE: These are all tough to review on prod. Thoughts?
 
 ## 10. Host screens on a phone
@@ -233,8 +237,12 @@ The host does half of this from their own phone at a venue, not from a desk.
       works for anyone who has it" — so the host reads the same truth the guest is told before they
       share. Two stacked hints under a form is a shape this panel has not had on a phone.
 - [ ] **"Photos · …"** fold: the `type="date"` field. **iOS renders its own picker and this is the
-      app's first date input.** Check the summary still reads as a state ("Photos · kept until
-      29 Nov 2026") at 375px.
+      app's first date input.** The summary now has **three** states, not two, and the body's hint
+      follows it — check each reads as a state at 375px: `GARDEN` shows "Photos · kept until
+      5 Dec 2026"; the empty booth `PARTY2` shows "Photos · kept for 90 days from the first photo"
+      over a hint beginning "Nobody has shot into this album yet" and an empty date field; and an
+      album whose date a host has cleared shows "Photos · kept for good". The middle one is new —
+      an empty field used to mean only the last of those.
 	  NOTE: This probably shouldn't be surfaced as it'll be part of the support/revenue structure, people pay and get 30/90 days etc. Good to support in the backend though.
 - [x] **Download everything** panel in all three states: request, "Building your download…", and
       ready-with-a-link-plus-build-a-fresh-one.

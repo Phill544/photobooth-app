@@ -273,8 +273,13 @@
                         @endif
                     </p>
                     <p class="consent-note">Photo links work for anyone who has them.</p>
+                    {{-- The window starts at the first photo, so the guest who is
+                         about to take it is told what will happen rather than a
+                         date. Every guest after them sees the date itself. --}}
                     @if ($event->photos_expire_at)
                         <p class="consent-note">Photos are kept until {{ $event->photos_expire_at->format('j M Y') }}.</p>
+                    @elseif ($event->awaitingFirstPhoto())
+                        <p class="consent-note">Photos are kept for {{ $retentionDays }} days from the first photo.</p>
                     @endif
                     {{-- Shown when the strip can't be encoded for sending (a phone
                          low on memory). Staying on this screen matters: it holds

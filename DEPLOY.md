@@ -245,8 +245,9 @@ the rollback, and the runbook for standing up a sending domain from scratch.
 
 ## The scheduler (the retention sweep)
 
-Every event carries a **retention window** (`events.photos_expire_at`, 90 days on a new event, and
-the host can move it or clear it from the event page). When it passes, the album turns into an
+Every event carries a **retention window** (`events.photos_expire_at`, 90 days from its **first
+photo** — the column stays null until then — and the host can move it or clear it from the event
+page). When it passes, the album turns into an
 expired page for guests. **Thirty days after that** (`Event::PURGE_GRACE_DAYS`) a scheduled sweep
 deletes that event's photos and their files, keeps the event row so its code keeps explaining
 itself, and stamps `photos_purged_at` — after which no date brings the album back, and the host

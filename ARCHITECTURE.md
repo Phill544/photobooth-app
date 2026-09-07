@@ -259,11 +259,23 @@ path — logos are not per-event, and `photobooth:purge-event` used to leave eve
 (PHP, for the form + validation) mirrored by geometry/hex in `templates.ts` / `strip-theme.ts` (JS,
 for the canvas) — **keep the keys in sync by hand** (noted in both files).
 
-**Retention.** `events.photos_expire_at` is a stated window — `Event::RETENTION_DAYS` (90) on a
-new event, set in `booted()` rather than backfilled by the migration, because only events created
-after the window existed have guests who were told about one; every album that predates it is kept
-for good. Guests are told the date twice, at the two moments it matters: on the review screen as
-they decide to share, and in the album header. When the date passes, the album becomes an expired
+**Retention.** `events.photos_expire_at` is a stated window — `Event::RETENTION_DAYS` (90) — and
+it **starts at the first photo, not at the setup**. `Event::startRetentionWindow()` is called from
+`PhotoController::store` before the row is written, because it is the absence of photos that marks
+an album as not yet counting; it does nothing thereafter, so the date the first guest was shown is
+the date every guest after them keeps. It used to be stamped in the `creating` hook, which meant a
+host who set a wedding up four weeks early had burned a month of the window before anybody arrived
+and the consent line promised guests a date that was already running down. The window is a promise
+made at the moment a guest consents, so it runs from the night. Nothing was backfilled: an album
+that already has a date keeps it, and every album that predates the column is kept for good.
+
+An empty `photos_expire_at` therefore means two different things, and the screens tell them apart
+with `Event::awaitingFirstPhoto()` — no photos and no date is an album waiting for its window
+("kept for 90 days from the first photo"), while photos and no date is one somebody chose to keep
+for good. `SeedsAlbums` writes rows with `Photo::insert`, straight past the model and so past the
+upload path, and sets the window itself against the night it seeded. Guests are told the date
+twice, at the two moments it matters: on the review screen as they decide to share, and in the
+album header. When the date passes, the album becomes an expired
 page for guests, the booth stops taking photos (a photo shared into an album already counting down
 is one the guest loses within the month), and the host keeps full access — which is the point of
 `Event::PURGE_GRACE_DAYS` (30). Inside that gap a host or admin can move the date and the album

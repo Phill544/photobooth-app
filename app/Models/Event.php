@@ -104,6 +104,35 @@ class Event extends Model
         return $this->photos_purged_at !== null;
     }
 
+    // The window runs from the night, not from the setup. It used to be stamped
+    // in the `creating` hook, which meant a host who put a wedding in four weeks
+    // early had burned a month of it before anybody arrived — and the consent
+    // line promised guests a date that was already running down. The window is a
+    // promise made at the moment a guest consents, so it starts when there is
+    // something to keep.
+    //
+    // Called once per upload and does nothing after the first: an album that has
+    // already started counting keeps the date its guests were shown, and a host
+    // who deliberately cleared the window (an album kept for good) does not get
+    // it silently handed back by the next guest through the booth.
+    public function startRetentionWindow(): void
+    {
+        if ($this->photos_expire_at !== null || $this->photos()->exists()) {
+            return;
+        }
+
+        $this->photos_expire_at = now()->addDays(self::RETENTION_DAYS);
+        $this->save();
+    }
+
+    // Null means two different things, and the screens have to tell them apart:
+    // an album nobody has shot into yet is waiting for its window, while an
+    // album with photos and no date is one somebody chose to keep for good.
+    public function awaitingFirstPhoto(): bool
+    {
+        return $this->photos_expire_at === null && ! $this->photos()->exists();
+    }
+
     // The album is over — either its window ran out, or the sweep has already
     // been through. Between those two the photos are still there, which is
     // exactly the window in which a host can ask for more time; after the sweep
@@ -205,10 +234,6 @@ class Event extends Model
     {
         static::creating(function (Event $event) {
             $event->code = $event->code ? strtoupper($event->code) : self::freshCode();
-            // Counted from now, not backfilled by the migration: only events
-            // created after the window existed have guests who were told about
-            // one. A host can move it or clear it from the event page.
-            $event->photos_expire_at ??= now()->addDays(self::RETENTION_DAYS);
         });
     }
 

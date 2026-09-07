@@ -13,9 +13,47 @@ beforeEach(function () {
 
 // --- The window itself ---
 
-it('gives a new event a stated window rather than an open-ended one', function () {
-    expect($this->event->photos_expire_at)->not->toBeNull()
-        ->and($this->event->photos_expire_at->isSameDay(now()->addDays(Event::RETENTION_DAYS)))->toBeTrue();
+// Deliberately inverted (2026-09-06). The window used to be stamped in the
+// `creating` hook, so a host who set a wedding up four weeks early had burned a
+// month of it before a guest arrived, and the consent line promised them a date
+// that was already running down. It is a promise made at the moment a guest
+// consents, so it starts when there is something to keep.
+it('does not start the window until there is a photo to keep', function () {
+    expect($this->event->photos_expire_at)->toBeNull()
+        ->and($this->event->awaitingFirstPhoto())->toBeTrue()
+        ->and($this->event->hasExpired())->toBeFalse();
+});
+
+it('starts the window at the first photo, not at the setup', function () {
+    $this->travelTo(now()->addDays(28)); // the wedding, four weeks after the setup
+
+    uploadPhoto('PARTY2');
+
+    expect($this->event->refresh()->photos_expire_at->isSameDay(now()->addDays(Event::RETENTION_DAYS)))->toBeTrue();
+});
+
+// Every guest after the first shares into an album already counting down, and
+// the date they were shown is the one they keep.
+it('leaves a started window where the first photo put it', function () {
+    uploadPhoto('PARTY2');
+    $started = $this->event->refresh()->photos_expire_at;
+
+    $this->travelTo(now()->addDays(3));
+    uploadPhoto('PARTY2', ['slot' => 2]);
+
+    expect($this->event->refresh()->photos_expire_at->eq($started))->toBeTrue();
+});
+
+// A host who cleared the window meant it. The next guest through the booth must
+// not hand it back.
+it('does not restart a window the host cleared', function () {
+    uploadPhoto('PARTY2');
+    $this->event->update(['photos_expire_at' => null]);
+
+    uploadPhoto('PARTY2', ['slot' => 2]);
+
+    expect($this->event->refresh()->photos_expire_at)->toBeNull()
+        ->and($this->event->awaitingFirstPhoto())->toBeFalse();
 });
 
 // The column arrives on albums whose guests were told nothing about a window,
@@ -84,15 +122,29 @@ it('closes the booth when the window has run out', function () {
 });
 
 it('tells a guest how long the photos are kept before they share', function () {
+    uploadPhoto('PARTY2');
+
     $this->get('/e/PARTY2')
         ->assertOk()
-        ->assertSee('Photos are kept until '.$this->event->photos_expire_at->format('j M Y'));
+        ->assertSee('Photos are kept until '.$this->event->refresh()->photos_expire_at->format('j M Y'));
+});
+
+// The guest about to take the first photo is the one who starts the window, so
+// there is no date to show them yet — they get the rule instead.
+it('tells the first guest what the window will be', function () {
+    $this->get('/e/PARTY2')
+        ->assertOk()
+        ->assertSee('Photos are kept for '.Event::RETENTION_DAYS.' days from the first photo')
+        ->assertDontSee('Photos are kept until');
 });
 
 it('promises nothing about a window that was never set', function () {
+    uploadPhoto('PARTY2');
     $this->event->update(['photos_expire_at' => null]);
 
-    $this->get('/e/PARTY2')->assertOk()->assertDontSee('Photos are kept until');
+    $this->get('/e/PARTY2')->assertOk()
+        ->assertDontSee('Photos are kept until')
+        ->assertDontSee('days from the first photo');
 });
 
 // --- The host's control, and the extension Phill asked for ---
@@ -120,12 +172,19 @@ it('brings an expired album back when the host extends it in time', function () 
     $this->get('/e/PARTY2/gallery')->assertOk()->assertSee("photos/$id", false);
 });
 
+// The upload is what gives this test its teeth. A fresh event's window is null
+// now that the clock starts at the first photo, so without a real date to clear
+// the assertion would hold however the controller treated an empty field.
 it('lets the host keep the photos for good', function () {
+    uploadPhoto('PARTY2');
+    expect($this->event->refresh()->photos_expire_at)->not->toBeNull();
+
     $this->actingAs($this->owner)
         ->post('/events/PARTY2/retention', ['photos_expire_at' => ''])
         ->assertRedirect('/events/PARTY2');
 
-    expect($this->event->refresh()->photos_expire_at)->toBeNull();
+    expect($this->event->refresh()->photos_expire_at)->toBeNull()
+        ->and($this->event->awaitingFirstPhoto())->toBeFalse();
 });
 
 // Backdating would hand the next sweep an album the host never meant to lose.
@@ -138,10 +197,26 @@ it('refuses a window that has already gone', function () {
 });
 
 it('shows the host the date and what happens on it', function () {
+    uploadPhoto('PARTY2');
+
     $this->actingAs($this->owner)->get('/events/PARTY2')
         ->assertOk()
-        ->assertSee($this->event->photos_expire_at->format('j M Y'))
+        ->assertSee($this->event->refresh()->photos_expire_at->format('j M Y'))
         ->assertSee('name="photos_expire_at"', false);
+});
+
+// A host looking at an album nobody has shot into yet must not read "kept for
+// good" — that is what the same empty column means once photos exist.
+it('tells the host a quiet album is waiting for its window, not keeping it for good', function () {
+    $this->actingAs($this->owner)->get('/events/PARTY2')
+        ->assertOk()
+        ->assertSee('kept for '.Event::RETENTION_DAYS.' days from the first photo')
+        // The fold's body has to agree with its summary. Both spellings, because
+        // the summary says "kept for good" and the body's hint said "keep them
+        // for good" — an assertion on one alone misses the other by a word.
+        ->assertSee('The clock starts at')
+        ->assertDontSee('kept for good')
+        ->assertDontSee('keep them for good');
 });
 
 // The field refuses a date in the past, so on the one album whose host actually

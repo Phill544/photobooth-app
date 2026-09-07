@@ -261,6 +261,8 @@ class EventController extends Controller
             'isHost' => $event->managedBy($request->user()),
             'photoCount' => $event->photos()->where('kind', 'original')->count(),
             'stripCount' => $event->photos()->where('kind', 'strip')->count(),
+            // The consent line names it before any photo has started the window.
+            'retentionDays' => Event::RETENTION_DAYS,
         ]);
     }
 
