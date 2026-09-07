@@ -278,12 +278,21 @@ The second scheduled command, `photobooth:sweep-archives`, deletes built downloa
 whose link has expired (7 days). Each is a second copy of an entire event, so without it every
 download a host ever asked for accumulates on the bucket.
 
+The last two are housekeeping, and they exist because the privacy policy has to state a retention
+period for every table rather than only the ones holding photos. `auth:clear-resets` drops
+abandoned password-reset rows — the table is keyed on the host's email address in the clear, and a
+row only ever goes when somebody finishes a reset, so an abandoned one stays for good.
+`queue:prune-failed --hours=168` keeps a week of failed jobs; a job's `exception` column is an
+unredacted stack trace, and a failed queued mailable carries the recipient's address into it.
+
 Check what's registered, and what it would do, from the environment's **Commands** tab:
 
 ```
 php artisan schedule:list
 php artisan photobooth:sweep-expired
 php artisan photobooth:sweep-archives
+php artisan auth:clear-resets
+php artisan queue:prune-failed --hours=168
 ```
 
 The sweep is safe to run by hand and prints one line per album it took (or `Nothing to sweep.`). It
@@ -291,7 +300,11 @@ only ever picks up events whose window **and** grace have both passed and that s
 
 Nothing breaks without a scheduler — albums still expire on their date, so guests see the expired
 page and hosts keep their controls. The photos simply never get deleted, which means the retention
-window is a promise the deploy isn't keeping, and storage grows forever.
+window is a promise the deploy isn't keeping, and storage grows forever. Once `/privacy` ships
+(HANDOVER item 26) and states those windows to strangers, **the toggle becomes the difference
+between a published policy that is true and one that is not** — so check it before the doors open,
+and confirm the sweep has actually run at least once (`select count(*) from events where
+photos_purged_at is not null` — a non-zero count is the only proof).
 
 ## First deploy: create your admin
 

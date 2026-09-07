@@ -22,3 +22,16 @@ Schedule::command('photobooth:sweep-expired')->dailyAt('03:15')->onOneServer();
 // And the download-all archives, each a second copy of a whole event, offered
 // for a week (Archive::LIFETIME_DAYS) and then deleted.
 Schedule::command('photobooth:sweep-archives')->dailyAt('03:30')->onOneServer();
+
+// Housekeeping. Neither of these deletes anything a host or a guest would miss,
+// but both hold personal information the app has no reason to keep: an
+// abandoned reset row is keyed on the host's email address in the clear, and a
+// failed job's exception is an unredacted stack trace — and a failed queued
+// mailable carries the recipient's address into it. Left alone they are the two
+// tables that grow forever, which is not a retention period anybody can write
+// into a privacy policy.
+//
+// A week of failed jobs is long enough to notice one and read it. onOneServer
+// for the same reason as the sweeps above.
+Schedule::command('auth:clear-resets')->dailyAt('03:45')->onOneServer();
+Schedule::command('queue:prune-failed --hours=168')->dailyAt('03:50')->onOneServer();
