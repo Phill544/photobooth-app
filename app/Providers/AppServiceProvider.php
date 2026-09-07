@@ -11,6 +11,7 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Laravel\Nightwatch\Facades\Nightwatch;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -21,6 +22,15 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Nightwatch's default resolver sends the signed-in host's name and
+        // email address with every recorded request (UserProvider: 'name' =>
+        // $user->name, 'username' => $user->email). It is a production
+        // dependency, it is live, and its request sampling is 1.0 — so that is
+        // every host's name and address going to a third party all day for no
+        // benefit we use. The id tells one host's traces from another's, and
+        // the provider adds it whatever this returns.
+        Nightwatch::user(fn () => []);
+
         // The one email this app sends, and it goes to somebody who may not
         // remember signing up — so it says which app it is, in this app's voice,
         // rather than the framework's stock copy. The layout stays Laravel's.
@@ -28,7 +38,16 @@ class AppServiceProvider extends ServiceProvider
             ->subject('Reset your Quikbooth password')
             ->greeting('Quikbooth')
             ->line('Someone asked to reset the password for the host account on '.$notifiable->getEmailForPasswordReset().'.')
-            ->action('Set a new password', url('/reset-password/'.$token.'?email='.urlencode($notifiable->getEmailForPasswordReset())))
+            // No `?email=` on the link. Nightwatch records full URLs including
+            // query strings and offers no way to scrub them, and its sampling
+            // rates all default to 1.0 — so every reset click handed the
+            // monitoring vendor both halves of the credential at once: the token
+            // in the path and the address it is checked against. (Its storage
+            // region is Sydney, so this is a third party holding a live
+            // credential, not a border crossing.) The token alone opens
+            // nothing; resetPassword() requires both. The form has always coped
+            // with an absent address — the field is editable and takes focus.
+            ->action('Set a new password', url('/reset-password/'.$token))
             ->line('The link works once, and expires in '.config('auth.passwords.users.expire').' minutes.')
             ->line('If this was not you, nothing has changed and you can ignore this email.')
             ->salutation('— Quikbooth'));

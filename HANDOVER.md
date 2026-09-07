@@ -45,7 +45,7 @@ thirty days later on a schedule → **a host account that can look after itself*
 and email verification over a real mail transport (Resend), behind the same kind of deploy gate the
 storage disk has → **download-all**: a queued job zips a whole night into one file and emails the
 host a signed, expiring link.
-**377 Pest + 107 Vitest tests green.** Every feature slice was built red/green and then put
+**381 Pest + 107 Vitest tests green.** Every feature slice was built red/green and then put
 through an adversarial review (see Conventions).
 
 ## Stack & how to run
@@ -205,10 +205,10 @@ does not.
   jurisdiction `default`**, which guarantees residency only for `eu`/`us`/`fedramp` — so the
   photographs have no country guarantee and the jurisdiction cannot be changed after bucket
   creation. Resend is **us-east-1** and sends through Amazon SES there. Disclose Resend and
-  Nightwatch as overseas providers. **Not Google** — D4 missed it and the audit found it, but the
-  fonts are ours as of 2026-09-06, so the disclosure is gone rather than written. Nightwatch's
-  *storage* region is Sydney; it is a third party, not necessarily a border crossing, and the clause
-  should say which. The **app icon** (the strip-in-a-mat or sprocket
+  Nightwatch as overseas providers. **Not Google** — D4 missed it and the audit found it, but item
+  51 shipped on 2026-09-06 and the fonts are ours now, so the disclosure is gone rather than
+  written. Nightwatch's *storage* region is Sydney; it is a third party, not necessarily a border
+  crossing, and the clause should say which. The **app icon** (the strip-in-a-mat or sprocket
   motif, ink ground, blue accent) waits for the Stripe sitting — item 36 cannot start without it,
   so it stays parked rather than half-built against a placeholder.
 - **D5 — Both, before launch.** Two settings on the Laravel Cloud dashboard, Phill's hands only.
@@ -270,7 +270,7 @@ answered everything a read could answer:
     Privacy Principles). What it turned up that no doc had recorded, all verified against the code
     or the live account:
     **(a) — resolved, and the policy must NOT name Google.** Every page used to load Google Fonts,
-    making Google an undisclosed overseas recipient of every guest's IP address. Fixed on
+    making Google an undisclosed overseas recipient of every guest's IP address. Item 51 shipped on
     2026-09-06: the three families are served from `public/fonts` and `SelfHostedFontsTest` fails if
     a response so much as mentions either Google host. The disclosure is gone rather than written.
     **(b)** Photos live on **Cloudflare R2 with jurisdiction `default`** — the app and Postgres are
@@ -290,11 +290,13 @@ answered everything a read could answer:
     **(e)** No **DPA or sub-processor agreement** is evidenced anywhere for Laravel Cloud, Resend,
     Nightwatch, which is the APP 8.1 "reasonable steps" the policy will have to describe. (Google is
     no longer on that list — see (a).)
-    **(f)** **Nightwatch is live** (Sydney), and its default resolver attaches every signed-in host's
-    **name and email** to each recorded request while its sampling defaults to **1.0**. It also
-    records **full URLs including query strings**, and the reset link carries the address in its
-    query — so a reset click hands it both halves of a live credential. Either fix it or disclose it;
-    fixing is a few lines and shortens the clause to "IP address and technical request data".
+    **(f) — what Nightwatch is told, after item 52.** It is live and in Sydney, and as of 2026-09-06
+    it receives a **user id and nothing else**: the default resolver's name and email are replaced by
+    `Nightwatch::user(fn () => [])`, and the reset link no longer carries `?email=`, so the vendor
+    never holds both halves of a reset credential. `NIGHTWATCH_CAPTURE_REQUEST_PAYLOAD` is off, so no
+    request bodies. What it still receives, and what the policy must therefore disclose, is the
+    **client IP address, the full URL and technical request data** for every request — sampling is
+    1.0, so this is everything, not a sample.
     **Phill answered the drafting questions on 2026-09-06, so these are settled and the document can
     be written against them:**
     **Governing law** is **Victoria, Australia** — non-exclusive jurisdiction of its courts, with the

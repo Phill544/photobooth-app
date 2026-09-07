@@ -255,8 +255,14 @@ The host does half of this from their own phone at a venue, not from a desk.
 Every one of these screens is reached **from a mail app**, which means a different browser from the
 one the host logged in with. None of them has ever been opened that way.
 
-- [x] **Password reset**: request it, open the link from the phone's mail app. The form must stand
+- [ ] **Password reset**: request it, open the link from the phone's mail app. The form must stand
       alone in the in-app browser, and the password managers should offer to save the new one.
+      **Re-check: the link no longer carries `?email=`**, so the address field arrives empty and
+      relies on `autofocus` to take the keyboard. That branch of the view never ran before — it was
+      written for a host whose mail forwards — so this is the first time a phone has met it. Confirm
+      the keyboard opens on the email field in both mail apps' in-app browsers, and that a password
+      manager still offers to fill the address. If autofocus is ignored in an in-app browser, the
+      host lands on a form with no focus and it is worth knowing before a stranger hits it.
 - [x] **Verification**: same journey, and it must land on `/new` rather than the dashboard.
 - [x] **Download-all link**: the archive route sends `Content-Disposition: attachment` for a file
       that can be hundreds of megabytes. What iOS Safari and Android Chrome each do with that — and
@@ -282,6 +288,8 @@ NOTE: Can't test this on prod yet
       cold cache is the one to watch: `font-display: swap` paints a fallback first either way. All
       three Instrument Sans weights come from **one** file, so if 500 or 600 renders as a fallback
       while 400 is fine, the shared-file rules are wrong rather than the network being slow.
+
+
 - [ ] The album and host pages in both light and dark system settings.
 - [ ] Any screen with `prefers-reduced-motion` on (the caret pulse and strip tilt should stop).
 - [ ] A slow connection (throttle to 3G): the album's lazy tiles and the upload screens.

@@ -43,9 +43,8 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
   "only the host can see it", which is more privacy than this design delivers, and the promise
   was moved to match the code rather than the other way round. A third line — "Photo links work
   for anyone who has them" — is true under all three settings, and is what makes a guest's consent
-  informed. The PIN is
-  stored in the clear, because the host reads it out to a room and has to be able to read it back;
-  it sits beside the event code, also in the clear, guarding the same album.
+  informed. The PIN is stored in the clear, because the host reads it out to a room and has to be
+  able to read it back; it sits beside the event code, also in the clear, guarding the same album.
   Its bounds live once on `Event::PIN_MIN_LENGTH`/`PIN_MAX_LENGTH` — the guest's field is the one
   that silently truncates typing *and* paste, so a literal there that drifts below the validator is a PIN the
   host can set and no guest can enter.
@@ -136,6 +135,14 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
   working reset link in `jobs` and, on the very failure this design exists to survive, in
   `failed_jobs` and the Cloud Queues dashboard. A test greps the payload for any 64-hex run that
   `Hash::check`s against the stored hash.
+  **The link carries the token and nothing else** (2026-09-06). It used to append
+  `?email=`, which prefilled the form — but Nightwatch records full URLs including query strings,
+  offers no way to scrub them, and samples requests at 1.0, so every reset click put *both* halves
+  of the credential into the monitoring vendor's store: the token in the path and the address it is
+  checked against. `resetPassword()` requires both, so the token alone opens nothing. The form
+  already coped — the field is editable and takes `autofocus` when the address is absent, because a
+  host whose mail forwards may not arrive as themselves — so the cost is one typed address, which is
+  a mild second factor anywhere the link leaks (history, a referrer, a forwarded mail, a screenshot).
   Two of the enumeration tests used to be tautologies: `TestResponse` has no `getSession()`, so
   `$response->getSession()` fell through to the app's single live session store and comparing two
   of them compared a value with itself. Read each flash straight after its own request.

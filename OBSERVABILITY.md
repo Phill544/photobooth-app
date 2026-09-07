@@ -70,6 +70,17 @@ the token/auth as secrets; they can read prod and trigger deploys.
 the Decision log below has the full reasoning; the short version is that Nightwatch is the
 first-party path on this exact platform and its free tier fits this app comfortably.
 
+**What it is deliberately not told** (2026-09-06). Nightwatch's default user resolver attaches the
+signed-in host's **name and email** to every recorded request (`UserProvider`: `'name' =>
+$user->name`, `'username' => $user->email`), and request sampling defaults to **1.0** — so that is
+every host's identity going overseas all day for nothing we use. `AppServiceProvider` now registers
+`Nightwatch::user(fn () => [])`; the provider adds the id whatever the resolver returns, and the id
+is all it takes to tell one host's traces from another's. In the same change the password-reset link
+dropped its `?email=` query, because Nightwatch records full URLs with no way to scrub them (see
+ARCHITECTURE). `NIGHTWATCH_CAPTURE_REQUEST_PAYLOAD` is **off** — it is opt-in, and unset in
+production — so request bodies are never taken; leave it that way, since that is the only path by
+which a typed album PIN could reach the vendor. `NightwatchPrivacyTest` pins all of it.
+
 What it buys us, in this app's terms:
 
 - **Every exception, kept 14 days** (free tier), with stack trace, occurrence counts and user

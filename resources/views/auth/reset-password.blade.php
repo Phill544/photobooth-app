@@ -35,10 +35,15 @@
                 <input type="hidden" name="token" value="{{ $token }}">
                 <div class="field">
                     <label for="email">Email</label>
-                    {{-- Prefilled from the link, but still editable: the address
-                         is half of what the token is checked against, and a host
-                         whose mail forwards may not arrive here as themselves. --}}
+                    {{-- Typed, not prefilled: the link stopped carrying `?email=`
+                         on 2026-09-06 so the monitoring vendor never holds both
+                         halves of the credential at once (see ARCHITECTURE). It is
+                         still read from the query when present, because links sent
+                         before that change are valid for an hour and must keep
+                         working, and because a host whose mail forwards may not
+                         arrive here as themselves either way. --}}
                     <input id="email" name="email" type="email" value="{{ old('email', $email) }}" required
+                           autocomplete="username"
                            @unless ($email) autofocus @endunless>
                 </div>
                 <div class="field">
