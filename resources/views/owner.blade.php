@@ -416,7 +416,11 @@
                     <p><a href="/e/{{ $event->code }}" target="_blank">The booth</a> is open to anyone with the code.</p>
                     <form method="POST" action="/events/{{ $event->code }}/toggle-closed">
                         @csrf
-                        <button class="btn--danger">Close the booth</button>
+                        {{-- Closing is reversible, and the line above says so, so
+                             this does not wear the tier the irreversible controls
+                             wear. It does not yet match "Reopen the booth" either,
+                             which is a solid btn--small — see PLAN. --}}
+                        <button class="btn--ghost btn--small">Close the booth</button>
                     </form>
                 @endif
             </div>

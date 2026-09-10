@@ -18,6 +18,15 @@ it('closes and reopens an event from the owner page', function () {
     expect($this->event->refresh()->closed_at)->toBeNull();
 });
 
+// Closing is reversible — the copy beside it says so — and it wore .btn--danger,
+// the quiet text tier kept for the three irreversible controls, whose colour and
+// underline only ever appeared on hover: on a phone it read as static copy
+// rather than a button. It still does not match "Reopen the booth", which is a
+// solid btn--small; see PLAN's design system for that open question.
+it('dresses close the booth as the reversible control it is', function () {
+    $this->get('/events/PARTY2')->assertSee('class="btn--ghost btn--small">Close the booth', false);
+});
+
 it('rejects uploads to a closed event', function () {
     $this->event->update(['closed_at' => now()]);
 

@@ -258,6 +258,11 @@ The host does half of this from their own phone at a venue, not from a desk.
 - [ ] **The status line reads as one thing, not two.** The booth row carries a state sentence *and*
       a confirmation ("Closed just now.") — at 375px they stack, and the confirmation takes a row of
       its own by design. Check it does, and that they do not read as the page saying it twice.
+- [ ] **"Close the booth" is now a ghost pill**, pairing with "Reopen the booth", and the three
+      controls still on the quiet tier — the album's per-session **Delete**, **Log out** on the
+      dashboard, **Delete this event forever** — now carry a **resting underline**. On a phone that
+      underline is the only thing marking them as controls, so check all three read as tappable and
+      that none of them now reads as a link into another page.
 - [ ] **A link that lands on a fold from somewhere else.** From an expired album (`LAPSED`), tap
       "give it more time": it must land on the owner page with the **Photos** fold open and on
       screen. This is the one path no server flash can serve — it is the inline script or nothing,

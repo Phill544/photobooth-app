@@ -187,6 +187,18 @@ has exactly one obvious thing to do. (Imported from the Claude Design canvas `Re
   for a11y and validation copy).
 - `<x-stat>` renders a big serif figure over a mono caption, plus one sr-only phrase — screen
   readers get "28 strips", not two unrelated fragments.
+- **Buttons are three tiers, and the quiet one is for irreversible actions only.** The pill is
+  styled on the `button` element selector, so no `<button>` can lack it; `.btn--ghost` is the
+  secondary pill; the quiet text tier is `.btn--danger` **or** a bare `<button>` inside `.delete`,
+  which the same rule matches — worn by "Log out", "Delete this event forever", and the album's
+  per-session Delete (that last one carries no class at all; `.delete button` is what styles it).
+  Its **underline rests** rather than appearing on hover — a phone has no hover, so all three used
+  to read as static grey copy — and it is `currentColor`, so it follows the text into `--danger`
+  when a pointer does arrive. Nothing reversible belongs on that tier: "Close the booth" wore it
+  and is now `btn--ghost btn--small`, pinned by a `ClosedEventTest` assertion so it is a decision
+  somebody makes on purpose. **It does not yet match "Reopen the booth"**, which is a solid
+  `btn--small` — they are the same control in two states and ought to agree; which of the two moves
+  is Phill's call, and nothing depends on the answer.
 - `<x-fold-status>` is the one line an owner-page POST leaves behind, rendered in the fold it came
   back to and nowhere else. See ARCHITECTURE's "The owner page answers what it was asked" for why
   the flash carries a fold name as well as the message.

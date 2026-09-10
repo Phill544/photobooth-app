@@ -291,14 +291,18 @@
     .btn-row { display: flex; gap: var(--space-sm); }
     .btn-row > * { flex: 1 1 0; min-width: 0; padding-inline: var(--space-sm); line-height: 1.15; }
 
+    /* The quiet text tier the irreversible controls wear — the album's Delete,
+       Log out, Delete forever. The underline rests rather than waiting for a
+       hover that never comes on a phone, where these otherwise read as static
+       grey copy. currentColor, so it follows the text into --danger on hover. */
     .delete button, .btn--danger {
         display: inline; min-height: auto; padding: .35rem 0; gap: 0;
-        border: none; border-bottom: 1px solid transparent; border-radius: 0;
+        border: none; border-bottom: 1px solid currentColor; border-radius: 0;
         background: none; box-shadow: none; transform: none;
         font-size: var(--text-sm); font-weight: 500; color: var(--text-faint);
     }
     .delete button:hover, .btn--danger:hover {
-        color: var(--danger); border-bottom-color: currentColor;
+        color: var(--danger);
         transform: none; box-shadow: none; background: none;
     }
     button:disabled, .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
