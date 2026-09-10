@@ -40,7 +40,7 @@ it('drops the old file only once the replacement is safely stored', function () 
     $this->patch('/events/PARTY2', [
         'name' => 'Summer Party',
         'logo' => UploadedFile::fake()->image('new.png', 400, 200),
-    ])->assertRedirect('/events/PARTY2');
+    ])->assertRedirect('/events/PARTY2#edit');
 
     Storage::assertMissing('logos/original.png');
     Storage::assertExists($this->event->refresh()->logo_path);
@@ -51,7 +51,7 @@ it('still removes a logo when the host asks for it gone', function () {
     Storage::put('logos/original.png', 'the original');
 
     $this->patch('/events/PARTY2', ['name' => 'Summer Party', 'remove_logo' => '1'])
-        ->assertRedirect('/events/PARTY2');
+        ->assertRedirect('/events/PARTY2#edit');
 
     expect($this->event->refresh()->logo_path)->toBeNull();
     Storage::assertMissing('logos/original.png');

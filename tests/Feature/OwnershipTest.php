@@ -34,7 +34,7 @@ it('lets an admin manage any event', function () {
     $admin = User::factory()->create(['is_admin' => true]);
 
     $this->actingAs($admin)->get('/events/OTHER2')->assertOk();
-    $this->actingAs($admin)->patch('/events/OTHER2', ['name' => 'Renamed'])->assertRedirect('/events/OTHER2');
+    $this->actingAs($admin)->patch('/events/OTHER2', ['name' => 'Renamed'])->assertRedirect('/events/OTHER2#edit');
 });
 
 it('shows an owner only their own events on the dashboard', function () {

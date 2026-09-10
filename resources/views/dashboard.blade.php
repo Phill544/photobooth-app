@@ -37,8 +37,8 @@
         .meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-lg);
             grid-column: 2 / -1; }
         .meta p { margin: 0; }
-        .meta .status { color: var(--text-faint); }
-        .live .meta .status { color: var(--pink); }
+        .meta .state { color: var(--text-faint); }
+        .live .meta .state { color: var(--pink); }
 
         @media (min-width: 720px) {
             .events a { grid-template-columns: 8px minmax(0, 1fr) auto; }
@@ -48,6 +48,13 @@
 
         .empty { max-width: var(--measure); margin: 0 auto;
             padding: 0 var(--page-gutter); color: var(--text-muted); }
+
+        /* Confirming an address ends here, so this page has to render what the
+           verification flashed at it — it never did, and the line was written
+           and dropped on the floor every time. (--ok is the accent blue, not a
+           green — it is the app's one "this worked" colour.) */
+        .status { max-width: var(--measure); margin: var(--space-lg) auto 0;
+            padding: 0 var(--page-gutter); color: var(--ok); font-size: var(--text-sm); }
 
         /* The one thing an unverified host cannot do is the button beside this,
            so the notice sits with it rather than at the top of the page. */
@@ -88,6 +95,10 @@
         <a href="/new" class="btn btn--accent btn--hero">New event</a>
     </div>
 
+    @if (session('status'))
+        <p class="status" role="status">{{ session('status') }}</p>
+    @endif
+
     @unless ($emailIsVerified)
         <div class="verify">
             <p><strong>Confirm your email</strong> to open a new booth. We sent a link to
@@ -115,7 +126,7 @@
                         <span class="meta">
                             <p class="mono mono--plain">{{ $event->code }}</p>
                             <p class="muted">{{ $event->photos_count > 0 ? $event->photos_count.' '.Str::plural('photo', $event->photos_count) : 'Not started' }}</p>
-                            <p class="mono status">{{ ['live' => 'Live', 'closed' => 'Closed', 'finished' => 'Finished'][$event->status()] }}</p>
+                            <p class="mono state">{{ ['live' => 'Live', 'closed' => 'Closed', 'finished' => 'Finished'][$event->status()] }}</p>
                         </span>
                     </a>
                 </li>

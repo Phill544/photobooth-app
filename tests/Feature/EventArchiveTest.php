@@ -43,7 +43,7 @@ it('queues the build rather than making the host wait for it', function () {
     shootSession();
 
     $this->actingAs($this->owner)->post('/events/PARTY2/archive')
-        ->assertRedirect('/events/PARTY2');
+        ->assertRedirect('/events/PARTY2#archive');
 
     Queue::assertPushed(BuildEventArchive::class);
     expect(Archive::sole())

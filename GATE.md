@@ -249,6 +249,22 @@ The host does half of this from their own phone at a venue, not from a desk.
 - [x] Delete an event: the panel is folded, asks you to type the code, and a wrong code reopens the
       panel with the error **on screen** (it was measured 270px below the fold without that).
 - [x] The invite/share affordances (native sheet, copy-link, raw URL) on every page that has them.
+- [ ] **Every control confirms itself, on the fold you used.** Save the look, toggle the booth, save
+      privacy, save a date, ask for a download: each should land you back **on that panel with it
+      open** and one accent-blue confirmation line inside it (`--ok` is the blue, not a green),
+      never at the top of the poster. On these paths the fold is already open in the HTML — the
+      server flashed which one — so the browser's own fragment jump is the whole mechanism and no
+      script is involved. Check the landing position anyway: the panels differ a lot in height.
+- [ ] **The status line reads as one thing, not two.** The booth row carries a state sentence *and*
+      a confirmation ("Closed just now.") — at 375px they stack, and the confirmation takes a row of
+      its own by design. Check it does, and that they do not read as the page saying it twice.
+- [ ] **A link that lands on a fold from somewhere else.** From an expired album (`LAPSED`), tap
+      "give it more time": it must land on the owner page with the **Photos** fold open and on
+      screen. This is the one path no server flash can serve — it is the inline script or nothing,
+      so it is also the one that dies silently if JS fails to run, **and the only one where the
+      scroll can disagree**: the script opens the fold *after* the browser has already jumped to a
+      collapsed element, so check it lands on the panel rather than above it. Worth trying once
+      with JavaScript off too, to see how bad the dead end is.
 
 ## 11. The mail journeys
 

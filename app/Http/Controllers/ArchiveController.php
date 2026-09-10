@@ -19,7 +19,7 @@ class ArchiveController extends Controller
         if ($event->photos()->doesntExist()) {
             throw ValidationException::withMessages([
                 'archive' => 'There is nothing in this album to download yet.',
-            ])->redirectTo("/events/{$event->code}");
+            ])->redirectTo("/events/{$event->code}#archive");
         }
 
         // One at a time. A host who taps twice should not set two builds of the
@@ -33,8 +33,10 @@ class ArchiveController extends Controller
             ]));
         }
 
-        return redirect("/events/{$event->code}")
-            ->with('status', "We're building it now — we'll email you when it's ready.");
+        // Back to the panel that has three states to show, with the line that
+        // says which one it is now — see EventController::backToFold.
+        return redirect("/events/{$event->code}#archive")
+            ->with(['fold' => 'archive', 'status' => "We're building it now — we'll email you when it's ready."]);
     }
 
     // The signature is the credential (see Archive::downloadUrl), so this route

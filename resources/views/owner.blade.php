@@ -65,6 +65,19 @@
         .archive form button { width: 100%; }
         .archive .error { margin: 0; }
 
+        /* What just happened, in the fold it happened in — the same --ok the auth
+           pages confirm with. Named under .archive and .foot as well, because
+           `.archive p` and `.foot p` above are the same weight as a lone
+           `.status` and would otherwise paint the confirmation the identical
+           muted grey as the copy around it: the exact "no sign anything
+           happened" this panel exists to cure. */
+        .status, .archive .status, .foot .status {
+            margin: 0; color: var(--ok); font-size: var(--text-sm);
+        }
+        /* The booth row is a space-between flex pair, so its confirmation takes
+           a row of its own rather than becoming a third slot in the line. */
+        .foot .status { flex: 1 0 100%; }
+
         /* Who can open the album — folded, but its summary states the setting. */
         .privacy { text-align: right; }
         .privacy > summary { display: inline-flex; list-style: none; }
@@ -104,6 +117,17 @@
         }
     </style>
 </head>
+@php
+    // Which fold the host was just sent back to, and so which one opens itself
+    // and carries the status line. Set by EventController::backToFold; null on
+    // a plain visit, when every fold stays as the host left it.
+    $openFold = session('fold');
+
+    // A fold also opens for an error inside it — a message in a shut fold is a
+    // message nobody reads. Errors win over the flash because only one of them
+    // can be true of a single request.
+    $open = fn (string $fold, string ...$fields) => $openFold === $fold || $errors->hasAny($fields) ? 'open' : '';
+@endphp
 <body class="ctx-light">
     <header class="topbar no-print">
         <a class="wordmark" href="/">Quikbooth</a>
@@ -153,7 +177,7 @@
             {{-- The night in one file. Built by a queued job because a busy event
                  is thousands of files, so this panel has three states to show
                  rather than one button. --}}
-            <div class="archive">
+            <div class="archive" id="archive">
                 @if ($archive?->status === 'pending')
                     <button class="btn--ghost" disabled>Building your download…</button>
                     <p>A big night takes a few minutes. We'll email
@@ -188,14 +212,12 @@
                     @endif
                 @endif
                 @error('archive') <p class="error">{{ $message }}</p> @enderror
-                @if (session('status'))
-                    <p class="ready" role="status">{{ session('status') }}</p>
-                @endif
+                <x-fold-status fold="archive" />
             </div>
 
             {{-- Its own fields only: the delete panel below has an error too,
                  and it must not fling this one open behind it. --}}
-            <details class="edit" @if ($errors->hasAny(['name', 'template', 'theme', 'caption', 'logo'])) open @endif>
+            <details class="edit" id="edit" {{ $open('edit', 'name', 'template', 'theme', 'caption', 'logo') }}>
                 <summary class="btn btn--ghost btn--small">Edit the look</summary>
                 <div class="edit-body">
                     <form method="POST" action="/events/{{ $event->code }}" enctype="multipart/form-data" data-strip-form
@@ -250,6 +272,7 @@
                         </div>
 
                         <button>Save changes</button>
+                        <x-fold-status fold="edit" />
                         @error('name') <p class="error">{{ $message }}</p> @enderror
                         @error('template') <p class="error">{{ $message }}</p> @enderror
                         @error('theme') <p class="error">{{ $message }}</p> @enderror
@@ -271,7 +294,7 @@
                  summary carries the current setting: a host glancing at this
                  page needs to know their wedding album is shut without having
                  to open a fold to find out. --}}
-            <details class="privacy" id="privacy" @if ($errors->has('album_pin')) open @endif>
+            <details class="privacy" id="privacy" {{ $open('privacy', 'album_privacy', 'album_pin') }}>
                 <summary class="btn btn--ghost btn--small">Album · {{ $privacyOptions[$event->album_privacy] }}</summary>
                 <div class="privacy-body">
                     <form method="POST" action="/events/{{ $event->code }}/privacy">
@@ -298,6 +321,7 @@
                         </div>
 
                         <button class="btn--small">Save privacy</button>
+                        <x-fold-status fold="privacy" />
                         @error('album_privacy') <p class="error">{{ $message }}</p> @enderror
                         @error('album_pin') <p class="error">{{ $message }}</p> @enderror
                     </form>
@@ -314,7 +338,7 @@
             {{-- How long the photos are kept, and the one control that buys an
                  album more time. Extending inside the grace period brings an
                  expired album straight back, because nothing has gone yet. --}}
-            <details class="privacy" id="retention" @if ($errors->has('photos_expire_at')) open @endif>
+            <details class="privacy" id="retention" {{ $open('retention', 'photos_expire_at') }}>
                 <summary class="btn btn--ghost btn--small">
                     @if ($event->photosWerePurged())
                         Photos · deleted {{ $event->photos_purged_at->format('j M Y') }}
@@ -367,6 +391,7 @@
                             @endif
                         </div>
                             <button class="btn--small">Save</button>
+                            <x-fold-status fold="retention" />
                             @error('photos_expire_at') <p class="error">{{ $message }}</p> @enderror
                         </form>
                     @endif
@@ -377,7 +402,8 @@
                  privacy setting: a hidden album is not one guests can see, and a
                  finished event has no toggle worth offering — reopening the booth
                  would not let it take a photo while the window is past. --}}
-            <div class="foot">
+            <div class="foot" id="booth">
+                <x-fold-status fold="booth" />
                 @if ($event->hasExpired())
                     <p><a href="/e/{{ $event->code }}" target="_blank">The booth</a> is finished — its window has passed.</p>
                 @elseif ($event->isClosed())
@@ -398,7 +424,7 @@
             {{-- Closing a booth is reversible; this is not, so it sits apart from
                  the controls above, folded away, and asks for the code by hand.
                  The server checks that code — the fold is only manners. --}}
-            <details class="danger" id="delete" {{ $errors->has('confirm_code') ? 'open' : '' }}>
+            <details class="danger" id="delete" {{ $open('delete', 'confirm_code') }}>
                 <summary class="btn btn--ghost btn--small">Delete this event</summary>
                 <div class="danger-body">
                     <p>Deletes the booth, the album, and every file behind
@@ -420,6 +446,26 @@
             </details>
         </div>
     </div>
+    <script>
+        // A fold named by the fragment opens itself. The flash handles the POSTs,
+        // which is most of it — but an expired album links a host straight to
+        // "#retention" from the album page, and no flash can reach a plain GET
+        // from somewhere else. A shut <details> is a dead end at exactly the
+        // moment the link was offering a way out.
+        //
+        // getElementById, not querySelector: a hand-typed "#2" is a valid
+        // fragment and an invalid selector, and querySelector throws on it.
+        (function () {
+            const openTarget = () => {
+                const fold = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+                if (!(fold instanceof HTMLDetailsElement) || fold.open) return;
+                fold.open = true;
+                fold.scrollIntoView(); // the browser already scrolled to it shut
+            };
+            openTarget();
+            addEventListener('hashchange', openTarget);
+        })();
+    </script>
     @include('partials.share-script')
 </body>
 </html>

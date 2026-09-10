@@ -297,7 +297,7 @@ it('leaves the image routes open to anyone holding a photo URL', function () {
 it('lets the host set the album privacy and its PIN', function () {
     $this->actingAs($this->owner)
         ->post('/events/PARTY2/privacy', ['album_privacy' => 'pin', 'album_pin' => 'bridesmaids'])
-        ->assertRedirect('/events/PARTY2');
+        ->assertRedirect('/events/PARTY2#privacy');
 
     expect($this->event->refresh()->album_privacy)->toBe('pin')
         ->and($this->event->album_pin)->toBe('bridesmaids');

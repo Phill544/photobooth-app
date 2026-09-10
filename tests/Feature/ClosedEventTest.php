@@ -11,7 +11,7 @@ beforeEach(function () {
 });
 
 it('closes and reopens an event from the owner page', function () {
-    $this->post('/events/PARTY2/toggle-closed')->assertRedirect('/events/PARTY2');
+    $this->post('/events/PARTY2/toggle-closed')->assertRedirect('/events/PARTY2#booth');
     expect($this->event->refresh()->closed_at)->not->toBeNull();
 
     $this->post('/events/PARTY2/toggle-closed');

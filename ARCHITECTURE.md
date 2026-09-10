@@ -282,6 +282,26 @@ path — logos are not per-event, and `photobooth:purge-event` used to leave eve
 (PHP, for the form + validation) mirrored by geometry/hex in `templates.ts` / `strip-theme.ts` (JS,
 for the canvas) — **keep the keys in sync by hand** (noted in both files).
 
+**The owner page answers what it was asked.** Every control on `/events/{code}` sits in a fold most
+of a screen below the poster, so a bare `redirect("/events/{$code}")` used to answer a host's tap
+with the top of the page and no sign anything had happened. Each POST now goes back through
+`EventController::backToFold()`, which redirects to the control's own fragment (`#edit`, `#booth`,
+`#privacy`, `#retention`) and flashes two keys: `status`, the one line, and `fold`, the
+name of the panel it belongs to. `ArchiveController` flashes the same pair by hand for `#archive`,
+and `#delete` comes from `destroy()`'s own `ValidationException`, which predates this. **Both are needed** — a fragment is resolved in the browser and
+never reaches the server, so `fold` is the only thing that can tell the view which `<details>` to
+render open and where to put the line. The view reads it once into `$openFold` and an `$open()`
+closure; `<x-fold-status>` renders the line in that fold and nowhere else, because a message
+repeated in four panels claims four things happened when one did. Rejected POSTs take the same
+route through `validateInFold()` — a fold opens itself on an error, and an error in a fold the host
+has been redirected away from is a message nobody reads. **The fragment half is client-side**: an
+inline script on the owner page opens a `<details>` named by `location.hash` on load and on
+`hashchange`, which is what serves the links that arrive from elsewhere — an expired album's "give
+it more time" is a plain GET from the album page, and no flash can reach it. It uses
+`getElementById`, not `querySelector`, because a hand-typed `#2` is a valid fragment and an invalid
+selector. `/dashboard` renders `session('status')` too; it never did, so `AuthController`'s
+"Address confirmed." was written and dropped on the floor after every verification.
+
 **Retention.** `events.photos_expire_at` is a stated window — `Event::RETENTION_DAYS` (90) — and
 it **starts at the first photo, not at the setup**. `Event::startRetentionWindow()` is called from
 `PhotoController::store` before the row is written, because it is the absence of photos that marks

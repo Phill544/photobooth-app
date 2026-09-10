@@ -18,6 +18,10 @@
             padding: var(--space-2xl) var(--page-gutter) var(--space-xl); }
         .pane h1 { font-size: var(--display-md); margin: var(--space-sm) 0 var(--space-xl); }
         form { display: flex; flex-direction: column; gap: var(--space-lg); max-width: 440px; }
+        /* A verified host is redirected to their *intended* page, which for the
+           journey that matters is this one — so "Address confirmed." lands here
+           at least as often as on the dashboard. */
+        .status { margin: 0 0 var(--space-lg); color: var(--ok); font-size: var(--text-sm); }
         #name { font-family: var(--font-display); font-size: 1.625rem; font-weight: 400; }
         .pair { display: flex; flex-wrap: wrap; gap: var(--space-lg); }
         .pair > .field { flex: 1 1 180px; }
@@ -44,6 +48,10 @@
         <div class="pane">
             <p class="eyebrow">New event</p>
             <h1>Build the booth</h1>
+
+            @if (session('status'))
+                <p class="status" role="status">{{ session('status') }}</p>
+            @endif
 
             <form id="create-form" method="POST" action="/events" enctype="multipart/form-data" data-strip-form>
                 @csrf

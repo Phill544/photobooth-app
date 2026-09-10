@@ -20,7 +20,18 @@ APP_DEBUG=false            # flip to true briefly if you need to read a real err
 APP_KEY=                   # generate one (Cloud can, or `php artisan key:generate --show`)
 APP_URL=https://your-domain   # important: QR codes + invite links use this / the request host
 CACHE_STORE=database       # throttle state and the sweep's onOneServer lock are shared, so not `array`
+SESSION_DRIVER=cookie      # NOT SET YET — unset means the config default `database`; see below
+SESSION_LIFETIME=720       # NOT SET YET — 120 minutes ends mid-event; 720 covers a long night
 ```
+
+> **This block is what a deploy needs, not a picture of what production has.** As of 2026-09-06 the
+> live environment has **four variables set in total** — `APP_KEY`, `MAIL_MAILER`,
+> `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME` — so everything else here is taking a framework default
+> that happens to suit it. The two session lines are called out because their defaults do **not**:
+> they are Phill's, on the dashboard, and they go together, since 720 minutes on the `database`
+> driver is six times the retention of a table of guest IP addresses and `SESSION_DRIVER=cookie` is
+> what makes the longer life free. Until they are set, a host whose owner page sat open through a
+> three-hour event taps a control into a 419.
 
 Everything else arrives on its own, and **is not worth setting by hand — a custom variable
 overrides an injected one**, which is how you end up with a live app pointed at the wrong place:

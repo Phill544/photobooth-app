@@ -116,7 +116,7 @@ class EventController extends Controller
     {
         abort_unless($event->managedBy($request->user()), 403);
 
-        $validated = $request->validate([
+        $validated = $this->validateInFold($request, $event, 'edit', [
             'name' => ['required', 'string', 'max:100'],
             'template' => ['sometimes', Rule::in(array_keys(Event::TEMPLATES))],
             'theme' => ['sometimes', Rule::in(array_keys(Event::STRIP_THEMES))],
@@ -127,7 +127,31 @@ class EventController extends Controller
         $event->update($validated);
         $this->applyLogo($request, $event);
 
-        return redirect("/events/{$event->code}");
+        return $this->backToFold($event, 'edit', 'Saved. New strips use this look.');
+    }
+
+    // Every control on this page sits in a fold, most of a screen below the
+    // poster, so a bare redirect answers a host's tap with the top of the page
+    // and no sign anything happened. The fragment carries them back to the
+    // control they used; the two flashed keys are what the page needs to open
+    // that fold and put one line inside it, because a fragment is client-side
+    // only and the view never sees it.
+    private function backToFold(Event $event, string $fold, string $status)
+    {
+        return redirect("/events/{$event->code}#{$fold}")
+            ->with(['fold' => $fold, 'status' => $status]);
+    }
+
+    // A rejected POST is a redirect too, and it lands in the same wrong place —
+    // worse, because the fold opens itself on an error and the message is then
+    // a screen and a half below the host who has to read it.
+    private function validateInFold(Request $request, Event $event, string $fold, array $rules): array
+    {
+        try {
+            return $request->validate($rules);
+        } catch (ValidationException $invalid) {
+            throw $invalid->redirectTo("/events/{$event->code}#{$fold}");
+        }
     }
 
     public function destroy(Request $request, Event $event)
@@ -187,14 +211,19 @@ class EventController extends Controller
 
         $event->update(['closed_at' => $event->isClosed() ? null : now()]);
 
-        return redirect("/events/{$event->code}");
+        // What just happened, not what is now true: the line beside this one
+        // already states the booth's state, and two full sentences saying the
+        // same thing in one row is a page arguing with itself.
+        return $this->backToFold($event, 'booth', $event->isClosed()
+            ? 'Closed just now.'
+            : 'Reopened just now.');
     }
 
     public function privacy(Request $request, Event $event)
     {
         abort_unless($event->managedBy($request->user()), 403);
 
-        $validated = $request->validate([
+        $validated = $this->validateInFold($request, $event, 'privacy', [
             'album_privacy' => ['required', Rule::in(array_keys(Event::ALBUM_PRIVACY))],
             'album_pin' => ['nullable', 'string', 'min:'.Event::PIN_MIN_LENGTH, 'max:'.Event::PIN_MAX_LENGTH],
         ]);
@@ -215,14 +244,16 @@ class EventController extends Controller
         }
         $event->save();
 
-        return redirect("/events/{$event->code}");
+        // The setting itself, not "Saved": the three options differ by who gets
+        // in, and reading the one that took is the whole point of the trip back.
+        return $this->backToFold($event, 'privacy', 'Album: '.Event::ALBUM_PRIVACY[$event->album_privacy].'.');
     }
 
     public function retention(Request $request, Event $event)
     {
         abort_unless($event->managedBy($request->user()), 403);
 
-        $validated = $request->validate([
+        $validated = $this->validateInFold($request, $event, 'retention', [
             // Backdating would hand the next sweep an album the host never
             // meant to lose. An empty field is "keep these for good".
             'photos_expire_at' => ['nullable', 'date', 'after_or_equal:today'],
@@ -236,7 +267,25 @@ class EventController extends Controller
                 : null,
         ]);
 
-        return redirect("/events/{$event->code}");
+        return $this->backToFold($event, 'retention', $this->retentionStatus($event));
+    }
+
+    // Three states, not two — the same three the fold's summary and hint render,
+    // because an empty date means two different things. A booth nobody has shot
+    // into is not being kept for good: its clock has not started. Saying so
+    // would contradict the hint an inch above it, and a host who believed it
+    // would lose the album ninety days after the first guest arrived.
+    private function retentionStatus(Event $event): string
+    {
+        if ($event->photos_expire_at) {
+            return 'Photos are kept until '.$event->photos_expire_at->format('j M Y').'.';
+        }
+
+        if ($event->awaitingFirstPhoto()) {
+            return 'Photos are kept for '.Event::RETENTION_DAYS.' days from the first photo.';
+        }
+
+        return 'Photos are kept for good.';
     }
 
     // Codes are read off a sign and typed by hand, so they arrive in whatever

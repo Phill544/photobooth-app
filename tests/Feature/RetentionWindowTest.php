@@ -154,7 +154,7 @@ it('lets the host buy the album more time', function () {
 
     $this->actingAs($this->owner)
         ->post('/events/PARTY2/retention', ['photos_expire_at' => $extended->toDateString()])
-        ->assertRedirect('/events/PARTY2');
+        ->assertRedirect('/events/PARTY2#retention');
 
     expect($this->event->refresh()->photos_expire_at->toDateString())->toBe($extended->toDateString());
 });
@@ -181,7 +181,7 @@ it('lets the host keep the photos for good', function () {
 
     $this->actingAs($this->owner)
         ->post('/events/PARTY2/retention', ['photos_expire_at' => ''])
-        ->assertRedirect('/events/PARTY2');
+        ->assertRedirect('/events/PARTY2#retention');
 
     expect($this->event->refresh()->photos_expire_at)->toBeNull()
         ->and($this->event->awaitingFirstPhoto())->toBeFalse();
@@ -247,7 +247,7 @@ it('does not let a guest move the window', function () {
 it('lets an admin extend somebody elses album', function () {
     $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->post('/events/PARTY2/retention', ['photos_expire_at' => now()->addYear()->toDateString()])
-        ->assertRedirect('/events/PARTY2');
+        ->assertRedirect('/events/PARTY2#retention');
 
     expect($this->event->refresh()->photos_expire_at->year)->toBe(now()->addYear()->year);
 });

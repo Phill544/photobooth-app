@@ -14,7 +14,7 @@ it('updates the booth name, layout, colour, and caption', function () {
         'template' => 'grid',
         'theme' => 'blush',
         'caption' => '#Sarah30',
-    ])->assertRedirect('/events/PARTY2');
+    ])->assertRedirect('/events/PARTY2#edit');
 
     $event = $this->event->refresh();
     expect($event->name)->toBe('Sarah 30')

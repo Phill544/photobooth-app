@@ -187,6 +187,9 @@ has exactly one obvious thing to do. (Imported from the Claude Design canvas `Re
   for a11y and validation copy).
 - `<x-stat>` renders a big serif figure over a mono caption, plus one sr-only phrase — screen
   readers get "28 strips", not two unrelated fragments.
+- `<x-fold-status>` is the one line an owner-page POST leaves behind, rendered in the fold it came
+  back to and nowhere else. See ARCHITECTURE's "The owner page answers what it was asked" for why
+  the flash carries a fold name as well as the message.
 - Invite affordance (`.share` + `.share-btn`/`.share-copy`/`.link-chip`) driven by
   `partials/share-script.blade.php`: native share sheet where available, copy-link everywhere else,
   raw URL always visible. Strip file-share lives in `capture.ts` (needs the built File up-front).

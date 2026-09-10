@@ -44,8 +44,10 @@ seed can produce that event on demand) → **an album a host controls**: tri-sta
 thirty days later on a schedule → **a host account that can look after itself**: password reset
 and email verification over a real mail transport (Resend), behind the same kind of deploy gate the
 storage disk has → **download-all**: a queued job zips a whole night into one file and emails the
-host a signed, expiring link.
-**381 Pest + 107 Vitest tests green.** Every feature slice was built red/green and then put
+host a signed, expiring link → **an owner page that answers what it was asked**: every control
+redirects back to its own fold with a line saying what happened, a fragment from anywhere opens the
+fold it names, and the confirmation a verification writes is finally rendered rather than dropped.
+**399 Pest + 107 Vitest tests green.** Every feature slice was built red/green and then put
 through an adversarial review (see Conventions).
 
 ## Stack & how to run
@@ -220,7 +222,8 @@ does not.
   store that a longer life grows. It is a table of guest IP addresses and user agents, so six times
   the lifetime is six times their retention. **Set `SESSION_DRIVER=cookie` in the same sitting**,
   which is what every doc already believed and what suits serverless; then 720 costs nothing.
-  Record both in DEPLOY.md's env block when item 29 lands. And the
+  Both are now **recorded in DEPLOY.md's env block, flagged as not yet set** (2026-09-09) — so the
+  block is the checklist, and what is missing is visible next to what is live. And the
   **spend notification** turned on, the only cost alarm until a cap is ever needed.
 - **D6 — Confirmed as work rather than a question: it is item 49**, in the blockers below.
 
@@ -331,23 +334,6 @@ answered everything a read could answer:
     the policy that notification runs through hosts and a public statement. **Cheap half first:**
     a `last_login_at` column and a log line on the five events above.
 
-29. **The host page tells the truth about what just happened.** Every owner-page POST (update,
-    toggle-closed, privacy, retention) redirects to the top of a long page with no fragment and no
-    confirmation — only the archive flashes a status — and the dashboard never renders
-    `session('status')`, so "Address confirmed." after verification is dropped on the floor. Give
-    every fold an id, redirect each POST back to its own fragment with a one-line status, render
-    `status` on the dashboard, and make a targeted fold render open (today the expired album's
-    "give it more time" link lands on a closed `<details>`). The tests that pin the bare redirects
-    (`ClosedEventTest`, `RetentionWindowTest`, `AlbumPrivacyTest`) change deliberately.
-    **In the same commit, "Close the booth."** It is *not* missing the button component — the pill
-    is styled on the `button` element selector, so no `<button>` can lack it. It wears
-    `.btn--danger`, the deliberate quiet text tier for the irreversible controls (the album's
-    Delete, Log out, Delete forever), whose colour and underline appear only on hover and so never
-    on a phone. Closing is reversible — the comment beneath it says so — so give it
-    `btn--ghost btn--small` to pair with "Reopen the booth", and give the `.btn--danger` tier a
-    resting underline so the truly destructive three never read as static copy. Pin the class with
-    a one-line Pest assertion first. Its own commit, so it bisects on its own.
-
 23. **Retention as a role split, not a deletion.** The "Photos · …" fold hands every host a
     free-form `type="date"` validated `after_or_equal:today`; the intent is that the window comes
     with what they pay for. Shape: **admins keep the free-form date** (the "someone emailed asking
@@ -358,10 +344,15 @@ answered everything a read could answer:
     current) + N` and is refused once `photosWerePurged()`. In Stage 2 that button becomes the
     paid one (41), and the day counts wait for 41's numbers — leave `RETENTION_DAYS = 90` until
     then. Two
-    things to do before touching the view: write the currently missing test that the expired
-    album's "give it more time" link is *present* for a host (only its absence after a sweep is
-    pinned), and make its `#retention` target render open (29). Rewrite ARCHITECTURE's retention
-    paragraph: "kept for good" becomes admin-only. Absorbs the retention-fold GATE §10 note.
+    **Both of the things this used to wait on are done** (2026-09-09, with the owner-page slice):
+    the expired album's "give it more time" link is pinned present for a host in
+    `OwnerPageStatusTest`, and `#retention` renders open — by flash after a POST, and by the owner
+    page's inline script for that link, which arrives as a plain GET from the album. Rewrite
+    ARCHITECTURE's retention paragraph: "kept for good" becomes admin-only. Absorbs the
+    retention-fold GATE §10 note. The retention POST already returns a line naming the new date, so
+    the server-computed button inherits its confirmation — but note it is **not refused on a purged
+    album** today: the form is not rendered there, so only a hand-made POST reaches it, and it
+    redirects with a status that has nowhere to render. Refusing it is this item's job.
 
 30. **Limits and the product, stated up front.** The home page is a join screen that says nothing
     about what Quikbooth is or what a host gets, and no page states the free window. **Now:** grow

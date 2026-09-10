@@ -67,7 +67,7 @@ it('lets an unverified host log in and manage what they already have', function 
 
     $this->actingAs($this->unverified)->get('/dashboard')->assertOk();
     $this->actingAs($this->unverified)->get('/events/PARTY2')->assertOk();
-    $this->actingAs($this->unverified)->post('/events/PARTY2/toggle-closed')->assertRedirect('/events/PARTY2');
+    $this->actingAs($this->unverified)->post('/events/PARTY2/toggle-closed')->assertRedirect('/events/PARTY2#booth');
 
     expect($event->refresh()->isClosed())->toBeTrue();
 });
