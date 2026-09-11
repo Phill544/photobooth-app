@@ -50,7 +50,8 @@
             background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); }
         @container (min-width: 460px) { .edit-body { grid-template-columns: 1fr minmax(150px, 190px); align-items: start; } }
         .edit form { display: flex; flex-direction: column; gap: var(--space-lg); }
-        /* The remove-logo tick is prose, not a mono field label. */
+        /* The ticks (no-caption, remove-logo, remove-background) are prose,
+           not mono field labels. */
         .edit .field > label.muted { display: flex; align-items: center; gap: var(--space-xs);
             font-family: var(--font-sans); text-transform: none; letter-spacing: 0; }
         .edit-preview { display: flex; flex-direction: column; align-items: center; gap: var(--space-xs); }
@@ -217,7 +218,7 @@
 
             {{-- Its own fields only: the delete panel below has an error too,
                  and it must not fling this one open behind it. --}}
-            <details class="edit" id="edit" {{ $open('edit', 'name', 'template', 'theme', 'caption', 'logo', 'background') }}>
+            <details class="edit" id="edit" {{ $open('edit', 'name', 'template', 'theme', 'caption', 'caption_hidden', 'logo', 'background') }}>
                 <summary class="btn btn--ghost btn--small">Edit the look</summary>
                 <div class="edit-body">
                     <form method="POST" action="/events/{{ $event->code }}" enctype="multipart/form-data" data-strip-form
@@ -261,6 +262,11 @@
                         <div class="field">
                             <label for="caption">Caption</label>
                             <input id="caption" name="caption" maxlength="60" placeholder="defaults to the event name" value="{{ old('caption', $event->caption) }}">
+                            {{-- Kept, not cleared, while it is hidden: a host who
+                                 ticks this and changes their mind gets their words
+                                 back rather than having to retype them. --}}
+                            <label class="muted"><input type="checkbox" name="caption_hidden" value="1"
+                                    @checked(old('caption_hidden', $event->caption_hidden))> No caption &mdash; my artwork has its own</label>
                         </div>
                         <div class="field">
                             <label for="logo">Logo</label>

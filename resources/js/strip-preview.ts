@@ -17,6 +17,7 @@ const preview = document.querySelector<HTMLImageElement>('[data-strip-preview]')
 if (form && preview) {
     const nameInput = form.querySelector<HTMLInputElement>('[name="name"]')!;
     const captionInput = form.querySelector<HTMLInputElement>('[name="caption"]')!;
+    const captionHidden = form.querySelector<HTMLInputElement>('[name="caption_hidden"]');
     const summary = document.querySelector<HTMLElement>('[data-strip-summary]');
 
     // Both pickers are radio groups, so the checked input is the current choice.
@@ -85,7 +86,12 @@ if (form && preview) {
         );
         const branding = {
             ...stripTheme(themeKey),
-            caption: captionInput.value.trim() || nameInput.value.trim() || 'Your event',
+            // Mirrors Event::stripCaption(): the tick beats both fields. The
+            // placeholder stands in for a name the host has not typed yet, which
+            // the server never sees because the field is required.
+            caption: captionHidden?.checked
+                ? ''
+                : captionInput.value.trim() || nameInput.value.trim() || 'Your event',
             logo,
             backgroundImage: backgroundScaled,
         };
@@ -134,6 +140,7 @@ if (form && preview) {
     for (const field of [nameInput, captionInput]) {
         field.addEventListener('input', render);
     }
+    captionHidden?.addEventListener('change', render);
     for (const radio of form.querySelectorAll('[name="template"], [name="theme"]')) {
         radio.addEventListener('change', () => {
             // The strip's size changes with the layout, so the artwork has to be

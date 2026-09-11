@@ -55,13 +55,29 @@ class Event extends Model
 
     public const PURGE_GRACE_DAYS = 30;
 
-    protected $fillable = ['name', 'code', 'closed_at', 'template', 'theme', 'caption', 'logo_path', 'background_path', 'owner_id', 'album_privacy', 'album_pin', 'photos_expire_at'];
+    protected $fillable = ['name', 'code', 'closed_at', 'template', 'theme', 'caption', 'caption_hidden', 'logo_path', 'background_path', 'owner_id', 'album_privacy', 'album_pin', 'photos_expire_at'];
 
     protected $casts = [
+        'caption_hidden' => 'boolean',
         'closed_at' => 'datetime',
         'photos_expire_at' => 'datetime',
         'photos_purged_at' => 'datetime',
     ];
+
+    // What the strip actually prints in its footer, decided here rather than on
+    // the phone: "the caption, or failing that the event name" was a rule the
+    // booth carried, and it left a host with a background whose artwork already
+    // says their name no way at all to stop a second one printing over it. An
+    // empty field cannot mean that — ConvertEmptyStringsToNull hands the server
+    // the same null for "cleared" and "never typed" — so the choice is its own
+    // column, and the booth is simply told the answer.
+    //
+    // A logo still wins over both: it replaces the caption in the footer, and a
+    // host who wants neither removes the logo as well.
+    public function stripCaption(): string
+    {
+        return $this->caption_hidden ? '' : ($this->caption ?: $this->name);
+    }
 
     public function isClosed(): bool
     {

@@ -265,6 +265,9 @@ The host does half of this from their own phone at a venue, not from a desk.
       Then change the layout: the artwork re-crops to the new strip shape rather than stretching.
       Then tick "Remove the current background" and watch it go. Also try a PNG with transparency
       over two different strip colours — the theme is the ground it tints, not something it hides.
+- [ ] **Tick "No caption"** in the same fold. The preview's footer goes blank immediately, and a
+      strip shot from that booth has nothing printed in it. Untick it: the caption the host typed
+      comes back rather than having been cleared.
 - [ ] **"Album · …"** fold: the three privacy choices are prose radios, not swatches, and the
       summary line states the current setting without opening the fold. **Re-check at 375px:** the
       fold grew a second hint — "This controls who can open the *album*. A photo's own link still

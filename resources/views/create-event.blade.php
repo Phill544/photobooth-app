@@ -27,6 +27,10 @@
         .field > label.muted { display: flex; align-items: center; gap: var(--space-xs);
             font-family: var(--font-sans); text-transform: none; letter-spacing: 0;
             margin-top: var(--space-xs); }
+        /* A tick is prose, not a mono field label — same rule the edit fold uses. */
+        .field > label.muted { display: flex; align-items: center; gap: var(--space-xs);
+            font-family: var(--font-sans); text-transform: none; letter-spacing: 0;
+            margin-top: var(--space-xs); }
         .pair { display: flex; flex-wrap: wrap; gap: var(--space-lg); }
         .pair > .field { flex: 1 1 180px; }
         .pair input { border-bottom-width: 1px; font-size: var(--text-base); }
@@ -96,6 +100,8 @@
                     <div class="field">
                         <label for="caption">Caption</label>
                         <input id="caption" name="caption" maxlength="60" placeholder="defaults to the event name" value="{{ old('caption') }}">
+                        <label class="muted"><input type="checkbox" name="caption_hidden" value="1"
+                                @checked(old('caption_hidden'))> No caption &mdash; my artwork has its own</label>
                     </div>
                     <div class="field">
                         <label for="logo">Logo</label>

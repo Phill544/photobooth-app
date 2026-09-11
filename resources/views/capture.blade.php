@@ -169,7 +169,7 @@
         #rotate-overlay svg { display: block; margin: 0 auto var(--space-md); color: var(--text-faint); }
     </style>
 </head>
-<body class="ctx-dark" data-event-code="{{ $event->code }}" data-event-name="{{ $event->name }}" data-template="{{ $event->template }}" data-theme="{{ $event->theme }}" data-caption="{{ $event->caption }}" data-logo="{{ $event->logo_path ? url($event->logoUrl()) : '' }}" data-background="{{ $event->background_path ? url($event->backgroundUrl()) : '' }}">
+<body class="ctx-dark" data-event-code="{{ $event->code }}" data-event-name="{{ $event->name }}" data-template="{{ $event->template }}" data-theme="{{ $event->theme }}" data-caption="{{ $event->stripCaption() }}" data-logo="{{ $event->logo_path ? url($event->logoUrl()) : '' }}" data-background="{{ $event->background_path ? url($event->backgroundUrl()) : '' }}">
     {{-- A hidden album is the host's alone, so the booth stops offering a door
          that would only answer 403 — and the consent line has to say who is
          really going to see the strip, because that is the promise the guest

@@ -193,7 +193,14 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
   The artwork is drawn **over the theme fill, under the cells, and never over the footer**: the
   fill stays so a transparent PNG tints the host's colour rather than punching through to nothing,
   and the footer goes on last so a background can change the ground the caption sits on but can
-  never take the strip's one line of text. Fitting is **cover** — `centeredCrop` as the source rect
+  never take the strip's one line of text — unless the host says so. **`events.caption_hidden` is
+  that switch**, and it has to be a column: an empty caption field cannot mean it, because
+  `ConvertEmptyStringsToNull` hands the server the same `null` for "cleared" and "never typed", and
+  the booth then falls back to the event name. `Event::stripCaption()` resolves the whole rule
+  server-side — the tick beats a typed caption beats the event name — and the booth is told the
+  answer in `data-caption` rather than working it out again. The typed caption is *kept* while
+  hidden, so unticking gives the host their words back. A logo still outranks both.
+  Fitting is **cover** — `centeredCrop` as the source rect
   of a nine-argument `drawImage`, the same call `camera.ts` already makes. Never stretch (it
   distorts the one thing the feature exists to preserve) and never contain (bars in a colour the
   host abandoned, on a hundred guests' strips). Changing template re-crops rather than invalidating

@@ -58,7 +58,9 @@ export function composeStrip(
     if (branding.logo) {
         const box = logoBox(branding.logo, band);
         ctx.drawImage(branding.logo, box.x, box.y, box.width, box.height);
-    } else {
+    } else if (branding.caption) {
+        // Empty means the host said so — their artwork already carries the words,
+        // and a second line over the top is the thing they were trying to avoid.
         // The context is the only thing that knows how wide the text really is.
         const line = captionLine(branding.caption, band, (text, font) => {
             ctx.font = font;

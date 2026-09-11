@@ -68,7 +68,14 @@ class EventController extends Controller
             ...self::artworkRules(),
         ]);
 
-        $event = Event::create([...$validated, 'owner_id' => $request->user()->id]);
+        $event = Event::create([
+            ...$validated,
+            'owner_id' => $request->user()->id,
+            // An unticked checkbox sends nothing at all, so this is read off the
+            // request rather than the validated set, where absence would simply
+            // leave the column alone.
+            'caption_hidden' => $request->boolean('caption_hidden'),
+        ]);
         $this->applyImage($request, $event, 'logo');
         $this->applyImage($request, $event, 'background');
 
@@ -133,7 +140,7 @@ class EventController extends Controller
             ...self::artworkRules(),
         ]);
 
-        $event->update($validated);
+        $event->update([...$validated, 'caption_hidden' => $request->boolean('caption_hidden')]);
         $this->applyImage($request, $event, 'logo');
         $this->applyImage($request, $event, 'background');
 

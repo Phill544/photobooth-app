@@ -17,7 +17,7 @@ const template = templateFor(document.body.dataset.template ?? '');
 const cellAspect = template.cellWidth / template.cellHeight;
 const branding: Branding = {
     ...stripTheme(document.body.dataset.theme ?? ''),
-    caption: document.body.dataset.caption || eventName,
+    caption: document.body.dataset.caption ?? '',
     logo: null,
     backgroundImage: null,
 };
