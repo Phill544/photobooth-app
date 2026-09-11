@@ -1,4 +1,5 @@
 import { cameraIsLive, grabFrame, onCameraLost, startCamera, toJpegBlob } from './camera';
+import { loadBrandingImage } from './branding-assets';
 import { nextState, type FlowEvent, type FlowState } from './capture-flow';
 import { androidChromeIntent, cameraSupported, detectInApp, isIOS } from './in-app';
 import { FILTERS, filterFor, type Filter } from './filters';
@@ -20,15 +21,16 @@ const branding: Branding = {
     logo: null,
 };
 
-// Preload the event's logo (same-origin, so it won't taint the strip canvas).
-// It's a small image and loads well before the review screen; if it somehow
-// isn't ready, the strip falls back to the caption text.
-const logoUrl = document.body.dataset.logo;
-if (logoUrl) {
-    const logo = new Image();
-    logo.onload = () => { branding.logo = logo; };
-    logo.src = logoUrl;
-}
+// Preload the event's logo (same-origin, so it won't taint the strip canvas)
+// and keep the promise, because compose is a one-shot: whatever has not arrived
+// by the time the strip is drawn is absent from the guest's only copy, and
+// nothing redraws it. Comfortably shorter than the fastest route to review —
+// one shot is a 3s countdown and a 250ms flash — so in practice this is settled
+// long before it is awaited, and the deadline only ever pays out for a stalled
+// request that would otherwise hold the review screen shut. See branding-assets.
+const BRANDING_DEADLINE_MS = 3000;
+const brandingReady = loadBrandingImage(document.body.dataset.logo, () => new Image(), BRANDING_DEADLINE_MS)
+    .then((logo) => { branding.logo = logo; });
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
 
@@ -189,7 +191,7 @@ function runEffects(previous: FlowState) {
     if (state.screen === 'countdown') scheduleTick();
     if (state.screen === 'customise' && previous.screen !== 'customise') paintLookThumbnails();
     if (state.screen === 'flash' && previous.screen !== 'flash') captureShot();
-    if (state.screen === 'review' && previous.screen !== 'review') { showStripPreview(); prepareStripShare(); }
+    if (state.screen === 'review' && previous.screen !== 'review') void showStripPreview().then(prepareStripShare);
     if (state.screen === 'uploading' && previous.screen !== 'uploading') void runUpload();
     if (state.screen === 'done' && previous.screen !== 'done') void releaseWakeLock();
     // Reset can now land on the start screen holding the lock the camera took —
@@ -219,7 +221,8 @@ function captureShot() {
     }, 250);
 }
 
-function showStripPreview() {
+async function showStripPreview() {
+    await brandingReady;
     strip = composeStrip(shots, template, branding);
     stripPreview.src = strip.toDataURL('image/jpeg', 0.85);
 }
@@ -234,6 +237,10 @@ function shareFailed() {
 
 async function shareToAlbum() {
     if (state.screen !== 'review') return;
+    // The strip is composed a tick after this screen renders, and Share is live
+    // the moment it does. Nothing to send yet is not a failure to report — the
+    // shareFailed copy tells a guest to save and retry, which would be a lie.
+    if (!strip) return;
     shareError.hidden = true;
     pendingGroup = crypto.randomUUID();
     pendingUploads = [

@@ -165,6 +165,7 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
 - Pure (Vitest): `capture-flow.ts` (the whole booth as a state machine), `strip-layout.ts` (grid
   geometry), `strip-footer.ts` (the footer band — the logo box, and the caption's typesetting),
   `strip-theme.ts`, `filters.ts` (CSS strings + colour matrices), `upload-queue.ts`, `in-app.ts`,
+  `branding-assets.ts` (loading the strip's artwork on a clock — see below),
   `pending-session.ts` (the IndexedDB store, tested for real against `fake-indexeddb`).
   `templates.ts` is pure too but has no test of its own: it is the registry the rest read, and it
   is exercised through them.
@@ -172,6 +173,18 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
   state machine to the DOM), `strip-compose.ts` (draws the strip; every measurement it uses comes
   from `strip-layout.ts` and `strip-footer.ts`, which is where the tests are), `wake-lock.ts`,
   `strip-preview.ts` (live preview on create/edit forms), `upload.ts`.
+- **The strip is composed once, so its branding has to be there by then.** `composeStrip` runs a
+  single time, on entering `review`, from whatever `branding` holds at that moment — nothing
+  redraws it afterwards, and the guest's copy is the only one. The logo was preloaded
+  fire-and-forget with no `onerror`, so losing the race silently cost the caption. `capture.ts`
+  now holds the load as a promise and awaits it before composing. **The deadline in
+  `branding-assets.ts` is the load-bearing part**: wifi that accepts a connection and then stalls
+  fires neither `load` nor `error`, and a bare await would hold the review screen — and the Save
+  link that is the guest's only way to keep the night — shut for good. It settles either way, and
+  a strip goes out plain rather than not at all. `shareToAlbum` returns early on a strip that is
+  not composed yet, because Share is live the moment the screen renders and its failure copy
+  ("save your strip, then try again") would be a lie.
+
 - **No screen is a dead end.** Every guest screen leads somewhere without the back button, which
   at an event may be several taps deep inside a QR scanner. In the booth that is one `reset`
   `FlowEvent`, accepted from the five screens a guest can be left standing on (`review`, `done`,

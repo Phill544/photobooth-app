@@ -93,6 +93,13 @@ Its siblings: [HANDOVER.md](HANDOVER.md) (the map + conventions),
       alive across it, so the next run starts without a second permission prompt.
 - [x] Try every template — classic (3), quad (4), grid (2×2), single — the shot count is
       template-driven, never hard-coded.
+- [ ] **An event with a logo, on a throttled connection.** The strip is composed once, from
+      whatever branding has arrived, so this is the only check that the logo is actually on it.
+      Set an event's logo, throttle to Slow 3G in devtools (or turn wifi off and use a weak
+      signal), and shoot a full run: the strip in the mat must carry the logo, not the caption.
+      Then repeat with the connection cut *after* the page loads — the strip must still arrive,
+      with the caption instead, within a few seconds. A review screen that never paints is the
+      failure this is looking for, because it takes the Save link with it.
 - [ ] **A long event name still prints inside the strip.** The caption defaults to the event name,
       which may be 100 characters, and the strip is composed on the phone — so this is the phone's
       own typesetting, not the desktop preview's. Check one name of ~45 characters (shrinks to fit)
