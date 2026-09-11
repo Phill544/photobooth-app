@@ -64,3 +64,14 @@ it('opens the edit fold when a background is rejected', function () {
         ])
         ->assertSee('<details class="edit" id="edit" open', false);
 });
+
+it('offers the layout guide on both forms', function () {
+    $this->get('/new')->assertOk()->assertSee('data-strip-guide', false);
+    $this->get('/events/PARTY2')->assertOk()->assertSee('data-strip-guide', false);
+});
+
+// The link is inert until the PNG has been drawn and its object URL set, so it
+// ships disabled rather than as a control that silently downloads nothing.
+it('ships the guide link disabled, for the script to arm', function () {
+    $this->get('/new')->assertOk()->assertSee('data-strip-guide download aria-disabled="true"', false);
+});

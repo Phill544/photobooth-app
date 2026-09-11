@@ -293,6 +293,10 @@
                             @if ($event->background_path)
                                 <label class="muted"><input type="checkbox" name="remove_background" value="1"> Remove the current background</label>
                             @endif
+                            <a class="btn btn--ghost btn--small" data-strip-guide download aria-disabled="true">Download the layout guide</a>
+                            <p class="hint">A PNG at the exact size of the strip you picked, with the
+                                photo windows marked. Work in pixels &mdash; a strip is shown on a
+                                phone, never printed.</p>
                         </div>
 
                         <button>Save changes</button>

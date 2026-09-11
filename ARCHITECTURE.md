@@ -169,6 +169,7 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
   geometry), `strip-footer.ts` (the footer band — the logo box, and the caption's typesetting),
   `strip-theme.ts`, `filters.ts` (CSS strings + colour matrices), `upload-queue.ts`, `in-app.ts`,
   `branding-assets.ts` (loading the strip's artwork on a clock — see below),
+  `strip-guide.ts` (the layout guide's marks and filename; its painter is glue in the same file),
   `pending-session.ts` (the IndexedDB store, tested for real against `fake-indexeddb`).
   `templates.ts` is pure too but has no test of its own: it is the registry the rest read, and it
   is exercised through them.
@@ -205,6 +206,20 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
   distorts the one thing the feature exists to preserve) and never contain (bars in a colour the
   host abandoned, on a hundred guests' strips). Changing template re-crops rather than invalidating
   anything, and the host sees that in the live preview before they save.
+- **The host is told the size, and handed the bounds.** A background is useless if a host has to
+  guess the canvas, and there is no single number to print: two of the four layouts are portrait
+  and two landscape, so `stripSizeLabel()` rides on the forms' existing summary line and follows
+  the layout picker. Beside it, "Download the layout guide" builds a PNG at exactly that size with
+  the photo windows knocked out, the mat and the caption box dashed, and the dimensions written on
+  it — generated client-side by `strip-guide.ts`, never checked in. That is the point: four static
+  PNGs in `public/` would be a fifth mirror of numbers that have already moved once, and the day
+  one drifted, the host who found out would be the one at the event. Its windows are the *matted*
+  rects, which is why `MATTED_PHOTO_SHARE` lives in `strip-layout.ts` where both the guide and
+  compose read it — two copies would be 38.4px of quiet disagreement between what a host designs
+  against and what the booth draws. Every label sits inside a photo window or the caption box, the
+  only regions a host is not designing into. It is rebuilt on the layout radio alone, and its old
+  object URL is revoked *inside* the `toBlob` callback after the new href is set: revoking first
+  leaves a window where a click downloads nothing, silently.
 
 - **The strip is composed once, so its branding has to be there by then.** `composeStrip` runs a
   single time, on entering `review`, from whatever `branding` holds at that moment — nothing

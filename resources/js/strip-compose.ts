@@ -1,6 +1,6 @@
 import { centeredCrop } from './crop';
 import { captionLine, footerBand, logoBox } from './strip-footer';
-import { cellRects, insetRect, stripSize } from './strip-layout';
+import { cellRects, insetRect, MATTED_PHOTO_SHARE, stripSize } from './strip-layout';
 import type { StripColours } from './strip-theme';
 import type { StripTemplate } from './templates';
 
@@ -13,13 +13,6 @@ export type Branding = StripColours & {
     // to the strip once rather than rescaling it on every keystroke.
     backgroundImage?: HTMLImageElement | HTMLCanvasElement | null;
 };
-
-// How much of its cell a photo gives back to the mat when the event has a
-// background. Without it the artwork survives only in the 24px gutters — 2.4%
-// of a classic strip's width — and a host cannot design for a hairline. At 0.08
-// the margin is 62px and about a quarter of the strip is theirs. Zero when
-// there is no background, so a plain strip composes exactly as it always has.
-const MATTED_PHOTO_SHARE = 0.08;
 
 export function composeStrip(
     shots: HTMLCanvasElement[],

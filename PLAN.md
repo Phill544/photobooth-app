@@ -118,7 +118,9 @@ Growing the guest experience. Sequence: templates → branding → filters → G
    A plain strip is unchanged — the inset is zero without a background. A host whose artwork
    already carries their name across the foot of it can tick **"No caption"**
    (`events.caption_hidden`, resolved by `Event::stripCaption()`), which is the only way to reach a
-   clean footer: an empty caption field falls back to the event name.
+   clean footer: an empty caption field falls back to the event name. Both forms state the strip's
+   exact pixel size, live, next to a **"Download the layout guide"** link — a PNG at that size with
+   the photo windows knocked out, generated from the same registry the booth composes from.
 3. ~~**Filters**~~ — done: an opt-in "Add a filter" path (quick shoot stays filter-free) with a
    live-preview chip picker (None/Noir/Golden/Cool/Pop/Film). `filters.ts` defines each look once as
    an op list → CSS string (preview + Chrome ctx.filter fast path) AND a 4×5 colour matrix (the iOS

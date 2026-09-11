@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cellRects, insetRect, stripSize } from './strip-layout';
+import { cellRects, insetRect, stripSize, stripSizeLabel } from './strip-layout';
 import { TEMPLATES, templateFor, type StripTemplate } from './templates';
 
 function template(overrides: Partial<StripTemplate> = {}): StripTemplate {
@@ -160,5 +160,29 @@ describe('insetRect', () => {
                 expect(photo.width / photo.height).toBeCloseTo(rect.width / rect.height);
             }
         }
+    });
+});
+
+// A host designing artwork needs the number, and it is not one number: the four
+// layouts are two portraits and two landscapes, so the line has to follow the
+// picker rather than sit in the copy.
+describe('stripSizeLabel', () => {
+    it('states the exact pixel size of the layout in hand', () => {
+        expect(stripSizeLabel(templateFor('classic'))).toBe('1008 \u00d7 2352 px');
+    });
+
+    it('gives the grid its own landscape size, because artwork is not interchangeable', () => {
+        expect(stripSizeLabel(templateFor('grid'))).toBe('1992 \u00d7 1608 px');
+    });
+
+    it('reads the size off the template rather than a table of four answers', () => {
+        expect(stripSizeLabel(template({ cellWidth: 600, cellHeight: 450 }))).toBe('648 \u00d7 1542 px');
+    });
+
+    it('uses the same multiplication sign the layout labels do', () => {
+        // templates.ts calls the grid "Grid \u00b7 2\u00d72"; an ASCII x here would be
+        // the app writing two different characters for the same idea.
+        expect(stripSizeLabel(templateFor('single'))).toContain(' \u00d7 ');
+        expect(stripSizeLabel(templateFor('single'))).not.toContain(' x ');
     });
 });

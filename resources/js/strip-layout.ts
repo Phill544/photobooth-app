@@ -15,6 +15,25 @@ export function stripSize(template: StripTemplate): { width: number; height: num
     };
 }
 
+// The strip's size, said out loud. A host designing a background needs the
+// number before they open Canva, and there is no single answer — two of the
+// four layouts are portrait and two landscape — so this takes a template and
+// the forms re-render it as the picker moves. U+00D7, matching the "2×2" in
+// the layout labels rather than writing an ASCII x for the same idea.
+export function stripSizeLabel(template: StripTemplate): string {
+    const { width, height } = stripSize(template);
+
+    return `${width} × ${height} px`;
+}
+
+// How much of its cell a photo gives back to the mat when the event has a
+// background. Without it the artwork survives only in the 24px gutters — 2.4%
+// of a classic strip's width — and a host cannot design for a hairline. At 0.08
+// the margin is 62px and about a quarter of the strip is theirs. It lives here
+// rather than in strip-compose.ts because the layout guide has to mark exactly
+// the boxes compose will draw; two copies would be 38.4px of quiet disagreement.
+export const MATTED_PHOTO_SHARE = 0.08;
+
 // Shrink a rect about its own centre by a share of itself. Used to pull each
 // photo in from its cell when the event has a background: the cells cover
 // 79-87% of a strip, so without this a host's artwork survives only in the 24px

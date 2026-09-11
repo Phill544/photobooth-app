@@ -18,7 +18,7 @@ export const CAPTION_FONT_STACK = 'system-ui, sans-serif';
 // context, which is the only thing that knows how wide a glyph really is.
 export type Measure = (text: string, font: string) => number;
 
-const LOGO_HEIGHT_SHARE = 0.62; // of the band
+export const LOGO_HEIGHT_SHARE = 0.62; // of the band
 const LOGO_WIDTH_SHARE = 0.7; // of the strip
 const CAPTION_HEIGHT_SHARE = 0.4; // of the band
 const CAPTION_FLOOR_SHARE = 0.25; // of the band — smaller than this and we ellipsise instead
@@ -36,6 +36,20 @@ export function footerBand(strip: Size, template: StripTemplate): FooterBand {
 // A logo takes the footer instead of the caption text — one or the other. It is
 // scaled to the band (up as well as down: a small logo fills it rather than
 // floating in the middle of an empty mat) and centred.
+// The box the footer's ink can occupy — as wide as the photos above it, as tall
+// as the biggest logo, centred on the band. Nothing draws this; the layout guide
+// marks it so a host knows what their artwork will have printed over it.
+export function footerSafeRect(band: FooterBand): Rect {
+    const height = band.height * LOGO_HEIGHT_SHARE;
+
+    return {
+        x: (band.width - band.innerWidth) / 2,
+        y: band.centerY - height / 2,
+        width: band.innerWidth,
+        height,
+    };
+}
+
 export function logoBox(logo: Size, band: FooterBand): Rect {
     const scale = Math.min(
         (band.height * LOGO_HEIGHT_SHARE) / logo.height,

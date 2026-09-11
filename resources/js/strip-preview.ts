@@ -7,7 +7,8 @@
 
 import { centeredCrop } from './crop';
 import { composeStrip } from './strip-compose';
-import { stripSize } from './strip-layout';
+import { drawGuide, guideFilename } from './strip-guide';
+import { stripSize, stripSizeLabel } from './strip-layout';
 import { STRIP_THEMES, stripTheme } from './strip-theme';
 import { TEMPLATES, templateFor, type StripTemplate } from './templates';
 
@@ -19,6 +20,7 @@ if (form && preview) {
     const captionInput = form.querySelector<HTMLInputElement>('[name="caption"]')!;
     const captionHidden = form.querySelector<HTMLInputElement>('[name="caption_hidden"]');
     const summary = document.querySelector<HTMLElement>('[data-strip-summary]');
+    const guideLink = document.querySelector<HTMLAnchorElement>('[data-strip-guide]');
 
     // Both pickers are radio groups, so the checked input is the current choice.
     const chosen = (name: string) => form.querySelector<HTMLInputElement>(`[name="${name}"]:checked`)?.value ?? '';
@@ -75,6 +77,25 @@ if (form && preview) {
     };
 
 
+    // Rebuilt on the layout radio only — the guide is a pure function of the
+    // template, so redrawing it on every keystroke in the caption field would be
+    // waste. The old object URL is revoked *inside* the callback, after the new
+    // href is set: revoking first leaves a window where a click downloads
+    // nothing at all, silently.
+    let guideUrl: string | null = null;
+    const rebuildGuide = (template: StripTemplate, templateKey: string) => {
+        if (!guideLink) return;
+
+        drawGuide(template).toBlob((blob) => {
+            if (!blob) return;
+            const previous = guideUrl;
+            guideUrl = URL.createObjectURL(blob);
+            guideLink.href = guideUrl;
+            guideLink.download = guideFilename(templateKey, stripSize(template));
+            guideLink.removeAttribute('aria-disabled');
+            if (previous) URL.revokeObjectURL(previous);
+        }, 'image/png');
+    };
 
     const render = () => {
         const templateKey = chosen('template');
@@ -96,7 +117,10 @@ if (form && preview) {
             backgroundImage: backgroundScaled,
         };
         preview.src = composeStrip(shots, template, branding).toDataURL('image/jpeg', 0.85);
-        if (summary) summary.textContent = `${labelFor(TEMPLATES, templateKey)} · ${labelFor(STRIP_THEMES, themeKey)}`;
+        if (summary) {
+            summary.textContent =
+                `${labelFor(TEMPLATES, templateKey)} · ${labelFor(STRIP_THEMES, themeKey)} · ${stripSizeLabel(template)}`;
+        }
     };
 
     // One image field: its file input, its "remove" tick, and whatever is
@@ -146,9 +170,12 @@ if (form && preview) {
             // The strip's size changes with the layout, so the artwork has to be
             // re-cropped to it before the repaint that shows the new shape.
             rescaleBackground(templateFor(chosen('template')));
+            rebuildGuide(templateFor(chosen('template')), chosen('template'));
             render();
         });
     }
+
+    rebuildGuide(templateFor(chosen('template')), chosen('template'));
 
     pickedImage('logo', form.dataset.logoUrl, (image) => { logo = image; render(); });
     pickedImage('background', form.dataset.backgroundUrl, (image) => {

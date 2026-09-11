@@ -265,6 +265,10 @@ The host does half of this from their own phone at a venue, not from a desk.
       Then change the layout: the artwork re-crops to the new strip shape rather than stretching.
       Then tick "Remove the current background" and watch it go. Also try a PNG with transparency
       over two different strip colours — the theme is the ground it tints, not something it hides.
+- [ ] **Download the layout guide from a phone**, from both `/new` and the edit fold. It must open
+      at the pixel size the line beside it states, the number must change when you change layout,
+      and the file name must carry the layout and the size. Check the photo windows sit where the
+      preview's photos do — that is the promise the whole feature rests on.
 - [ ] **Tick "No caption"** in the same fold. The preview's footer goes blank immediately, and a
       strip shot from that booth has nothing printed in it. Untick it: the caption the host typed
       comes back rather than having been cleared.
