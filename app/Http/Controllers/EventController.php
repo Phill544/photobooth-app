@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Event;
 use App\Support\Deliverability;
+use App\Support\Durability;
 use App\Support\ImageResponse;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
@@ -182,6 +183,17 @@ class EventController extends Controller
         if (! $request->hasFile('logo') && ! $request->boolean('remove_logo')) {
             return;
         }
+
+        // The same per-request check the booth's uploads get, for the same
+        // reason — except a host's branding is worse off than a guest's photo:
+        // nothing can be re-shot, the original is on the host's own machine, and
+        // a logo that vanished on the next deploy gives them no reason to look.
+        // Only a write is refused; a removal stores nothing, and refusing that
+        // would strand a host with branding they cannot take back off.
+        abort_if(
+            $request->hasFile('logo') && Durability::diskIsEphemeral(),
+            503, 'Branding storage is not configured durably.'
+        );
 
         // Write the replacement before dropping the old one, and check that it
         // landed: the disk returns false rather than throwing when it refuses a

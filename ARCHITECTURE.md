@@ -262,7 +262,11 @@ disk silently fell back to `local` and every photo written was lost, with no err
 two guards now exist, and neither is optional. `App\Support\Durability::diskIsEphemeral()` is asked
 **per upload request** (a bucket can be detached, a preview environment gets none, a worker
 container can lack the injected config) and refuses the write with a 503, which the client retries
-and the phone survives. `php artisan photobooth:check-storage` asks the same question as a **deploy
+and the phone survives. **`applyLogo` asks it too**, and went a long time without: a host's
+branding is worse off than a guest's photo, because there is nothing to re-shoot, the original is
+on the host's own machine, and a logo that disappeared on the next deploy gives them no reason to
+go and look. Only a *write* is refused there — a removal stores nothing, and refusing it would
+strand a host on such a disk with branding they cannot take back off. `php artisan photobooth:check-storage` asks the same question as a **deploy
 command**, plus a write/read round trip, so a release configured that way should not go live at all;
 `--photos` adds the after-the-fact question (how many photo rows point at a file that isn't there),
 which is the only way anyone would find out that something had already gone.

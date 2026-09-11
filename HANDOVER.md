@@ -47,7 +47,7 @@ storage disk has → **download-all**: a queued job zips a whole night into one 
 host a signed, expiring link → **an owner page that answers what it was asked**: every control
 redirects back to its own fold with a line saying what happened, a fragment from anywhere opens the
 fold it names, and the confirmation a verification writes is finally rendered rather than dropped.
-**400 Pest + 114 Vitest tests green.** Every feature slice was built red/green and then put
+**402 Pest + 114 Vitest tests green.** Every feature slice was built red/green and then put
 through an adversarial review (see Conventions).
 
 ## Stack & how to run
