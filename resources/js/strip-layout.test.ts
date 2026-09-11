@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cellRects, stripSize } from './strip-layout';
+import { cellRects, insetRect, stripSize } from './strip-layout';
 import { TEMPLATES, templateFor, type StripTemplate } from './templates';
 
 function template(overrides: Partial<StripTemplate> = {}): StripTemplate {
@@ -114,6 +114,50 @@ describe('the sizes the real registry produces', () => {
         for (const { key } of TEMPLATES) {
             for (const cell of cellRects(templateFor(key))) {
                 expect([cell.width, cell.height]).toEqual([960, 720]);
+            }
+        }
+    });
+});
+
+// A strip's cells cover 79-87% of it, so artwork drawn behind them survives
+// only in the 24px gutters — a hairline nobody can design for. When an event
+// has a background each photo is drawn a little smaller than its cell, which
+// turns those gutters into a mat wide enough to read. It is a share of the
+// cell rather than a pixel figure so it survives the next cell resize.
+describe('insetRect', () => {
+    const cell = { x: 24, y: 24, width: 960, height: 720 };
+
+    it('keeps the cell aspect, so what a guest framed is still what lands', () => {
+        const photo = insetRect(cell, 0.08);
+
+        expect(photo.width / photo.height).toBeCloseTo(cell.width / cell.height);
+    });
+
+    it('centres the smaller photo in its cell', () => {
+        const photo = insetRect(cell, 0.08);
+
+        expect(photo.width).toBeCloseTo(883.2);
+        expect(photo.height).toBeCloseTo(662.4);
+        expect(photo.x).toBeCloseTo(62.4);
+        expect(photo.y).toBeCloseTo(52.8);
+    });
+
+    it('leaves the same margin on all four sides', () => {
+        const photo = insetRect(cell, 0.08);
+
+        expect(photo.x - cell.x).toBeCloseTo(cell.x + cell.width - (photo.x + photo.width));
+        expect(photo.y - cell.y).toBeCloseTo(cell.y + cell.height - (photo.y + photo.height));
+    });
+
+    it('returns the cell untouched at no inset, so a plain strip is unchanged', () => {
+        expect(insetRect(cell, 0)).toEqual(cell);
+    });
+
+    it('insets every template the same, because the share is of the cell', () => {
+        for (const { key } of TEMPLATES) {
+            for (const rect of cellRects(templateFor(key))) {
+                const photo = insetRect(rect, 0.08);
+                expect(photo.width / photo.height).toBeCloseTo(rect.width / rect.height);
             }
         }
     });

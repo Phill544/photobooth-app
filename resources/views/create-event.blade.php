@@ -23,6 +23,10 @@
            at least as often as on the dashboard. */
         .status { margin: 0 0 var(--space-lg); color: var(--ok); font-size: var(--text-sm); }
         #name { font-family: var(--font-display); font-size: 1.625rem; font-weight: 400; }
+        /* A tick is prose, not a mono field label — same rule the edit fold uses. */
+        .field > label.muted { display: flex; align-items: center; gap: var(--space-xs);
+            font-family: var(--font-sans); text-transform: none; letter-spacing: 0;
+            margin-top: var(--space-xs); }
         .pair { display: flex; flex-wrap: wrap; gap: var(--space-lg); }
         .pair > .field { flex: 1 1 180px; }
         .pair input { border-bottom-width: 1px; font-size: var(--text-base); }
@@ -100,6 +104,13 @@
                     </div>
                 </div>
 
+                <div class="field">
+                    <label for="background">Background</label>
+                    <input id="background" name="background" type="file" accept="image/png,image/jpeg,image/webp">
+                    <p class="hint">Sits behind the photos. Guests see the border around them and the
+                        strip's foot &mdash; the photos cover the middle. Watch the preview.</p>
+                </div>
+
                 <div class="submit">
                     <button class="btn--accent btn--hero">Open the booth</button>
                     <p>You'll get a QR poster to print.</p>
@@ -110,6 +121,7 @@
                 @error('theme') <p class="error">{{ $message }}</p> @enderror
                 @error('caption') <p class="error">{{ $message }}</p> @enderror
                 @error('logo') <p class="error">{{ $message }}</p> @enderror
+                @error('background') <p class="error">{{ $message }}</p> @enderror
             </form>
         </div>
 

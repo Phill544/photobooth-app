@@ -65,11 +65,12 @@ class EventController extends Controller
             'template' => ['sometimes', Rule::in(array_keys(Event::TEMPLATES))],
             'theme' => ['sometimes', Rule::in(array_keys(Event::STRIP_THEMES))],
             'caption' => ['nullable', 'string', 'max:60'],
-            'logo' => ['nullable', 'image', 'mimes:png,jpeg,webp', 'max:2048'],
+            ...self::artworkRules(),
         ]);
 
         $event = Event::create([...$validated, 'owner_id' => $request->user()->id]);
-        $this->applyLogo($request, $event);
+        $this->applyImage($request, $event, 'logo');
+        $this->applyImage($request, $event, 'background');
 
         return redirect("/events/{$event->code}");
     }
@@ -79,6 +80,13 @@ class EventController extends Controller
         abort_if(! $event->logo_path, 404);
 
         return ImageResponse::immutable($request, $event->logo_path);
+    }
+
+    public function background(Request $request, Event $event)
+    {
+        abort_if(! $event->background_path, 404);
+
+        return ImageResponse::immutable($request, $event->background_path);
     }
 
     public function show(Event $event)
@@ -122,11 +130,12 @@ class EventController extends Controller
             'template' => ['sometimes', Rule::in(array_keys(Event::TEMPLATES))],
             'theme' => ['sometimes', Rule::in(array_keys(Event::STRIP_THEMES))],
             'caption' => ['nullable', 'string', 'max:60'],
-            'logo' => ['nullable', 'image', 'mimes:png,jpeg,webp', 'max:2048'],
+            ...self::artworkRules(),
         ]);
 
         $event->update($validated);
-        $this->applyLogo($request, $event);
+        $this->applyImage($request, $event, 'logo');
+        $this->applyImage($request, $event, 'background');
 
         return $this->backToFold($event, 'edit', 'Saved. New strips use this look.');
     }
@@ -177,32 +186,66 @@ class EventController extends Controller
         return redirect('/dashboard');
     }
 
-    // Stores a newly uploaded logo (replacing any old one), or removes it.
-    private function applyLogo(Request $request, Event $event): void
+    // What a host may upload, for both the create form and the edit fold.
+    //
+    // The logo sits in the footer and 2MB is plenty. A background is the whole
+    // strip, so that cap would refuse the very files the layout guide invites —
+    // but the byte size is not the risk. A guest's phone decodes this to raw
+    // RGBA at four bytes a pixel however well it compressed, so a modest
+    // 4000x9000 PNG is 137 MiB on an old iPhone that is already holding four
+    // shots and a composed strip. The dimension ceiling is therefore the real
+    // guard, and it is cheap: Laravel reads the size out of the header rather
+    // than decoding the file. 2048x3200 clears every template at 1x.
+    //
+    // No SVG in `mimes`, and it must stay that way: the `dimensions` rule waves
+    // SVG straight through, so relaxing this would silently disarm the ceiling
+    // above — and an SVG served inline on our own origin is stored XSS sitting
+    // next to the album's session cookie.
+    private static function artworkRules(): array
     {
-        if (! $request->hasFile('logo') && ! $request->boolean('remove_logo')) {
+        return [
+            'logo' => ['nullable', 'image', 'mimes:png,jpeg,webp', 'max:2048'],
+            'background' => ['nullable', 'image', 'mimes:png,jpeg,webp', 'max:8192', 'dimensions:max_width=2048,max_height=3200'],
+        ];
+    }
+
+    // The two pieces of artwork a host owns: `logo` in the strip's footer, and
+    // `background` behind the whole strip. Same pipeline, one field name — the
+    // column, the directory and the removal checkbox are all derived from it, so
+    // the second one cannot drift from the first.
+    //
+    // Stores a newly uploaded file (replacing any old one), or removes it.
+    private function applyImage(Request $request, Event $event, string $field): void
+    {
+        $column = "{$field}_path";
+
+        if (! $request->hasFile($field) && ! $request->boolean("remove_{$field}")) {
             return;
         }
 
         // The same per-request check the booth's uploads get, for the same
-        // reason — except a host's branding is worse off than a guest's photo:
+        // reason — except a host's artwork is worse off than a guest's photo:
         // nothing can be re-shot, the original is on the host's own machine, and
-        // a logo that vanished on the next deploy gives them no reason to look.
+        // artwork that vanished on the next deploy gives them no reason to look.
         // Only a write is refused; a removal stores nothing, and refusing that
         // would strand a host with branding they cannot take back off.
         abort_if(
-            $request->hasFile('logo') && Durability::diskIsEphemeral(),
+            $request->hasFile($field) && Durability::diskIsEphemeral(),
             503, 'Branding storage is not configured durably.'
         );
 
+        // Deliberately not under events/{id}: Event::purgePhotos() clears that
+        // prefix wholesale when a retention window closes, and a host's own
+        // artwork is not a guest's photograph.
+        //
         // Write the replacement before dropping the old one, and check that it
         // landed: the disk returns false rather than throwing when it refuses a
-        // write, and deleting first would leave the host with neither logo.
-        $path = $request->file('logo')?->store('logos');
-        abort_if($path === false, 503, 'The logo could not be stored.');
+        // write, and deleting first would leave the host with neither.
+        $path = $request->file($field)?->store("{$field}s");
+        abort_if($path === false, 503, "The {$field} could not be stored.");
 
-        $replaced = $event->logo_path;
-        $event->update(['logo_path' => $path]);
+        $replaced = $event->{$column};
+        $event->update([$column => $path]);
 
         if ($replaced) {
             Storage::delete($replaced);

@@ -55,7 +55,7 @@ class Event extends Model
 
     public const PURGE_GRACE_DAYS = 30;
 
-    protected $fillable = ['name', 'code', 'closed_at', 'template', 'theme', 'caption', 'logo_path', 'owner_id', 'album_privacy', 'album_pin', 'photos_expire_at'];
+    protected $fillable = ['name', 'code', 'closed_at', 'template', 'theme', 'caption', 'logo_path', 'background_path', 'owner_id', 'album_privacy', 'album_pin', 'photos_expire_at'];
 
     protected $casts = [
         'closed_at' => 'datetime',
@@ -174,6 +174,14 @@ class Event extends Model
         return "/e/{$this->code}/logo?v=".substr(md5($this->logo_path), 0, 8);
     }
 
+    // The same stable-route-plus-fingerprint arrangement as the logo, and the
+    // fingerprint matters more here: a stale logo is a wrong mark in the footer,
+    // a stale background is the whole strip.
+    public function backgroundUrl(): string
+    {
+        return "/e/{$this->code}/background?v=".substr(md5($this->background_path), 0, 8);
+    }
+
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_id');
@@ -196,13 +204,16 @@ class Event extends Model
     // row names that file. Correct only while every photo is written under this
     // prefix, which PhotoController::store does and EventDeleteTest pins.
     //
-    // The logo is separate: logos are not per-event, so it goes by path.
+    // The host's own artwork is separate: a logo and a background are not
+    // per-event files, so they go by path.
     public function purge(): void
     {
         $this->purgePhotos();
 
-        if ($this->logo_path) {
-            Storage::delete($this->logo_path);
+        foreach ([$this->logo_path, $this->background_path] as $file) {
+            if ($file) {
+                Storage::delete($file);
+            }
         }
 
         $this->delete();
@@ -212,6 +223,10 @@ class Event extends Model
     // guests rather than the host: every photo and every file behind one, with
     // the event row left standing so its code keeps explaining itself. A host's
     // logo is their own branding, not a guest's photo, so it stays.
+    //
+    // A host's background is theirs too, and it lives outside this prefix for
+    // exactly that reason — an album whose photos have gone still belongs to a
+    // host who may put it back together next year.
     //
     // Built archives are photos too, in one file — they live under the same
     // prefix so the sweep above already takes their bytes, and their rows go

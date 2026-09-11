@@ -110,7 +110,12 @@ Growing the guest experience. Sequence: templates → branding → filters → G
    via `data-theme`/`data-caption`. Owners can also **upload a logo** (create or edit) which is
    stored on the private disk, served at `GET /e/{code}/logo`, and drawn in the strip footer
    **instead of the caption** (one or the other); a remove option clears it. The live preview shows
-   it too. Branding is now complete.
+   it too. Owners can also **upload a background** — one image behind the whole strip, cover-cropped
+   to it, served at `GET /e/{code}/background`, with the same replace/remove pipeline (`applyImage`
+   handles both fields). **A background pulls each photo in to 92% of its cell**, because the cells
+   otherwise cover 87% of the strip and the artwork would survive only in the 24px gutters; the mat
+   goes from a 24px hairline to a 62px frame, and about a quarter of the strip becomes the host's.
+   A plain strip is unchanged — the inset is zero without a background.
 3. ~~**Filters**~~ — done: an opt-in "Add a filter" path (quick shoot stays filter-free) with a
    live-preview chip picker (None/Noir/Golden/Cool/Pop/Film). `filters.ts` defines each look once as
    an op list → CSS string (preview + Chrome ctx.filter fast path) AND a 4×5 colour matrix (the iOS
@@ -177,7 +182,9 @@ has exactly one obvious thing to do. (Imported from the Claude Design canvas `Re
 - **Palette**: ink `#0B0B10` / ivory `#F4F2ED`, accent blue `#3A86FF` (the one CTA colour, with a
   glow shadow), purple `#8338EC` (the celebration screen), pink `#FF006E` (live / in-progress),
   yellow `#FFBE0B` (the looks picker). Strip **theme** colours are unrelated and stay in
-  `strip-theme.ts` — they are the owner's choice, not the app's chrome.
+  `strip-theme.ts` — they are the owner's choice, not the app's chrome. **A background does not
+  retire the theme**: it is the ground a transparent PNG tints, and it still inks the caption over
+  whatever the host's artwork turns out to be.
 - **Perforations**: `.perf-edge` runs sprockets down a page or panel edge; `.strip-mat` is the
   perforated sleeve a composed strip sits in. Both read `--perf-*`/`--mat-*` from the current
   context, so a strip of any owner-chosen colour sits in a mat that matches the *page*.

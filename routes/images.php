@@ -9,5 +9,6 @@ use Illuminate\Support\Facades\Route;
 // group: there is no session to start, no CSRF token to check and no cookie
 // worth setting on a photo.
 Route::get('/e/{event:code}/logo', [EventController::class, 'logo']);
+Route::get('/e/{event:code}/background', [EventController::class, 'background']);
 Route::get('/e/{event:code}/photos/{photo}', [PhotoController::class, 'show'])->scopeBindings();
 Route::get('/e/{event:code}/photos/{photo}/thumb', [PhotoController::class, 'thumb'])->scopeBindings();

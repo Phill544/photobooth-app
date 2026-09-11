@@ -212,6 +212,27 @@ trait SeedsAlbums
         return $this->jpeg($image);
     }
 
+    // Stand-in host artwork: something a host might plausibly have made in
+    // Canva, so the seeded booth shows what a background actually does to a
+    // strip. Drawn at the classic strip's own size — a real host would use the
+    // layout guide for that — though compose covers whatever it is given.
+    private function backgroundArt(int $width, int $height): string
+    {
+        $art = imagecreatetruecolor($width, $height);
+        imagefill($art, 0, 0, imagecolorallocate($art, 24, 26, 46));
+
+        $band = imagecolorallocate($art, 196, 152, 84);
+        for ($y = -$width; $y < $height; $y += 96) {
+            imagefilledpolygon($art, [0, $y, $width, $y + $width, $width, $y + $width + 32, 0, $y + 32], $band);
+        }
+
+        // An inner rule, so the mat reads as a frame rather than as wallpaper.
+        imagesetthickness($art, 6);
+        imagerectangle($art, 14, 14, $width - 15, $height - 15, imagecolorallocate($art, 240, 234, 214));
+
+        return $this->jpeg($art);
+    }
+
     private function jpeg(\GdImage $image): string
     {
         ob_start();

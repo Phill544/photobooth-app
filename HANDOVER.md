@@ -47,7 +47,10 @@ storage disk has → **download-all**: a queued job zips a whole night into one 
 host a signed, expiring link → **an owner page that answers what it was asked**: every control
 redirects back to its own fold with a line saying what happened, a fragment from anywhere opens the
 fold it names, and the confirmation a verification writes is finally rendered rather than dropped.
-**404 Pest + 119 Vitest tests green.** Every feature slice was built red/green and then put
+→ **a strip a host can design**: cells at 960×720 (the size the camera was already handing over),
+and one uploaded image behind the whole strip, cover-cropped, with each photo pulled in to 92% of
+its cell so the artwork reads as a mat rather than the 24px hairline the geometry left it.
+**433 Pest + 124 Vitest tests green.** Every feature slice was built red/green and then put
 through an adversarial review (see Conventions).
 
 ## Stack & how to run

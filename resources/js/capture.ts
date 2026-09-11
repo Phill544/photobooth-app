@@ -19,18 +19,28 @@ const branding: Branding = {
     ...stripTheme(document.body.dataset.theme ?? ''),
     caption: document.body.dataset.caption || eventName,
     logo: null,
+    backgroundImage: null,
 };
 
-// Preload the event's logo (same-origin, so it won't taint the strip canvas)
-// and keep the promise, because compose is a one-shot: whatever has not arrived
+// Preload the event's artwork — both served same-origin, which is what keeps
+// the strip canvas untainted and toDataURL/toBlob working; a bucket or CDN URL
+// here costs the guest their strip entirely.
+//
+// The promise is kept because compose is a one-shot: whatever has not arrived
 // by the time the strip is drawn is absent from the guest's only copy, and
 // nothing redraws it. Comfortably shorter than the fastest route to review —
 // one shot is a 3s countdown and a 250ms flash — so in practice this is settled
 // long before it is awaited, and the deadline only ever pays out for a stalled
 // request that would otherwise hold the review screen shut. See branding-assets.
 const BRANDING_DEADLINE_MS = 3000;
-const brandingReady = loadBrandingImage(document.body.dataset.logo, () => new Image(), BRANDING_DEADLINE_MS)
-    .then((logo) => { branding.logo = logo; });
+const image = () => new Image();
+const brandingReady = Promise.all([
+    loadBrandingImage(document.body.dataset.logo, image, BRANDING_DEADLINE_MS),
+    loadBrandingImage(document.body.dataset.background, image, BRANDING_DEADLINE_MS),
+]).then(([logo, backgroundImage]) => {
+    branding.logo = logo;
+    branding.backgroundImage = backgroundImage;
+});
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
 

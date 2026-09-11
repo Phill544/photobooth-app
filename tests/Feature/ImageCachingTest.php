@@ -83,6 +83,13 @@ it('caches an event logo the same way', function () {
     expectImmutablePrivate($this->get('/e/PARTY2/logo')->assertOk());
 });
 
+it('caches an event background the same way', function () {
+    $this->event->update(['background_path' => 'backgrounds/mat.png']);
+    Storage::put('backgrounds/mat.png', 'not-really-a-png');
+
+    expectImmutablePrivate($this->get('/e/PARTY2/background')->assertOk());
+});
+
 it('keeps telling crawlers not to index an image', function () {
     $this->get("/e/PARTY2/photos/{$this->photo->id}")->assertHeader('X-Robots-Tag', 'noindex');
     $this->get("/e/PARTY2/photos/{$this->photo->id}/thumb")->assertHeader('X-Robots-Tag', 'noindex');
@@ -93,6 +100,7 @@ it('serves images without starting a session, but still resolves bindings', func
         'e/{event}/photos/{photo}',
         'e/{event}/photos/{photo}/thumb',
         'e/{event}/logo',
+        'e/{event}/background',
     ];
 
     foreach ($imageRoutes as $uri) {

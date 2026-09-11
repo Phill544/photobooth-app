@@ -72,8 +72,8 @@ it('writes every photo under its own event prefix', function () {
     Photo::each(fn (Photo $photo) => expect($photo->path)->toStartWith("events/{$photo->event_id}/"));
 });
 
-// The logo is the one file an event owns that isn't a photo row, so it is the
-// one a purge can silently leave behind.
+// A logo and a background are the files an event owns that are not photo rows,
+// so they are the ones a purge can silently leave behind.
 it('deletes the logo file too', function () {
     Storage::put('logos/party.png', 'bytes');
     $this->event->update(['logo_path' => 'logos/party.png']);
@@ -81,6 +81,15 @@ it('deletes the logo file too', function () {
     $this->actingAs($this->owner)->delete('/events/PARTY2', ['confirm_code' => 'PARTY2']);
 
     Storage::assertMissing('logos/party.png');
+});
+
+it('deletes the background file too', function () {
+    Storage::put('backgrounds/party.png', 'bytes');
+    $this->event->update(['background_path' => 'backgrounds/party.png']);
+
+    $this->actingAs($this->owner)->delete('/events/PARTY2', ['confirm_code' => 'PARTY2']);
+
+    Storage::assertMissing('backgrounds/party.png');
 });
 
 it('leaves another event untouched', function () {

@@ -57,6 +57,15 @@ it('deletes the logo file as well as the photos', function () {
     Storage::assertMissing('logos/party.png');
 });
 
+it('deletes the background as well as the photos', function () {
+    Storage::put('backgrounds/party.png', 'bytes');
+    $this->event->update(['background_path' => 'backgrounds/party.png']);
+
+    $this->artisan('photobooth:purge-event PARTY2 --force');
+
+    Storage::assertMissing('backgrounds/party.png');
+});
+
 it('takes the code in any case', function () {
     $this->artisan('photobooth:purge-event party2 --force')->assertSuccessful();
 

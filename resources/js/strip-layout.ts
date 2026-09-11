@@ -15,6 +15,24 @@ export function stripSize(template: StripTemplate): { width: number; height: num
     };
 }
 
+// Shrink a rect about its own centre by a share of itself. Used to pull each
+// photo in from its cell when the event has a background: the cells cover
+// 79-87% of a strip, so without this a host's artwork survives only in the 24px
+// gutters, which is a hairline rather than a design. A share rather than a
+// pixel margin, so it costs nothing when the cells are next resized and the
+// photo keeps the cell's aspect — what a guest framed is what lands.
+export function insetRect(rect: Rect, share: number): Rect {
+    const width = rect.width * (1 - share);
+    const height = rect.height * (1 - share);
+
+    return {
+        x: rect.x + (rect.width - width) / 2,
+        y: rect.y + (rect.height - height) / 2,
+        width,
+        height,
+    };
+}
+
 export function cellRects(template: StripTemplate): Rect[] {
     return Array.from({ length: template.cellCount }, (_, index) => {
         const col = index % template.columns;

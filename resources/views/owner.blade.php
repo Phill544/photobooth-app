@@ -217,11 +217,12 @@
 
             {{-- Its own fields only: the delete panel below has an error too,
                  and it must not fling this one open behind it. --}}
-            <details class="edit" id="edit" {{ $open('edit', 'name', 'template', 'theme', 'caption', 'logo') }}>
+            <details class="edit" id="edit" {{ $open('edit', 'name', 'template', 'theme', 'caption', 'logo', 'background') }}>
                 <summary class="btn btn--ghost btn--small">Edit the look</summary>
                 <div class="edit-body">
                     <form method="POST" action="/events/{{ $event->code }}" enctype="multipart/form-data" data-strip-form
-                          @if ($event->logo_path) data-logo-url="{{ url($event->logoUrl()) }}" @endif>
+                          @if ($event->logo_path) data-logo-url="{{ url($event->logoUrl()) }}" @endif
+                          @if ($event->background_path) data-background-url="{{ url($event->backgroundUrl()) }}" @endif>
                         @csrf
                         @method('PATCH')
                         <div class="field">
@@ -271,6 +272,23 @@
                             @endif
                         </div>
 
+                        {{-- Last in the fold and directly above the preview: below
+                             the container breakpoint .edit-body stacks, and this is
+                             the one field whose whole value is seeing the result. --}}
+                        <div class="field">
+                            <label for="background">Background</label>
+                            <input id="background" name="background" type="file" accept="image/png,image/jpeg,image/webp">
+                            {{-- Hint and tick together, unlike the logo above: a host
+                                 who came back to change their artwork is exactly the
+                                 one who still needs to be told what it does. --}}
+                            <p class="hint">Sits behind the photos. Guests see the border around them
+                                and the strip's foot. Change the layout and we crop it to fit &mdash;
+                                check the preview before you save.</p>
+                            @if ($event->background_path)
+                                <label class="muted"><input type="checkbox" name="remove_background" value="1"> Remove the current background</label>
+                            @endif
+                        </div>
+
                         <button>Save changes</button>
                         <x-fold-status fold="edit" />
                         @error('name') <p class="error">{{ $message }}</p> @enderror
@@ -278,6 +296,7 @@
                         @error('theme') <p class="error">{{ $message }}</p> @enderror
                         @error('caption') <p class="error">{{ $message }}</p> @enderror
                         @error('logo') <p class="error">{{ $message }}</p> @enderror
+                        @error('background') <p class="error">{{ $message }}</p> @enderror
                     </form>
 
                     <div class="edit-preview">

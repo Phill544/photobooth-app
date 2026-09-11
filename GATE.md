@@ -44,7 +44,8 @@ Its siblings: [HANDOVER.md](HANDOVER.md) (the map + conventions),
 
 | Code | State |
 |---|---|
-| `PARTY2` | Empty booth, open — shoot into this one |
+| `PARTY2` | Empty booth, open — shoot into this one. **No background: the plain compose path** |
+| `MURALS` | Empty booth, open, **with a host background** behind the strip |
 | `BREKKY` | One session |
 | `GARDEN` | A normal closed night, 12 sessions |
 | `SECRET` | Album behind a PIN — the PIN is `bridesmaids` |
@@ -93,6 +94,10 @@ Its siblings: [HANDOVER.md](HANDOVER.md) (the map + conventions),
       alive across it, so the next run starts without a second permission prompt.
 - [x] Try every template — classic (3), quad (4), grid (2×2), single — the shot count is
       template-driven, never hard-coded.
+- [ ] **Shoot `MURALS` on both phones, then `PARTY2`.** With a background the photos sit at 92% of
+      their cell so the artwork reads as a mat; without one they fill it exactly as before. Both
+      paths, so neither is only ever seen in the other's shape. Check the artwork is not stretched
+      (it is cover-cropped) and that the caption still prints legibly over it.
 - [ ] **An event with a logo, on a throttled connection.** The strip is composed once, from
       whatever branding has arrived, so this is the only check that the logo is actually on it.
       Set an event's logo, throttle to Slow 3G in devtools (or turn wifi off and use a weak
@@ -147,6 +152,10 @@ Its siblings: [HANDOVER.md](HANDOVER.md) (the map + conventions),
       back to a colour-matrix pass. The strip must match what the preview promised — compare the
       same look on Android and iPhone side by side.
 - [x] The filter applies to the strip **and** the originals, and is locked for the run.
+- [ ] **A filtered run on `MURALS`.** The filter is baked into each shot at capture, not applied to
+      the composed strip, so Noir photos sit on a full-colour background. That is correct and
+      intended — but it is the kind of thing that reads as a bug from a description and as a
+      decision from a phone, so look at it once.
 
 ## 5. Upload failures — each typed screen
 
@@ -174,6 +183,10 @@ NOTE: Unsure how to test
 - [x] "Save my strip" on the **done** screen — native share sheet where `canShare({files})` says
       yes, long-press/download fallback where it doesn't.
 - [x] The saved file has a sensible name, not a hash.
+- [ ] **Save a strip from `MURALS`.** A background is drawn into the strip canvas, so if it is ever
+      served from anywhere but this origin the canvas taints and Save produces nothing at all — with
+      no error, because the throw happens inside compose. One save from a booth with a background is
+      the check that catches that.
 
 ## 7. The album
 
@@ -246,6 +259,12 @@ The host does half of this from their own phone at a venue, not from a desk.
       now the cells are 960×720:** the preview re-encodes the whole strip on every keystroke in the
       name and caption fields, and that is 2.4× the pixels it was. Type a long caption at speed on
       a mid-range phone and watch for the field lagging its own input.
+- [ ] **Pick a background from the phone's camera roll** in that fold. The preview must repaint with
+      it *before* saving, and the file is whatever the camera made — several thousand pixels — which
+      the server will reject over 2048×3200 with a message that has to land inside the open fold.
+      Then change the layout: the artwork re-crops to the new strip shape rather than stretching.
+      Then tick "Remove the current background" and watch it go. Also try a PNG with transparency
+      over two different strip colours — the theme is the ground it tints, not something it hides.
 - [ ] **"Album · …"** fold: the three privacy choices are prose radios, not swatches, and the
       summary line states the current setting without opening the fold. **Re-check at 375px:** the
       fold grew a second hint — "This controls who can open the *album*. A photo's own link still

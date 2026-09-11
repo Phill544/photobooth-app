@@ -34,6 +34,11 @@ class ImageResponse
                 // compliant crawler not to fetch this path; the header is for one
                 // that asked anyway.
                 'X-Robots-Tag' => 'noindex',
+                // These bytes are chosen by a host and served inline, same-origin,
+                // to every guest at the event — so a browser must not be free to
+                // sniff a mislabelled file into something it will execute next to
+                // the album's session cookie.
+                'X-Content-Type-Options' => 'nosniff',
             ]);
         } catch (FilesystemException) {
             abort(404);

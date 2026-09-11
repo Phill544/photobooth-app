@@ -19,6 +19,12 @@
     @if ($boothIsOpen)
         @vite('resources/js/capture.ts')
     @endif
+    {{-- The strip is composed once, from whatever branding has arrived by then,
+         and this is the largest of it. The deadline in branding-assets.ts makes
+         a slow one safe; starting the fetch with the document makes it rare. --}}
+    @if ($event->background_path)
+        <link rel="preload" as="image" href="{{ url($event->backgroundUrl()) }}">
+    @endif
     <style>
         /* One screen at a time, each one the whole viewport — the booth is a
            kiosk, not a document. capture.ts toggles [hidden] on these sections. */
@@ -163,7 +169,7 @@
         #rotate-overlay svg { display: block; margin: 0 auto var(--space-md); color: var(--text-faint); }
     </style>
 </head>
-<body class="ctx-dark" data-event-code="{{ $event->code }}" data-event-name="{{ $event->name }}" data-template="{{ $event->template }}" data-theme="{{ $event->theme }}" data-caption="{{ $event->caption }}" data-logo="{{ $event->logo_path ? url($event->logoUrl()) : '' }}">
+<body class="ctx-dark" data-event-code="{{ $event->code }}" data-event-name="{{ $event->name }}" data-template="{{ $event->template }}" data-theme="{{ $event->theme }}" data-caption="{{ $event->caption }}" data-logo="{{ $event->logo_path ? url($event->logoUrl()) : '' }}" data-background="{{ $event->background_path ? url($event->backgroundUrl()) : '' }}">
     {{-- A hidden album is the host's alone, so the booth stops offering a door
          that would only answer 403 — and the consent line has to say who is
          really going to see the strip, because that is the promise the guest

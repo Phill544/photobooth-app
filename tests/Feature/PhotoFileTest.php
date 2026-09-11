@@ -68,3 +68,11 @@ it('404s when an event logo outlives its file', function () {
 
     $this->get('/e/PARTY2/logo')->assertNotFound();
 });
+
+it('404s when an event background outlives its file', function () {
+    Storage::put('backgrounds/party.png', 'bytes');
+    $this->event->update(['background_path' => 'backgrounds/party.png']);
+    Storage::delete('backgrounds/party.png');
+
+    $this->get('/e/PARTY2/background')->assertNotFound();
+});

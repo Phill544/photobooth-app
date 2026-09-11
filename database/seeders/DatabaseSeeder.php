@@ -6,6 +6,7 @@ use App\Models\Event;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 class DatabaseSeeder extends Seeder
 {
@@ -37,6 +38,25 @@ class DatabaseSeeder extends Seeder
             'template' => 'classic',
             'theme' => 'midnight',
         ]);
+
+        // A second open booth, this one with host artwork behind the strip. It
+        // is separate from PARTY2 on purpose: PARTY2 is the gate pass's plain
+        // booth (GATE §2), and putting a background on it would mean nobody
+        // ever shot a strip without one again.
+        $murals = Event::firstOrCreate(['code' => 'MURALS'], [
+            'name' => 'Fitzroy Mural Launch',
+            'owner_id' => $host->id,
+            'template' => 'classic',
+            'theme' => 'champagne',
+            'caption' => 'Fitzroy Mural Launch',
+        ]);
+        // Set outside firstOrCreate: on a re-seed the row already exists, so an
+        // attribute passed above would never be applied and the bytes below
+        // would be written for a column still pointing at nothing.
+        if (! $murals->background_path) {
+            Storage::put('backgrounds/seed-murals.jpg', $this->backgroundArt(1008, 2352));
+            $murals->update(['background_path' => 'backgrounds/seed-murals.jpg']);
+        }
 
         // Two albums that have actually been used. They are small on purpose:
         // this seeder runs on every `db:seed`, and the sizes worth measuring

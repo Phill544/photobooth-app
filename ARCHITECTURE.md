@@ -63,14 +63,17 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
   fetched page. With no JS it is simply a link. **Measured on the 4000-photo event: 97 `<img>`
   tags and 69KB against 3997 and 1.6MB, 96 rows hydrated against 3996 (50MB peak), 3ms of query
   against 92ms.**
-- **Images, `routes/images.php`:** `/e/{code}/logo`, `/e/{code}/photos/{photo}` and `.../thumb`,
+- **Images, `routes/images.php`:** `/e/{code}/logo`, `/e/{code}/background`,
+  `/e/{code}/photos/{photo}` and `.../thumb`,
   registered from the `then:` closure in `bootstrap/app.php` with **only `SubstituteBindings`** --
   deliberately outside the `web` group, because an album asks for dozens of immutable files at once
   and not one of them needs a session, a CSRF token or a cookie. All three answer through
   `App\Support\ImageResponse::immutable()`: a year of **`private`** caching (never `public` — an
   album is only as private as its code, and a deleted session must not live on in a shared cache),
-  an ETag over the stored path, `X-Robots-Tag: noindex`, and a 304 when the phone already has the
-  bytes. Verified to survive the `route:cache` the deploy runs, and the unknown-code 404 still
+  an ETag over the stored path, `X-Robots-Tag: noindex`, `X-Content-Type-Options: nosniff` (these
+  are bytes a *host* chose, served inline, same-origin, to every guest — a browser must not be free
+  to sniff a mislabelled file into something it will execute beside the album's session cookie),
+  and a 304 when the phone already has the bytes. Verified to survive the `route:cache` the deploy runs, and the unknown-code 404 still
   names the code from these session-free routes. **A row that outlives its file answers 404, not
   500** — Flysystem raises `UnableToRetrieveMetadata` from `Storage::response()` while sizing the
   body, and an album asks this route once per tile, so the wrong answer multiplies: measured at
@@ -173,6 +176,29 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
   state machine to the DOM), `strip-compose.ts` (draws the strip; every measurement it uses comes
   from `strip-layout.ts` and `strip-footer.ts`, which is where the tests are), `wake-lock.ts`,
   `strip-preview.ts` (live preview on create/edit forms), `upload.ts`.
+- **A host's artwork must stay same-origin.** The logo and the background are drawn into the strip
+  canvas, so serving either from a bucket or a CDN taints it and `toDataURL`/`toBlob` throw
+  `SecurityError` inside `runEffects` — with no try/catch, that reaches `window.onerror` and
+  `showError()`, which hides the review screen and the only Save link the guest has. Both go
+  through the app's own `/e/{code}/logo` and `/e/{code}/background` routes for that reason, and
+  `strip-preview.ts` uses object URLs, which are same-origin too.
+- **A background is what makes a strip a host's, and the cells are why it needs help.** The photo
+  cells cover 79-87% of every strip, so artwork drawn under them survives only in the 24px
+  gutters — 2.4% of a classic strip's width, a hairline nobody can design for. So when an event
+  has a background, `composeStrip` draws each photo at 92% of its cell (`insetRect`, a *share* of
+  the cell so it costs nothing at the next resize, and uniform so the 4:3 a guest framed is what
+  lands). Measured on the real canvas: visible artwork goes 12.5% → **26.0%** on classic
+  (25.0 quad, 26.9 grid, 32.8 single) and the side margin 24px → **62.4px**. With no background
+  the inset is zero and a strip composes byte-identically to before.
+  The artwork is drawn **over the theme fill, under the cells, and never over the footer**: the
+  fill stays so a transparent PNG tints the host's colour rather than punching through to nothing,
+  and the footer goes on last so a background can change the ground the caption sits on but can
+  never take the strip's one line of text. Fitting is **cover** — `centeredCrop` as the source rect
+  of a nine-argument `drawImage`, the same call `camera.ts` already makes. Never stretch (it
+  distorts the one thing the feature exists to preserve) and never contain (bars in a colour the
+  host abandoned, on a hundred guests' strips). Changing template re-crops rather than invalidating
+  anything, and the host sees that in the live preview before they save.
+
 - **The strip is composed once, so its branding has to be there by then.** `composeStrip` runs a
   single time, on entering `review`, from whatever `branding` holds at that moment — nothing
   redraws it afterwards, and the guest's copy is the only one. The logo was preloaded
@@ -277,7 +303,17 @@ than recording it (a
 `false` path would mean a 201 for bytes that do not exist, and the booth drops its own copy on a
 201); and the logo is written before the old one is deleted, never the other way round.
 
-**Server** — `EventController` (create/manage/dashboard/logo/QR), `PhotoController` (upload +
+**Host artwork on disk.** A logo lives under `logos/` and a background under `backgrounds/`,
+deliberately **outside** the `events/{id}` prefix. `Event::purgePhotos()` clears that prefix
+wholesale — which is what makes a retention sweep a handful of calls rather than one per file — so
+anything of the host's own stored there would go with the guests' photographs. It should not: a
+window closing is about the guests, and the host may put the album back together next year.
+`Event::purge()`, which is the whole event going, deletes both by path. Two paths that would
+otherwise forget them are left alone on purpose: `BuildEventArchive` zips `['strip','original']`
+only, so "Download everything" is the guests' night rather than the host's source files, and
+`photobooth:check-storage --photos` walks photo rows and cannot see an artwork column.
+
+**Server** — `EventController` (create/manage/dashboard/logo/background/QR), `PhotoController` (upload +
 idempotent per `(event_id, group_uuid, slot)`, serve, serve derivative, session delete),
 `AuthController`. Every upload dispatches `GenerateThumbnail`, the first thing here to use the
 queue: raw GD in `App\Support\Thumbnail`, 480px wide, written beside the original and recorded on
