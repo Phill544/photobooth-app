@@ -47,7 +47,7 @@ storage disk has → **download-all**: a queued job zips a whole night into one 
 host a signed, expiring link → **an owner page that answers what it was asked**: every control
 redirects back to its own fold with a line saying what happened, a fragment from anywhere opens the
 fold it names, and the confirmation a verification writes is finally rendered rather than dropped.
-**402 Pest + 114 Vitest tests green.** Every feature slice was built red/green and then put
+**404 Pest + 119 Vitest tests green.** Every feature slice was built red/green and then put
 through an adversarial review (see Conventions).
 
 ## Stack & how to run
@@ -400,16 +400,14 @@ answered everything a read could answer:
     verified address, or deletes an account, and the privacy policy has to point at something.
     Minimum: a password change form, and account deletion that purges every event
     (`Event::purge()`) and then the user. Changing a *verified* address waits for 22's pattern.
-32. **The strip itself.** (a) Cells to 960×720 and the strip's JPEG quality to 0.9 — the
-    camera already yields 960×720 per shot (1280×720 ideal, 4:3 crop) and compose downsamples it
-    into 600×450, a 1.6× loss for nothing; leave originals at 0.85, update the size mirrors in
-    `SeedsAlbums` and the `Thumbnail` comment, and GATE the low-memory share path on an old
-    iPhone. (b) Typeset the caption in the design-system fonts — the page loads Instrument Serif /
-    Sans and DM Mono and the canvas uses none of them, so a Pixel and an iPhone print different
-    strips of the same event; start `document.fonts.load()` at module init and await it (short
-    timeout) before compose. Both are small now that the footer's typesetting lives in
-    `strip-footer.ts` — (b) is its `CAPTION_FONT_STACK` plus the await, and its failing test goes
-    in `strip-footer.test.ts`. A date line in the footer is *not* here — see 47.
+32. **Typeset the caption in the design-system fonts.** The page loads Instrument Serif / Sans and
+    DM Mono and the canvas uses none of them, so a Pixel and an iPhone print different strips of
+    the same event; start `document.fonts.load()` at module init and await it (short timeout)
+    before compose. Small now that the footer's typesetting lives in `strip-footer.ts` — it is its
+    `CAPTION_FONT_STACK` plus the await, and the failing test goes in `strip-footer.test.ts`. A
+    date line in the footer is *not* here — see 47. **This item used to have a part (a)**, the cell
+    resize to 960×720 and the strip's JPEG quality to 0.9; that shipped separately, because a host
+    cannot be told a pixel size the next slice would move.
 33. **Saving on Android saves.** The answer to *"can Save be bubbled to the top of the share
     sheet?"* is no — `navigator.share` has no target hint; the sheet is the OS's. So branch on
     platform, as the denied-screen copy already does: on Android and desktop "Save to phone" /

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cellRects, stripSize } from './strip-layout';
-import type { StripTemplate } from './templates';
+import { TEMPLATES, templateFor, type StripTemplate } from './templates';
 
 function template(overrides: Partial<StripTemplate> = {}): StripTemplate {
     return {
@@ -82,5 +82,39 @@ describe('multi-column (grid) templates', () => {
 
         expect(cellRects(t)).toHaveLength(3);
         expect(stripSize(t).height).toBe(24 + 2 * (450 + 24) + 96);
+    });
+});
+
+// Everything above works off a local fixture, so it survives a cell resize
+// untouched. These are the registry's own numbers — the four sizes a host is
+// told, designs artwork against, and downloads a layout guide cut to. They are
+// spelled out rather than derived on purpose: a test that recomputed them from
+// `base` would agree with any mistake made there.
+describe('the sizes the real registry produces', () => {
+    it('gives the classic strip the size a host designs against', () => {
+        expect(stripSize(templateFor('classic'))).toEqual({ width: 1008, height: 2352 });
+    });
+
+    it('gives the tall strip its extra cell', () => {
+        expect(stripSize(templateFor('quad'))).toEqual({ width: 1008, height: 3096 });
+    });
+
+    it('turns the grid on its side, which is why artwork is not interchangeable', () => {
+        expect(stripSize(templateFor('grid'))).toEqual({ width: 1992, height: 1608 });
+    });
+
+    it('gives the single shot one cell and a footer', () => {
+        expect(stripSize(templateFor('single'))).toEqual({ width: 1008, height: 864 });
+    });
+
+    it('draws every guest photo at the size the camera hands over', () => {
+        // The camera asks for 1280x720 (camera.ts:27) and grabFrame crops it
+        // to the cell's 4:3, which is 960x720. Composing into anything smaller
+        // is a downsample the strip pays for and nobody asked for.
+        for (const { key } of TEMPLATES) {
+            for (const cell of cellRects(templateFor(key))) {
+                expect([cell.width, cell.height]).toEqual([960, 720]);
+            }
+        }
     });
 });

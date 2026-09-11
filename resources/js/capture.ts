@@ -1,4 +1,4 @@
-import { cameraIsLive, grabFrame, onCameraLost, startCamera, toJpegBlob } from './camera';
+import { cameraIsLive, grabFrame, onCameraLost, startCamera, STRIP_QUALITY, toJpegBlob } from './camera';
 import { loadBrandingImage } from './branding-assets';
 import { nextState, type FlowEvent, type FlowState } from './capture-flow';
 import { androidChromeIntent, cameraSupported, detectInApp, isIOS } from './in-app';
@@ -224,7 +224,7 @@ function captureShot() {
 async function showStripPreview() {
     await brandingReady;
     strip = composeStrip(shots, template, branding);
-    stripPreview.src = strip.toDataURL('image/jpeg', 0.85);
+    stripPreview.src = strip.toDataURL('image/jpeg', STRIP_QUALITY);
 }
 
 // Encoding five JPEGs can fail on a phone that is low on memory, and until they
@@ -244,7 +244,7 @@ async function shareToAlbum() {
     shareError.hidden = true;
     pendingGroup = crypto.randomUUID();
     pendingUploads = [
-        { blob: await toJpegBlob(strip!), kind: 'strip', slot: 0 },
+        { blob: await toJpegBlob(strip!, STRIP_QUALITY), kind: 'strip', slot: 0 },
         ...(await Promise.all(shots.map(async (shot, index): Promise<QueuedUpload> => ({
             blob: await toJpegBlob(shot),
             kind: 'original',
@@ -348,7 +348,7 @@ function prepareStripShare() {
             link.download = `${eventName}-strip.jpg`;
             link.removeAttribute('aria-disabled'); // encoding is done; the link is live
         }
-    }, 'image/jpeg', 0.85);
+    }, 'image/jpeg', STRIP_QUALITY);
 }
 
 async function saveStrip() {

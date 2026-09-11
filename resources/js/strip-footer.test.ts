@@ -14,7 +14,9 @@ function template(overrides: Partial<StripTemplate> = {}): StripTemplate {
     };
 }
 
-// A classic single-column strip: 648 x 1542, with a 96px footer band at its foot.
+// The fixture above as a single-column strip: 648 x 1542, with a 96px footer
+// band at its foot. Deliberately its own numbers rather than the registry's —
+// footerBand is handed a size, so nothing here should move when a cell does.
 const strip = { width: 648, height: 1542 };
 const band = footerBand(strip, template());
 
@@ -32,11 +34,11 @@ describe('footerBand', () => {
 
     it('is as wide inside the mat as the photos above it', () => {
         expect(band.innerWidth).toBe(600);
-        expect(footerBand({ width: 1272, height: 1092 }, template({ columns: 2 })).innerWidth).toBe(1224);
+        expect(footerBand({ width: 1272, height: 1068 }, template({ columns: 2 })).innerWidth).toBe(1224);
     });
 
     it('follows the strip height rather than a fixed offset', () => {
-        expect(footerBand({ width: 1272, height: 1092 }, template()).centerY).toBe(1092 - 48);
+        expect(footerBand({ width: 1272, height: 1068 }, template()).centerY).toBe(1068 - 48);
     });
 });
 
@@ -114,7 +116,7 @@ describe('captionLine', () => {
     });
 
     it('has more room on a wider strip, so the same caption stays full size', () => {
-        const grid = footerBand({ width: 1272, height: 1092 }, template({ columns: 2 }));
+        const grid = footerBand({ width: 1272, height: 1068 }, template({ columns: 2 }));
 
         expect(captionLine('M'.repeat(40), grid, measure).font).toBe('bold 38px system-ui, sans-serif');
     });

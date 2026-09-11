@@ -152,7 +152,7 @@ no-op, but there's no reason to invoke it.
 Every upload dispatches a `GenerateThumbnail` job: it writes a 480px-wide derivative beside the
 original and records it on the photo row, and the album grids ask for that instead of the full
 file. A composed strip is a fixed size whatever the phone
-took it on — 648px wide for the single-column templates, 1272px for the 2x2 grid — so the saving
+took it on — 1008px wide for the single-column templates, 1992px for the 2x2 grid — so the saving
 there runs from about half the bytes to a fair bit more; a camera frame is as large as the phone's
 camera made it, and shrinks much further. Across a busy album's two tabs that is tens of megabytes
 a guest doesn't download.

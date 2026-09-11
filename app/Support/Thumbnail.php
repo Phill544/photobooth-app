@@ -8,8 +8,8 @@ class Thumbnail
     // image is still sharp on a phone at 3x — and going below that visibly softens
     // the wall of strips, which is the page's whole point. A camera frame is
     // whatever the phone's camera made it (often 3x this). A composed strip is a
-    // fixed size instead, set by its template: 648 px wide for the single-column
-    // ones (so this trims) and 1272 px for the 2x2 grid (so it really shrinks).
+    // fixed size instead, set by its template: 1008 px wide for the single-column
+    // ones (so this trims) and 1992 px for the 2x2 grid (so it really shrinks).
     public const MAX_WIDTH = 480;
 
     private const QUALITY = 75;

@@ -61,3 +61,40 @@ it('seeds an empty booth that is still waiting for its window', function () {
     expect($party->awaitingFirstPhoto())->toBeTrue()
         ->and($party->photos_expire_at)->toBeNull();
 });
+
+// SeedsAlbums::SHAPES admits in its own comment that it mirrors templates.ts,
+// and nothing held it honest — a cell resize on the JS side left every seeded
+// album the wrong size, silently, in the fixture the gate pass runs against.
+// The sizes are literals because PHP holds no strip geometry (P5's shared JSON
+// is the eventual fix); this pins the mirror, it does not derive it. `single`
+// is absent because no demo event uses it.
+it('seeds strips the size the JS templates really produce', function () {
+    $sizes = ['BREKKY' => [1008, 3096], 'GARDEN' => [1008, 2352], 'SECRET' => [1992, 1608]];
+
+    foreach ($sizes as $code => $expected) {
+        $strip = imagecreatefromstring(Storage::get(seededStrip($code)->path));
+        $size = [imagesx($strip), imagesy($strip)];
+        imagedestroy($strip);
+
+        expect($size)->toBe($expected, "$code was seeded at the wrong strip size");
+    }
+});
+
+it('fills every cell of a seeded strip, rather than dropping a small photo in its corner', function () {
+    // imagecopy does not resample: a source smaller than the cell lands at its
+    // own size in the top-left and leaves mat colour where a photo should be,
+    // which is what a cell resize that misses the seeder's shot() call looks
+    // like. Read a pixel just inside the first cell's bottom-right corner.
+    $strip = imagecreatefromstring(Storage::get(seededStrip('GARDEN')->path));
+
+    $insideCell = imagecolorat($strip, 24 + 960 - 2, 24 + 720 - 2);
+    $mat = imagecolorat($strip, 12, 12);
+    imagedestroy($strip);
+
+    expect($insideCell)->not->toBe($mat);
+});
+
+function seededStrip(string $code): \App\Models\Photo
+{
+    return Event::where('code', $code)->sole()->photos()->where('kind', 'strip')->first();
+}

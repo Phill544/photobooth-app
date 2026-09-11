@@ -71,12 +71,20 @@ export function grabFrame(video: HTMLVideoElement, mirror: boolean, targetAspect
     return canvas;
 }
 
-export function toJpegBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+// The strip is encoded at a higher quality than the shots it is made of: it is
+// the artifact a guest keeps and shares, and it is one file per session rather
+// than one per shot, so the bytes are worth spending there and not on the
+// originals nobody looks at full-size.
+export const STRIP_QUALITY = 0.9;
+
+export const PHOTO_QUALITY = 0.85;
+
+export function toJpegBlob(canvas: HTMLCanvasElement, quality = PHOTO_QUALITY): Promise<Blob> {
     return new Promise((resolve, reject) => {
         canvas.toBlob(
             (blob) => (blob ? resolve(blob) : reject(new Error('toBlob returned null'))),
             'image/jpeg',
-            0.85,
+            quality,
         );
     });
 }

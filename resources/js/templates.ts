@@ -13,8 +13,8 @@ export type StripTemplate = {
 
 // Colours are not here — they come from the event's strip-theme (see strip-theme.ts).
 const base = {
-    cellWidth: 600,
-    cellHeight: 450,
+    cellWidth: 960,
+    cellHeight: 720,
     padding: 24,
     footerHeight: 96,
 } as const;

@@ -20,11 +20,18 @@ trait SeedsAlbums
     // nothing in production reads it — but matching means a seeded strip
     // resizes and lays out on the wall exactly like a real one.
     private const SHAPES = [
-        'classic' => ['shots' => 3, 'strip' => [648, 1542]],
-        'quad' => ['shots' => 4, 'strip' => [648, 2016]],
-        'grid' => ['shots' => 4, 'strip' => [1272, 1068]],
-        'single' => ['shots' => 1, 'strip' => [648, 594]],
+        'classic' => ['shots' => 3, 'strip' => [1008, 2352]],
+        'quad' => ['shots' => 4, 'strip' => [1008, 3096]],
+        'grid' => ['shots' => 4, 'strip' => [1992, 1608]],
+        'single' => ['shots' => 1, 'strip' => [1008, 864]],
     ];
+
+    // The cell and the mat around it, from the same `base` — kept here rather
+    // than spelled into strip() so a resize is these two numbers and the table
+    // above, not four more hidden in an imagecopy call.
+    private const CELL = [960, 720];
+
+    private const PADDING = 24;
 
     // Backgrounds from resources/js/strip-theme.ts, same deal.
     private const MATS = [
@@ -152,9 +159,19 @@ trait SeedsAlbums
         $strip = imagecreatetruecolor($width, $height);
         imagefill($strip, 0, 0, imagecolorallocate($strip, ...self::MATS[$event->theme]));
 
+        [$cellWidth, $cellHeight] = self::CELL;
+
         foreach (range(0, $shape['shots'] - 1) as $cell) {
-            $frame = imagecreatefromstring($this->shot(600, 450, ($variant + $cell) % self::VARIANTS));
-            imagecopy($strip, $frame, 24 + ($cell % $columns) * 624, 24 + intdiv($cell, $columns) * 474, 0, 0, 600, 450);
+            // imagecopy, not imagecopyresampled: the frame is drawn at the cell's
+            // own size, so there is nothing to scale — and a source that is not
+            // would land at its own size in the corner rather than complain.
+            $frame = imagecreatefromstring($this->shot($cellWidth, $cellHeight, ($variant + $cell) % self::VARIANTS));
+            imagecopy(
+                $strip, $frame,
+                self::PADDING + ($cell % $columns) * ($cellWidth + self::PADDING),
+                self::PADDING + intdiv($cell, $columns) * ($cellHeight + self::PADDING),
+                0, 0, $cellWidth, $cellHeight,
+            );
             imagedestroy($frame);
         }
 

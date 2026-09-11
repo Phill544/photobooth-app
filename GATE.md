@@ -132,6 +132,11 @@ Its siblings: [HANDOVER.md](HANDOVER.md) (the map + conventions),
       on Android / "open in Safari" on iOS.
 - [x] A long event name on a short phone in landscape: the centred screens scroll rather than
       pushing content above the top edge.
+- [ ] **A full run on the oldest iPhone you can find, now the cells are 960×720.** A classic strip
+      went from 648×1542 to 1008×2352 and a grid from 1272×1068 to 1992×1608 — 12.8 MiB of canvas
+      where it used to be 5.4, held alongside four full-resolution shots and the share blob. The
+      tell is not an error: `capture.ts`'s handlers never fire, Safari discards the tab and the
+      booth comes back at the start screen with the shots gone. Shoot all four layouts, and share.
 
 ## 4. Looks (filters)
 
@@ -237,7 +242,10 @@ The host does half of this from their own phone at a venue, not from a desk.
 - [x] The verification nag, if the account is unverified.
 - [x] Owner page: the poster panel, the QR, the stats. "Print the poster" from a phone.
 - [x] **"Edit the look"** fold: the layout and colour swatch pickers are painted by JS — check they
-      render, and that the live strip preview redraws as you change things.
+      render, and that the live strip preview redraws as you change things. **Re-check the redraw
+      now the cells are 960×720:** the preview re-encodes the whole strip on every keystroke in the
+      name and caption fields, and that is 2.4× the pixels it was. Type a long caption at speed on
+      a mid-range phone and watch for the field lagging its own input.
 - [ ] **"Album · …"** fold: the three privacy choices are prose radios, not swatches, and the
       summary line states the current setting without opening the fold. **Re-check at 375px:** the
       fold grew a second hint — "This controls who can open the *album*. A photo's own link still
