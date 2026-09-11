@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { captionLine, footerBand, logoBox } from './strip-footer';
+import {
+    captionLine, CAPTION_FLOOR_SHARE, CAPTION_HEIGHT_SHARE,
+    footerBand, LOGO_HEIGHT_SHARE, logoBox,
+} from './strip-footer';
 import type { StripTemplate } from './templates';
 
 function template(overrides: Partial<StripTemplate> = {}): StripTemplate {
@@ -9,15 +12,28 @@ function template(overrides: Partial<StripTemplate> = {}): StripTemplate {
         cellWidth: 600,
         cellHeight: 450,
         padding: 24,
-        footerHeight: 96,
+        footerHeight: 288,
         ...overrides,
     };
 }
 
-// The fixture above as a single-column strip: 648 x 1542, with a 96px footer
-// band at its foot. Deliberately its own numbers rather than the registry's —
-// footerBand is handed a size, so nothing here should move when a cell does.
-const strip = { width: 648, height: 1542 };
+// The fixture above as a single-column strip: 648 x 1734, with a 288px footer
+// band at its foot. Its own cell numbers rather than the registry's — footerBand
+// is handed a size, so nothing here should move when a cell does — but the band
+// depth tracks the real one, because the shares below are tuned to it: at 96px
+// the floor works out at 12px, which swallows any caption, and every trimming
+// case below would pass without trimming anything.
+const strip = { width: 648, height: 1734 };
+
+// What captionLine starts at and refuses to go below, derived rather than
+// spelled out — these shares have been retuned once now, and eight literals
+// carrying their arithmetic is eight things to get wrong the next time.
+const ceiling = Math.round(288 * CAPTION_HEIGHT_SHARE);
+const floorPx = Math.round(288 * CAPTION_FLOOR_SHARE);
+const fontAt = (px: number) => `bold ${px}px system-ui, sans-serif`;
+// The stub measures half the font size per character, so this is how many
+// characters — the ellipsis included — fit across the mat at the floor.
+const charsAtFloor = Math.floor(600 / (floorPx * 0.5));
 const band = footerBand(strip, template());
 
 // A stand-in for the canvas: every glyph is half the font size wide. At the
@@ -28,17 +44,17 @@ const measure = (text: string, font: string) => text.length * Number(font.match(
 describe('footerBand', () => {
     it('is as wide as the strip, footer-tall, and centred on the band', () => {
         expect(band.width).toBe(648);
-        expect(band.height).toBe(96);
-        expect(band.centerY).toBe(1542 - 48);
+        expect(band.height).toBe(288);
+        expect(band.centerY).toBe(1734 - 144);
     });
 
     it('is as wide inside the mat as the photos above it', () => {
         expect(band.innerWidth).toBe(600);
-        expect(footerBand({ width: 1272, height: 1068 }, template({ columns: 2 })).innerWidth).toBe(1224);
+        expect(footerBand({ width: 1272, height: 1260 }, template({ columns: 2 })).innerWidth).toBe(1224);
     });
 
     it('follows the strip height rather than a fixed offset', () => {
-        expect(footerBand({ width: 1272, height: 1068 }, template()).centerY).toBe(1068 - 48);
+        expect(footerBand({ width: 1272, height: 1260 }, template()).centerY).toBe(1260 - 144);
     });
 });
 
@@ -54,8 +70,8 @@ describe('logoBox', () => {
         expect(logoBox({ width: 4000, height: 100 }, band).width).toBeCloseTo(648 * 0.7);
     });
 
-    it('holds a tall logo inside 62% of the band', () => {
-        expect(logoBox({ width: 100, height: 4000 }, band).height).toBeCloseTo(96 * 0.62);
+    it('holds a tall logo inside its share of the band', () => {
+        expect(logoBox({ width: 100, height: 4000 }, band).height).toBeCloseTo(288 * LOGO_HEIGHT_SHARE);
     });
 
     it('never distorts the logo', () => {
@@ -65,7 +81,7 @@ describe('logoBox', () => {
     });
 
     it('scales a small logo up, so the footer is never half empty', () => {
-        expect(logoBox({ width: 20, height: 10 }, band).height).toBeCloseTo(96 * 0.62);
+        expect(logoBox({ width: 20, height: 10 }, band).height).toBeCloseTo(288 * LOGO_HEIGHT_SHARE);
     });
 });
 
@@ -92,14 +108,15 @@ describe('importing the module', () => {
 });
 
 describe('captionLine', () => {
-    it('typesets bold at 40% of the band height', () => {
-        expect(captionLine('Sam & Ali', band, measure).font).toBe('bold 38px system-ui, sans-serif');
+    it('typesets bold at its share of the band height', () => {
+        expect(captionLine('Sam & Ali', band, measure).font).toBe(fontAt(ceiling));
     });
 
     it('sizes from the band, so a taller footer prints a bigger caption', () => {
-        const tall = footerBand(strip, template({ footerHeight: 200 }));
+        const tall = footerBand(strip, template({ footerHeight: 600 }));
 
-        expect(captionLine('Sam & Ali', tall, measure).font).toBe('bold 80px system-ui, sans-serif');
+        expect(captionLine('Sam & Ali', tall, measure).font)
+            .toBe(fontAt(Math.round(600 * CAPTION_HEIGHT_SHARE)));
     });
 
     it('prints a caption that already fits exactly as it was given', () => {
@@ -111,45 +128,45 @@ describe('captionLine', () => {
         const line = captionLine(long, band, measure);
 
         expect(line.text).toBe(long);
-        expect(line.font).toBe('bold 30px system-ui, sans-serif');
+        expect(line.font).toBe(fontAt(30)); // 40 characters at half-width each, inside 600
         expect(measure(line.text, line.font)).toBeLessThanOrEqual(band.innerWidth);
     });
 
     it('has more room on a wider strip, so the same caption stays full size', () => {
-        const grid = footerBand({ width: 1272, height: 1068 }, template({ columns: 2 }));
+        const grid = footerBand({ width: 1272, height: 1260 }, template({ columns: 2 }));
 
-        expect(captionLine('M'.repeat(40), grid, measure).font).toBe('bold 38px system-ui, sans-serif');
+        expect(captionLine('M'.repeat(40), grid, measure).font).toBe(fontAt(ceiling));
     });
 
     it('stops shrinking at a floor — a caption is text, not a watermark', () => {
-        expect(captionLine('M'.repeat(200), band, measure).font).toBe('bold 24px system-ui, sans-serif');
+        expect(captionLine('M'.repeat(200), band, measure).font).toBe(fontAt(floorPx));
     });
 
     it('ellipsises what still will not fit at the floor', () => {
-        const line = captionLine('M'.repeat(60), band, measure);
+        const line = captionLine('M'.repeat(charsAtFloor + 20), band, measure);
 
-        expect(line.text).toBe('M'.repeat(49) + '…');
+        expect(line.text).toBe('M'.repeat(charsAtFloor - 1) + '…');
         expect(measure(line.text, line.font)).toBeLessThanOrEqual(band.innerWidth);
     });
 
     it('cuts whole characters, so an emoji never prints as half of itself', () => {
-        const line = captionLine('M'.repeat(48) + '\u{1F389}\u{1F942}', band, measure);
+        const line = captionLine('M'.repeat(charsAtFloor - 1) + '\u{1F389}\u{1F942}', band, measure);
 
-        expect(line.text).toBe('M'.repeat(48) + '…');
+        expect(line.text).toBe('M'.repeat(charsAtFloor - 1) + '…');
         expect(line.text).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/); // a lone high surrogate inks as tofu
     });
 
     it('keeps a multi-part emoji whole rather than stranding a piece of it', () => {
         const family = '\u{1F468}‍\u{1F469}‍\u{1F467}‍\u{1F466}';
-        const line = captionLine('M'.repeat(45) + family, band, measure);
+        const line = captionLine('M'.repeat(charsAtFloor - 4) + family, band, measure);
 
-        expect(line.text).toBe('M'.repeat(45) + '…');
+        expect(line.text).toBe('M'.repeat(charsAtFloor - 4) + '…');
     });
 
     it('never leaves a space stranded before the ellipsis', () => {
-        const line = captionLine('M'.repeat(48) + '   ' + 'M'.repeat(20), band, measure);
+        const line = captionLine('M'.repeat(charsAtFloor - 1) + '   ' + 'M'.repeat(20), band, measure);
 
-        expect(line.text).toBe('M'.repeat(48) + '…');
+        expect(line.text).toBe('M'.repeat(charsAtFloor - 1) + '…');
     });
 
     it('draws nothing for an empty caption', () => {

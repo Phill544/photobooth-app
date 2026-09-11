@@ -12,11 +12,17 @@ export type StripTemplate = {
 };
 
 // Colours are not here — they come from the event's strip-theme (see strip-theme.ts).
+//
+// The footer is deep on purpose. At 96px it was 4% of a classic strip and read
+// as a trim rather than a mat; a real photobooth strip carries a broad foot, and
+// a single shot with one is a Polaroid. It is the same depth on all four
+// layouts — the caption and logo are sized as shares of the band, so a shallow
+// grid and a deep strip would need two sets of those numbers to look alike.
 const base = {
     cellWidth: 960,
     cellHeight: 720,
     padding: 24,
-    footerHeight: 96,
+    footerHeight: 288,
 } as const;
 
 // The owner picks one of these when creating an event; `key` is what we store.

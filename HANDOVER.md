@@ -412,8 +412,8 @@ answered everything a read could answer:
     before compose. Small now that the footer's typesetting lives in `strip-footer.ts` — it is its
     `CAPTION_FONT_STACK` plus the await, and the failing test goes in `strip-footer.test.ts`. A
     date line in the footer is *not* here — see 47. **This item used to have a part (a)**, the cell
-    resize to 960×720 and the strip's JPEG quality to 0.9; that shipped separately, because a host
-    cannot be told a pixel size the next slice would move.
+    resize to 960×720 and the strip's JPEG quality to 0.9; that shipped ahead of it because 53
+    cannot publish a pixel size the next slice would move.
 33. **Saving on Android saves.** The answer to *"can Save be bubbled to the top of the share
     sheet?"* is no — `navigator.share` has no target hint; the sheet is the OS's. So branch on
     platform, as the denied-screen copy already does: on Android and desktop "Save to phone" /

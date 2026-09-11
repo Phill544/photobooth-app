@@ -184,12 +184,12 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
   through the app's own `/e/{code}/logo` and `/e/{code}/background` routes for that reason, and
   `strip-preview.ts` uses object URLs, which are same-origin too.
 - **A background is what makes a strip a host's, and the cells are why it needs help.** The photo
-  cells cover 79-87% of every strip, so artwork drawn under them survives only in the 24px
-  gutters — 2.4% of a classic strip's width, a hairline nobody can design for. So when an event
-  has a background, `composeStrip` draws each photo at 92% of its cell (`insetRect`, a *share* of
-  the cell so it costs nothing at the next resize, and uniform so the 4:3 a guest framed is what
-  lands). Measured on the real canvas: visible artwork goes 12.5% → **26.0%** on classic
-  (25.0 quad, 26.9 grid, 32.8 single) and the side margin 24px → **62.4px**. With no background
+  cells cover 65-83% of every strip, so artwork drawn under them survives only in the 24px
+  gutters between them — 2.4% of a classic strip's width, a hairline nobody can design for. So when
+  an event has a background, `composeStrip` draws each photo at 92% of its cell (`insetRect`, a
+  *share* of the cell so it costs nothing at the next resize, and uniform so the 4:3 a guest framed
+  is what lands). Measured on the real canvas: visible artwork goes 19.1% → **31.6%** on classic
+  (29.4 quad, 34.7 grid, 45.0 single) and the side margin 24px → **62.4px**. With no background
   the inset is zero and a strip composes byte-identically to before.
   The artwork is drawn **over the theme fill, under the cells, and never over the footer**: the
   fill stays so a transparent PNG tints the host's colour rather than punching through to nothing,
@@ -200,12 +200,22 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
   the booth then falls back to the event name. `Event::stripCaption()` resolves the whole rule
   server-side — the tick beats a typed caption beats the event name — and the booth is told the
   answer in `data-caption` rather than working it out again. The typed caption is *kept* while
-  hidden, so unticking gives the host their words back. A logo still outranks both.
-  Fitting is **cover** — `centeredCrop` as the source rect
+  hidden, so unticking gives the host their words back. A logo still outranks both. Fitting is **cover** — `centeredCrop` as the source rect
   of a nine-argument `drawImage`, the same call `camera.ts` already makes. Never stretch (it
   distorts the one thing the feature exists to preserve) and never contain (bars in a colour the
   host abandoned, on a hundred guests' strips). Changing template re-crops rather than invalidating
   anything, and the host sees that in the live preview before they save.
+- **The footer is a mat, not a trim.** `footerHeight` is 288px, three times what it was. At 96 it
+  was 4% of a classic strip and read as an edge; a real photobooth strip carries a broad foot, and
+  a single shot with one is a Polaroid. It is the same depth on all four layouts on purpose — the
+  caption and the logo are sized as *shares of the band*, so a shallow grid beside a deep strip
+  would need two sets of those numbers to look alike. **The shares are not scale-free and were
+  retuned with it**: left at 0.4 the caption came out 97px and touched both edges, which is the
+  deep footer spent on nothing, so `CAPTION_HEIGHT_SHARE` is 0.2 (58px) and `LOGO_HEIGHT_SHARE`
+  0.35 — roughly the old rendered sizes, with the extra depth becoming mat. `CAPTION_FLOOR_SHARE`
+  went to 0.1 rather than a proportional 0.13, because the floor decides how many of a host's words
+  survive: at 0.13 a 40-character caption began ellipsising where it used to merely shrink.
+
 - **The host is told the size, and handed the bounds.** A background is useless if a host has to
   guess the canvas, and there is no single number to print: two of the four layouts are portrait
   and two landscape, so `stripSizeLabel()` rides on the forms' existing summary line and follows
@@ -258,8 +268,8 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
   `acceptsUploads()` here — so an expired-but-open event loaded `capture.ts` against a page with
   none of its elements, and it threw before its own error handlers were registered.
 - **The caption is fitted, never clipped:** it defaults to the event name, which is 100 characters
-  against a 600px mat, so `strip-footer.ts` measures it through the compose canvas and steps the
-  font down from 40% of the footer band to a 25% floor before ellipsising. It is never wider than
+  against a 960px mat, so `strip-footer.ts` measures it through the compose canvas and steps the
+  font down from 20% of the footer band to a 10% floor before ellipsising. It is never wider than
   the photos above it — a caption running off both edges reads as a broken strip. The trim walks
   **grapheme clusters**, not code units: event names carry emoji, and half a surrogate pair inks as
   a tofu box exactly where the ellipsis belongs. A logo still takes the footer instead of the

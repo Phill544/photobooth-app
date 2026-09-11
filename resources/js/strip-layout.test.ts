@@ -92,19 +92,19 @@ describe('multi-column (grid) templates', () => {
 // `base` would agree with any mistake made there.
 describe('the sizes the real registry produces', () => {
     it('gives the classic strip the size a host designs against', () => {
-        expect(stripSize(templateFor('classic'))).toEqual({ width: 1008, height: 2352 });
+        expect(stripSize(templateFor('classic'))).toEqual({ width: 1008, height: 2544 });
     });
 
     it('gives the tall strip its extra cell', () => {
-        expect(stripSize(templateFor('quad'))).toEqual({ width: 1008, height: 3096 });
+        expect(stripSize(templateFor('quad'))).toEqual({ width: 1008, height: 3288 });
     });
 
     it('turns the grid on its side, which is why artwork is not interchangeable', () => {
-        expect(stripSize(templateFor('grid'))).toEqual({ width: 1992, height: 1608 });
+        expect(stripSize(templateFor('grid'))).toEqual({ width: 1992, height: 1800 });
     });
 
     it('gives the single shot one cell and a footer', () => {
-        expect(stripSize(templateFor('single'))).toEqual({ width: 1008, height: 864 });
+        expect(stripSize(templateFor('single'))).toEqual({ width: 1008, height: 1056 });
     });
 
     it('draws every guest photo at the size the camera hands over', () => {
@@ -168,21 +168,21 @@ describe('insetRect', () => {
 // picker rather than sit in the copy.
 describe('stripSizeLabel', () => {
     it('states the exact pixel size of the layout in hand', () => {
-        expect(stripSizeLabel(templateFor('classic'))).toBe('1008 \u00d7 2352 px');
+        expect(stripSizeLabel(templateFor('classic'))).toBe('1008 × 2544 px');
     });
 
     it('gives the grid its own landscape size, because artwork is not interchangeable', () => {
-        expect(stripSizeLabel(templateFor('grid'))).toBe('1992 \u00d7 1608 px');
+        expect(stripSizeLabel(templateFor('grid'))).toBe('1992 × 1800 px');
     });
 
     it('reads the size off the template rather than a table of four answers', () => {
-        expect(stripSizeLabel(template({ cellWidth: 600, cellHeight: 450 }))).toBe('648 \u00d7 1542 px');
+        expect(stripSizeLabel(template({ cellWidth: 600, cellHeight: 450 }))).toBe('648 × 1542 px');
     });
 
     it('uses the same multiplication sign the layout labels do', () => {
-        // templates.ts calls the grid "Grid \u00b7 2\u00d72"; an ASCII x here would be
+        // templates.ts calls the grid "Grid · 2×2"; an ASCII x here would be
         // the app writing two different characters for the same idea.
-        expect(stripSizeLabel(templateFor('single'))).toContain(' \u00d7 ');
+        expect(stripSizeLabel(templateFor('single'))).toContain(' × ');
         expect(stripSizeLabel(templateFor('single'))).not.toContain(' x ');
     });
 });

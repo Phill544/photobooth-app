@@ -54,7 +54,7 @@ class DatabaseSeeder extends Seeder
         // attribute passed above would never be applied and the bytes below
         // would be written for a column still pointing at nothing.
         if (! $murals->background_path) {
-            Storage::put('backgrounds/seed-murals.jpg', $this->backgroundArt(1008, 2352));
+            Storage::put('backgrounds/seed-murals.jpg', $this->backgroundArt(1008, 2544));
             $murals->update(['background_path' => 'backgrounds/seed-murals.jpg']);
         }
 

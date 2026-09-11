@@ -18,10 +18,22 @@ export const CAPTION_FONT_STACK = 'system-ui, sans-serif';
 // context, which is the only thing that knows how wide a glyph really is.
 export type Measure = (text: string, font: string) => number;
 
-export const LOGO_HEIGHT_SHARE = 0.62; // of the band
+// Shares of the band, and they were all retuned when the footer went from 96px
+// to 288. They are not scale-free: at the old depth the caption filled most of
+// the band and that read correctly, but a real strip's foot is mostly empty mat
+// with modest type in it — kept at 0.4 the caption came out 97px and touched
+// both edges, which is the deep footer spent on nothing. The pairs below hold
+// roughly the old *rendered* sizes and let the extra depth become mat.
+export const LOGO_HEIGHT_SHARE = 0.35; // of the band
 const LOGO_WIDTH_SHARE = 0.7; // of the strip
-const CAPTION_HEIGHT_SHARE = 0.4; // of the band
-const CAPTION_FLOOR_SHARE = 0.25; // of the band — smaller than this and we ellipsise instead
+export const CAPTION_HEIGHT_SHARE = 0.2; // of the band
+// Lower than a straight scaling of the old 0.25 would give, and deliberately:
+// the floor decides how many of a host's words survive, and at 0.13 a 40-character
+// caption started ellipsising where it used to merely shrink. 0.10 holds roughly
+// the old capacity — about 66 characters across a real 960px mat, comfortably past
+// the 60 the caption field accepts — and a long caption is the one case where a
+// smaller line beats a truncated one.
+export const CAPTION_FLOOR_SHARE = 0.1; // of the band — smaller than this and we ellipsise instead
 const ELLIPSIS = '…';
 
 export function footerBand(strip: Size, template: StripTemplate): FooterBand {

@@ -20,10 +20,10 @@ trait SeedsAlbums
     // nothing in production reads it — but matching means a seeded strip
     // resizes and lays out on the wall exactly like a real one.
     private const SHAPES = [
-        'classic' => ['shots' => 3, 'strip' => [1008, 2352]],
-        'quad' => ['shots' => 4, 'strip' => [1008, 3096]],
-        'grid' => ['shots' => 4, 'strip' => [1992, 1608]],
-        'single' => ['shots' => 1, 'strip' => [1008, 864]],
+        'classic' => ['shots' => 3, 'strip' => [1008, 2544]],
+        'quad' => ['shots' => 4, 'strip' => [1008, 3288]],
+        'grid' => ['shots' => 4, 'strip' => [1992, 1800]],
+        'single' => ['shots' => 1, 'strip' => [1008, 1056]],
     ];
 
     // The cell and the mat around it, from the same `base` — kept here rather

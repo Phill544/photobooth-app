@@ -115,7 +115,9 @@ Growing the guest experience. Sequence: templates → branding → filters → G
    handles both fields). **A background pulls each photo in to 92% of its cell**, because the cells
    otherwise cover 87% of the strip and the artwork would survive only in the 24px gutters; the mat
    goes from a 24px hairline to a 62px frame, and about a quarter of the strip becomes the host's.
-   A plain strip is unchanged — the inset is zero without a background. A host whose artwork
+   A plain strip is unchanged — the inset is zero without a background. The footer band is **288px**
+   (3× its original 96), so a strip reads like a real one rather than a photo with a trim; the
+   caption and logo shares were retuned down with it, or they would simply have grown 3× too. A host whose artwork
    already carries their name across the foot of it can tick **"No caption"**
    (`events.caption_hidden`, resolved by `Event::stripCaption()`), which is the only way to reach a
    clean footer: an empty caption field falls back to the event name. Both forms state the strip's

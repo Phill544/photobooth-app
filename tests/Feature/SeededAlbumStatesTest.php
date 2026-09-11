@@ -69,7 +69,7 @@ it('seeds an empty booth that is still waiting for its window', function () {
 // is the eventual fix); this pins the mirror, it does not derive it. `single`
 // is absent because no demo event uses it.
 it('seeds strips the size the JS templates really produce', function () {
-    $sizes = ['BREKKY' => [1008, 3096], 'GARDEN' => [1008, 2352], 'SECRET' => [1992, 1608]];
+    $sizes = ['BREKKY' => [1008, 3288], 'GARDEN' => [1008, 2544], 'SECRET' => [1992, 1800]];
 
     foreach ($sizes as $code => $expected) {
         $strip = imagecreatefromstring(Storage::get(seededStrip($code)->path));
