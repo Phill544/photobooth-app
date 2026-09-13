@@ -83,7 +83,6 @@ let pendingUploads: QueuedUpload[] | null = null;
 let pendingGroup: string | null = null;
 let stripFile: File | null = null;
 let stripUrl: string | null = null;
-let canShareStrip = false;
 let activeFilter: Filter = filterFor('none');
 
 const filterRail = $('#filter-rail');
@@ -95,6 +94,8 @@ const shotDots = $('#shot-dots');
 const cameraFrame = $('.camera-frame');
 const saveReview = $<HTMLAnchorElement>('#save-review');
 const saveFailed = $<HTMLAnchorElement>('#save-failed');
+const saveDone = $<HTMLAnchorElement>('#save-strip');
+const shareDone = $('#share-strip');
 
 // Only nag touch devices held sideways — never a landscape desktop.
 const landscape = matchMedia('(orientation: landscape) and (pointer: coarse)');
@@ -346,14 +347,14 @@ function prepareStripShare() {
         if (stripUrl) URL.revokeObjectURL(stripUrl);
         stripUrl = URL.createObjectURL(blob);
 
-        canShareStrip = !!(navigator.canShare && navigator.canShare({ files: [stripFile] }));
-        $('#save-strip').hidden = !canShareStrip;
-        $('#save-fallback').hidden = canShareStrip;
+        // Share is an offer, not a fallback: it goes where a sheet will take a
+        // file and is simply absent where one won't. Save is there either way, so
+        // this button's own visibility is the whole of that state.
+        shareDone.hidden = !(navigator.canShare && navigator.canShare({ files: [stripFile] }));
         $<HTMLImageElement>('#save-image').src = stripUrl;
 
-        // Both save affordances are plain download links; where the platform can
-        // share a file, a click intercepts and opens the share sheet instead.
-        for (const link of [saveReview, saveFailed, $<HTMLAnchorElement>('#save-download')]) {
+        // All three are plain download links, and that is all any of them does.
+        for (const link of [saveReview, saveFailed, saveDone]) {
             link.href = stripUrl;
             link.download = `${eventName}-strip.jpg`;
             link.removeAttribute('aria-disabled'); // encoding is done; the link is live
@@ -361,18 +362,41 @@ function prepareStripShare() {
     }, 'image/jpeg', STRIP_QUALITY);
 }
 
-async function saveStrip() {
+async function shareStrip() {
     if (!stripFile) return;
     try {
         await navigator.share({ files: [stripFile] }); // files only — iOS drops url/text when files are present
     } catch (err) {
         if ((err as DOMException).name === 'AbortError') return; // guest dismissed the sheet
-        // The sheet can't take the file after all — hand every save affordance
-        // back to the download path (a second tap on "Save to phone" downloads).
-        canShareStrip = false;
-        $('#save-strip').hidden = true;
-        $('#save-fallback').hidden = false;
+        // The sheet can't take the file after all. Nothing is lost — every Save on
+        // every screen is a download — so withdraw the offer rather than leave a
+        // button that does nothing.
+        shareDone.hidden = true;
     }
+}
+
+// A download hands nothing back. On Android the strip lands in Downloads with no
+// dialog, no sound and nothing on screen, so the only thing that can tell a guest
+// their tap worked is the button they tapped — the share sheet used to do that job
+// on all three of these screens, and none of them opens one any more. Same shape
+// as the invite row's "Copied!": say it, then go back to being the button, because
+// a guest may want it twice.
+//
+// The label is read once, per button, before a tap can change it, and each button
+// tracks its own timer — a second tap must not be cut short by the first tap's.
+// "Save to phone" and "Save my strip" are different words, so this cannot be one
+// shared constant.
+const SAVED_MS = 1600;
+
+function confirmOnSave(link: HTMLAnchorElement) {
+    const label = link.textContent;
+    let restore: ReturnType<typeof setTimeout> | undefined;
+
+    link.addEventListener('click', () => {
+        link.textContent = 'Saved!';
+        clearTimeout(restore);
+        restore = setTimeout(() => { link.textContent = label; }, SAVED_MS);
+    });
 }
 
 // Serializes camera access: concurrent taps are ignored, a live stream is reused,
@@ -568,16 +592,10 @@ $('#camera-retry').addEventListener('click', async () => {
 $('#upload-retry').addEventListener('click', () => dispatch({ type: 'retryUpload' }));
 $('#denied-retry').addEventListener('click', beginQuick);
 $('#denied-back').addEventListener('click', leaveTakeover);
-$('#save-strip').addEventListener('click', saveStrip);
-// A plain download link by default, upgraded to the share sheet where the
-// platform can take a file — which is what a phone actually wants.
-for (const link of [saveReview, saveFailed]) {
-    link.addEventListener('click', (event) => {
-        if (!canShareStrip) return;
-        event.preventDefault();
-        void saveStrip();
-    });
-}
+shareDone.addEventListener('click', shareStrip);
+// One Save, one meaning, on every screen that has one: it downloads, and it says
+// so. Nothing here intercepts a tap to open the sheet any more.
+for (const link of [saveReview, saveFailed, saveDone]) confirmOnSave(link);
 $('#continue-anyway').addEventListener('click', (event) => { event.preventDefault(); leaveTakeover(); });
 
 // An in-app browser (Instagram/Facebook/etc.) blocks getUserMedia — warn before the dead camera.

@@ -89,8 +89,8 @@ password (seeded admin). **Next: deploy to Laravel Cloud** (managed Postgres + S
 4. ~~**Event hardening + UX pass**~~ — done (real-device pass still yours to run): camera-denied
    recovery screen with per-platform Settings steps, in-app-browser interstitial (UA-detected +
    getUserMedia-error safety net), screen wake lock (reacquired on visibilitychange),
-   rotate-to-portrait overlay on touch devices, save/share-my-strip via the Web Share API with a
-   long-press + download fallback, retry-a-failed-upload, an invite/share affordance on every main
+   rotate-to-portrait overlay on touch devices, save-my-strip as a real download with a separate
+   Share for the sheet, retry-a-failed-upload, an invite/share affordance on every main
    page, gallery↔booth navigation, and a full visual design pass (shared theme, redesigned gallery).
 
 ## Richer booth (in progress)
@@ -144,8 +144,12 @@ changed behind the paint:
   (`Shot 1 / 3`, the active look) and shot dashes; the looks picker shows the guest's own face
   under each filter (one still grabbed on entry, each tile CSS-filtered from the same op list).
 - **Review** gained "Save to phone" — the strip File/blob is now prepared on entering *review*
-  rather than *done*, so both screens' save affordances have it ready inside a user gesture. Both
-  are plain `<a download>` links upgraded to the share sheet when `canShare({files})` says yes.
+  rather than *done*, so every screen's save affordance has it ready inside a user gesture. All
+  three are plain `<a download>` links and **all three only ever download** (2026-09-13); each
+  flashes "Saved!" afterwards, because the sheet they used to open was the only thing telling a
+  guest the tap worked. The sheet is now one button of its own, "Share it" on the done screen.
+  Save and Share cannot be the same control: `navigator.share` takes no target hint, so one button
+  means whatever the OS put first in the sheet.
 - **Album** is a wall of strips with working Strips / All photos / order controls.
 - **Host**: dashboard rows show a live dot + code + count + status; `/new` and the owner page are
   split ivory/ink with by-eye pickers and a live strip; the owner page's left panel *is* the
@@ -218,7 +222,14 @@ has exactly one obvious thing to do. (Imported from the Claude Design canvas `Re
   the flash carries a fold name as well as the message.
 - Invite affordance (`.share` + `.share-btn`/`.share-copy`/`.link-chip`) driven by
   `partials/share-script.blade.php`: native share sheet where available, copy-link everywhere else,
-  raw URL always visible. Strip file-share lives in `capture.ts` (needs the built File up-front).
+  raw URL always visible. **The done screen carries no Copy link** (Phill, 2026-09-11): "Invite
+  others" is the control that hands the event on there, and where a browser has no share sheet the
+  chip is the link — `user-select: all`, one tap to select. It is a phone-first kiosk and the loss
+  is a desktop one; Copy link stays on the start screen, one "Take another" away. **This is the
+  first screen in the app to show that chip with no button beside it** — every other invite row,
+  the in-app screen included, keeps a Copy link — so it is the one to watch if the chip turns out
+  not to carry a row on its own. Strip file-share lives in `capture.ts` (needs the built File
+  up-front).
 
 **Getting out of a page (D3, 2026-09-05).** The wordmark links to `/` on every page that carries
 one, with a single context button beside it — "Your events", "Back to the booth", "Manage this

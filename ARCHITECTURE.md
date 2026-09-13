@@ -288,6 +288,40 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
   failures and stays on review), and delete a pending session it has not tried to send (a session
   past its 24h window still gets one last attempt when the guest opens that booth again; only
   sessions from events they are *not* at are swept).
+- **Save saves, Share shares — and it takes two controls to say that.** `navigator.share` has no
+  target hint: the sheet belongs to the OS, and nothing the booth can pass it will lift "Save
+  Image" to the top. So a single Save button means whatever that platform's sheet put first, and
+  on Android that is a row of chat apps. So the booth stops trying: **all three Saves — review,
+  upload-failed and done — are plain `<a download>` links and nothing else**, and the sheet lives
+  behind one button of its own, `#share-strip` on the done screen, shown only where
+  `canShare({files})` will take a file and withdrawn if a share rejects for any reason but
+  `AbortError`. That button's own visibility is the whole of that state; there is no separate flag,
+  because nothing else branches on it any more. **Each Save has to confirm itself**, because a
+  download hands nothing back — no event to listen for, and on Android (measured on a Pixel) no
+  dialog, no sound and nothing on screen either. The sheet used to be the feedback; without it the
+  tap reads as a dead button. So the label goes to "Saved!" for 1.6s and back, the same shape as
+  the invite row's "Copied!" — each button reading its own label once at setup and tracking its own
+  timer, because "Save to phone" and "Save my strip" are different words and one tap must not cut
+  another's confirmation short. It is an optimistic claim — a guest who cancels an iOS download
+  prompt is still told it saved — and that is the honest trade for feedback the platform will not
+  give. **This went in two steps, and the second overruled the first.** The done screen went first
+  (2026-09-11) while review and upload-failed kept a click-intercept that opened the sheet, on the
+  reasoning that a guest mid-flow holds the only copy and the fastest way out of the booth wins.
+  Phill ruled the other way on 2026-09-13: one Save, one meaning, on every screen that has one. The
+  cost is iOS, and it is real and now unmitigated on two more screens — the sheet's "Save Image" is
+  the only route to the camera roll, so a download lands in Files › Downloads instead, and on the
+  upload-failed screen, where the strip did *not* reach the album, there is no longer any route to
+  Photos at all. Weighed and accepted twice, in exchange for one behaviour on every device.
+  **Both halves are armed by `prepareStripShare` on entering *review*** — the blob, the object URL
+  and the `href` all exist before either screen is reached, so every tap lands inside its own user
+  activation. That also makes every one of these ids load-bearing in two files at once: `$` is
+  `querySelector(...)!`, a compile-time assertion only, so renaming one in the Blade without the
+  other half leaves a `null` that throws the first time the module touches it — and the module
+  touches all of them while it is still evaluating, wiring listeners. So a rename is always the
+  loud failure, never a quiet one: the booth is dead from the start screen on, because everything
+  below the throw — the rest of the listener block, the in-app detection, the orientation and
+  signal sync, and the interrupted-upload drain — never runs at all. **Which id throws first is
+  not worth writing down**; it is the order of two lines and it has already changed twice.
 - **An interrupted share finishes itself:** tapping Share writes the session (blobs, group uuid,
   event code) to IndexedDB before the first byte goes up; the next load of that booth drains
   whatever is left in the background and narrates it in `#resume-notice`. Records expire after 24h,

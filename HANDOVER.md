@@ -53,7 +53,13 @@ its cell so the artwork reads as a mat rather than the 24px hairline the geometr
 "No caption" tick for the host whose artwork already says their name. Both forms state the strip's
 exact pixel size as the layout changes, and hand over a generated layout-guide PNG with the photo
 windows marked, so a host can design against real bounds.
-**445 Pest + 137 Vitest tests green.** Every feature slice was built red/green and then put
+→ **a save that saves**: every Save in the booth — review, upload-failed and done — writes the file
+and nothing else, and the share sheet is one button of its own ("Share it", on the done screen).
+One control cannot mean both: `navigator.share` takes no target hint, so Save-as-sheet landed
+wherever the OS put first. Each one says "Saved!" for a moment afterwards, because a download on
+Android is completely silent and the sheet used to be the only feedback. Copy link left the done
+screen with all this; "Invite others" and the raw URL chip are what hand the event on there.
+**450 Pest + 137 Vitest tests green.** Every feature slice was built red/green and then put
 through an adversarial review (see Conventions).
 
 ## Stack & how to run
@@ -414,21 +420,15 @@ answered everything a read could answer:
     date line in the footer is *not* here — see 47. **This item used to have a part (a)**, the cell
     resize to 960×720 and the strip's JPEG quality to 0.9; that shipped ahead of it because 53
     cannot publish a pixel size the next slice would move.
-33. **Saving on Android saves.** The answer to *"can Save be bubbled to the top of the share
-    sheet?"* is no — `navigator.share` has no target hint; the sheet is the OS's. So branch on
-    platform, as the denied-screen copy already does: on Android and desktop "Save to phone" /
-    "Save my strip" is the real `<a download>` (straight to Downloads) with a separate ghost
-    "Share it" for the sheet; on iOS the sheet stays primary, because there the download path is
-    the awkward one. `saveViaSheet = canShareStrip && isIOS()` replaces the `canShareStrip`-only
-    intercept; extract a pure `saveMode()` helper and pin it in Vitest; the lightbox's "Save this
-    photo" follows the same rule. Update PLAN.md's Review paragraph; re-check GATE §6 and the "no
-    screen hides Save" line on both phones.
 34. **Filenames: `{stem}_{YYYY-MM-DD}_{HH-mm-ss}_{strip|photo-N}.jpg`.** The answer to *"album
     name + local datetime?"* is yes, and one scheme for the three places that name the same file
     three ways today: the guest's own save uses the raw event name, undated, so a second strip
     from one event collides; the album's `Content-Disposition` slugs it and appends a row id; the
-    zip does a third thing. Underscores between fields and hyphens inside them, zero-padded, so a
-    plain sort is chronological and a session's files stay together; `photo-N` is the slot.
+    zip does a third thing. **The booth's Saves are real downloads on every device now**, so every
+    strip from one event lands in one Downloads folder under one name. Untidy rather than
+    destructive — browsers suffix the duplicates. Underscores between fields and hyphens inside
+    them, zero-padded, so a plain sort is chronological and a session's files stay together;
+    `photo-N` is the slot.
     **Two commits.** (1) Small, ship early: `Event::fileStem()` = `Str::slug($name) ?:
     strtolower($code)` — `Str::slug` of an emoji or CJK name is the empty string (confirmed), so
     those events download as `-strip-42.jpg` and `-photos.zip` today; pass the stem to the booth

@@ -459,8 +459,8 @@
         padding: .45rem 1rem; user-select: all;
         min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    /* --ok, not --blue: on the purple done screen blue is unreadable, so that
-       screen remaps it (this is the only signal that the copy worked). */
+    /* --ok, not --blue: this is the only signal that the copy worked, so it has
+       to survive being dropped onto a screen that remaps the palette. */
     .share .share-copy.copied { color: var(--ok); border-color: var(--ok); }
 
     .qr { display: inline-block; background: var(--ivory); padding: var(--space-md); border-radius: var(--r-md); }

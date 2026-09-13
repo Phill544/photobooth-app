@@ -143,7 +143,6 @@
             --line: rgba(255, 255, 255, .28); --line-strong: rgba(255, 255, 255, .45);
             --mat: #F4F2ED; --mat-hole: #DAD7CF;
             --btn-bg: #FFFFFF; --btn-text: #4B0F91; --btn-glow: none;
-            --ok: #FFFFFF; /* the accent blue is 1.6:1 on this purple */
         }
         #done-screen h1 { font-size: var(--display-xl); margin: var(--space-md) 0 0; }
         #done-screen h1 em { font-style: italic; }
@@ -151,7 +150,6 @@
         #done-screen .strip-mat { width: min(42%, 156px); margin: var(--space-xl) auto 0; --strip-tilt: 3deg; }
         #done-screen .bottom { display: flex; flex-direction: column; gap: var(--space-sm); }
         #save-strip { width: 100%; }
-        #save-fallback img { max-width: 60%; border-radius: var(--r-sm); }
         #done-screen .invite { justify-content: center; }
         #done-screen .link-chip { background: rgba(255, 255, 255, .14); border-color: transparent; color: rgba(255, 255, 255, .82); }
 
@@ -159,6 +157,11 @@
         #uploading-screen .inner, #upload-failed-screen .inner,
         #camera-lost-screen .inner, #denied-screen .inner,
         #in-app-screen .inner, #error-screen .inner { gap: var(--space-md); }
+        /* This screen centres its actions at whatever width their own words come
+           to, which left Retry and Save 3px apart by accident — and left Save
+           collapsing 55px mid-screen when it flashes "Saved!". A floor under both
+           settles it: they agree with each other, and neither moves. */
+        #upload-retry, #save-failed { min-width: 11rem; }
         #upload-progress { font-family: var(--font-mono); font-size: var(--text-base);
             letter-spacing: .08em; color: var(--text-muted); margin: 0; }
         .settings-steps { text-align: left; color: var(--text-muted); font-size: var(--text-sm); }
@@ -323,11 +326,13 @@
                     <img id="save-image" alt="Your photo strip">
                 </div>
                 <div class="bottom">
-                    <button id="save-strip" class="btn--hero" hidden>Save my strip</button>
-                    <div id="save-fallback" hidden>
-                        <p class="muted">Long-press the strip above to save it, or:</p>
-                        <a id="save-download" class="btn btn--light" download>Download my strip</a>
-                    </div>
+                    {{-- Two controls, because one can't be made to mean both:
+                         `navigator.share` takes no target hint, so a single Save
+                         opens a sheet and lands wherever the OS put first. Save is
+                         the download; Share is the sheet, and capture.ts hides it
+                         where no sheet will take a file. --}}
+                    <a id="save-strip" class="btn btn--hero" download aria-disabled="true">Save my strip</a>
+                    <button type="button" id="share-strip" class="btn--ghost" hidden>Share it</button>
                     <div class="btn-row">
                         <button id="again" class="secondary">Take another</button>
                         @unless ($albumIsHidden)
@@ -337,9 +342,13 @@
                     @if ($isHost)
                         <p class="way-out"><a href="/events/{{ $event->code }}">Manage this event →</a></p>
                     @endif
+                    {{-- No Copy link here: "Invite others" is the one that hands
+                         the event on, and where a browser has no share sheet to
+                         open it the chip below is the link, selectable in one tap.
+                         Copy link stays on the start screen, and on the in-app
+                         screen, where it is the only way out. --}}
                     <div class="share invite">
                         <button type="button" class="btn--ghost btn--small share-btn" data-share-url="{{ url('/e/'.$event->code) }}" data-share-title="{{ $event->name }}">Invite others</button>
-                        <button type="button" class="btn--ghost btn--small share-copy" data-copy="{{ url('/e/'.$event->code) }}">Copy link</button>
                         <span class="link-chip">{{ url('/e/'.$event->code) }}</span>
                     </div>
                 </div>

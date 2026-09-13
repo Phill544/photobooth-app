@@ -179,11 +179,44 @@ NOTE: Unsure how to test
 
 ## 6. Saving a strip
 
-- [x] "Save to phone" on the **review** screen (the blob is prepared on entering review, so it is
-      ready inside the user gesture).
-- [x] "Save my strip" on the **done** screen — native share sheet where `canShare({files})` says
-      yes, long-press/download fallback where it doesn't.
-- [x] The saved file has a sensible name, not a hash.
+- [ ] **Every Save writes a file, with no sheet in the way** — "Save to phone" on the **review**
+      screen, "Save to phone" on the **upload-failed** screen, and "Save my strip" on the **done**
+      screen. All three used to open the share sheet where `canShare({files})` said yes; none does
+      now. This is the behaviour that changed, and the one a desktop cannot tell the truth about.
+      (The blob is still prepared on entering review, so every tap is inside its own user gesture.)
+- [ ] **Each of the three reads "Saved!" for a moment, then goes back to its own words** — "Save to
+      phone" restores "Save to phone" and "Save my strip" restores "Save my strip". On a Pixel the
+      download is completely silent, so this is the only thing that tells a guest the tap worked.
+      Check it is long enough to notice on both phones — and, on iOS, what it says while Safari's
+      own download prompt is still up, and what it says if the guest cancels that prompt (it will
+      claim the strip saved; decide there whether that is worth fixing). **None of the three may
+      change size while it says it**: "Saved!" is seven characters shorter than "Save to phone", and
+      each button is held still by a different rule (the review row's `flex: 1 1 0`, the done
+      screen's `width: 100%`, the failed screen's `min-width`), so all three want their own look.
+- [ ] **The sheet is now reachable only from the done screen's "Share it".** On the upload-failed
+      screen in particular the strip is *not* in the album, and an iOS guest there no longer has any
+      route to Photos. Check what that actually feels like on an iPhone before deciding whether that
+      screen needs a "Share it" of its own.
+- [ ] **"Share it" on the done screen opens the sheet** with the strip attached — and is *absent*,
+      not dead, where `canShare({files})` is false.
+- [ ] The saved file has a sensible name, not a hash. **Re-check: on the done screen the name now
+      comes from the anchor's `download` attribute on a `blob:` URL, not from the `File`'s name.**
+- [ ] **Where the iOS download lands, and whether a guest can find it.** The sheet's "Save Image"
+      was the only route to Photos; a download goes to Files › Downloads. Does Safari interpose a
+      confirmation? Does the `download` filename survive on a `blob:` href?
+- [ ] **Does "Take another" still work after a download on iOS?** Apple's forums (thread 749054,
+      iOS 17.4) report Safari's download popup stopping a live `getUserMedia` stream until Safari
+      is restarted. The booth never releases the camera on review or done (`capture.ts`'s only
+      `track.stop()` is inside `ensureCamera`), and until this change no iOS guest ever reached a
+      download link. Write down what actually happens: recovery, the camera-lost screen, or a
+      frozen preview. `cameraIsLive`/`onCameraLost` may need to learn about it — that depends on
+      the answer, which nobody has yet.
+- [ ] A user-clicked `blob:` anchor on **Chrome iOS and Firefox iOS** (both WebKit, both get a
+      clean sheet today), and in an in-app webview reached via "Continue anyway".
+- [ ] **Android Chrome**: the file is in `/Download`, the notification appears, and whether the
+      gallery surfaces it.
+- [ ] **The done screen at 375×667.** It carries one more control now; measured at 375×812 it
+      overflows by 48px and scrolls, with the link chip reachable. A shorter phone overflows more.
 - [ ] **Save a strip from `MURALS`.** A background is drawn into the strip canvas, so if it is ever
       served from anywhere but this origin the canvas taints and Save produces nothing at all — with
       no error, because the throw happens inside compose. One save from a booth with a background is
@@ -291,6 +324,8 @@ The host does half of this from their own phone at a venue, not from a desk.
 - [x] Delete an event: the panel is folded, asks you to type the code, and a wrong code reopens the
       panel with the error **on screen** (it was measured 270px below the fold without that).
 - [x] The invite/share affordances (native sheet, copy-link, raw URL) on every page that has them.
+      The **done** screen deliberately carries only two of the three — "Invite others" and the raw
+      URL — so check the chip is the tappable floor there when a browser hides the sheet button.
 - [ ] **Every control confirms itself, on the fold you used.** Save the look, toggle the booth, save
       privacy, save a date, ask for a download: each should land you back **on that panel with it
       open** and one accent-blue confirmation line inside it (`--ok` is the blue, not a green),
