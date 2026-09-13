@@ -37,6 +37,17 @@ Its siblings: [HANDOVER.md](HANDOVER.md) (the map + conventions),
       `capture.ts` never loads, and it holds its own `window.error` handlers, so nothing says so.
       Everything else on the page still works, which is what makes it read as a code bug.
 - [ ] Don't print a QR code against a quick-tunnel URL; they change on every restart.
+- [ ] **If the booth behaves like the build before last, close the tab — don't just reload into it.**
+      The booth is one page: every screen is a `hidden` toggle, nothing navigates, and it never
+      re-fetches its own script. So a tab opened before an `npm run build` keeps running the old
+      module for as long as it stays open, however many strips you shoot in it. (Cost a round trip
+      once: a Save that had stopped opening the share sheet hours earlier still opened one on the
+      phone, because the tab predated the change.) The HTML is `no-cache, private` and there is no
+      service worker, so a genuine reload is always honest — it is the *open tab* that lies.
+- [ ] **Check the host in the address bar.** `dev.quikbooth.com` is the tunnel to this machine;
+      `quikbooth.com` is production, which only ever has what has been committed **and pushed**
+      (push-to-deploy). They are one subdomain apart, and a Pixel's omnibox will happily complete
+      the wrong one from a bookmark or a home-screen shortcut.
 
 **Dev login:** `demo@example.com` / `password` (seeded admin).
 
