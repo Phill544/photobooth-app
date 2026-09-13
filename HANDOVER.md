@@ -57,9 +57,11 @@ windows marked, so a host can design against real bounds.
 and nothing else, and the share sheet is one button of its own ("Share it", on the done screen).
 One control cannot mean both: `navigator.share` takes no target hint, so Save-as-sheet landed
 wherever the OS put first. Each one says "Saved!" for a moment afterwards, because a download on
-Android is completely silent and the sheet used to be the only feedback. Copy link left the done
-screen with all this; "Invite others" and the raw URL chip are what hand the event on there.
-**450 Pest + 137 Vitest tests green.** Every feature slice was built red/green and then put
+Android is completely silent and the sheet used to be the only feedback. Every strip is named for
+the moment it was composed, so a guest's second save is a second file rather than a prompt asking
+them to replace the first. Copy link left the done screen with all this; "Invite others" and the raw
+URL chip are what hand the event on there.
+**450 Pest + 141 Vitest tests green.** Every feature slice was built red/green and then put
 through an adversarial review (see Conventions).
 
 ## Stack & how to run
@@ -422,17 +424,20 @@ answered everything a read could answer:
     cannot publish a pixel size the next slice would move.
 34. **Filenames: `{stem}_{YYYY-MM-DD}_{HH-mm-ss}_{strip|photo-N}.jpg`.** The answer to *"album
     name + local datetime?"* is yes, and one scheme for the three places that name the same file
-    three ways today: the guest's own save uses the raw event name, undated, so a second strip
-    from one event collides; the album's `Content-Disposition` slugs it and appends a row id; the
-    zip does a third thing. **The booth's Saves are real downloads on every device now**, so every
-    strip from one event lands in one Downloads folder under one name. Untidy rather than
-    destructive — browsers suffix the duplicates. Underscores between fields and hyphens inside
-    them, zero-padded, so a plain sort is chronological and a session's files stay together;
-    `photo-N` is the slot.
-    **Two commits.** (1) Small, ship early: `Event::fileStem()` = `Str::slug($name) ?:
+    three ways: the album's `Content-Disposition` slugs the event name and appends a row id; the
+    zip does a third thing. Underscores between fields and hyphens inside them, zero-padded, so a
+    plain sort is chronological and a session's files stay together; `photo-N` is the slot.
+    **The guest's own save already follows it** (2026-09-13, `strip-name.ts`, Vitest): the booth's
+    Saves became real downloads on every device, so a second strip arriving under the first one's
+    name stopped being untidy and started prompting the guest to replace a photo that was not the
+    same photo. It reads the guest's phone clock, which is the right clock and needs none of the
+    decision in (2) below. What is left of this item is the server's two, plus one caller:
+    (1) Small, ship early: `Event::fileStem()` = `Str::slug($name) ?:
     strtolower($code)` — `Str::slug` of an emoji or CJK name is the empty string (confirmed), so
     those events download as `-strip-42.jpg` and `-photos.zip` today; pass the stem to the booth
-    as `data-event-stem` so `capture.ts` stops using the raw name. (2) Medium, after one decision
+    as `data-event-stem` so `capture.ts` stops using the raw name. `stripFilename()` already takes
+    the stem as an argument for this, so the booth half is a one-line change at the call site.
+    (2) Medium, after one decision
     on where local time comes from: recommend a per-photo `taken_at` + UTC offset sent with each
     upload (not a per-event timezone) — it is the guest's own clock, matches their camera roll,
     and fixes the album and owner page showing **UTC times as if they were local** (the app is

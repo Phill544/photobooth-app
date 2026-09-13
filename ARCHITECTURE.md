@@ -170,6 +170,7 @@ Its siblings: [HANDOVER.md](HANDOVER.md) is the map and the working conventions,
   `strip-theme.ts`, `filters.ts` (CSS strings + colour matrices), `upload-queue.ts`, `in-app.ts`,
   `branding-assets.ts` (loading the strip's artwork on a clock — see below),
   `strip-guide.ts` (the layout guide's marks and filename; its painter is glue in the same file),
+  `strip-name.ts` (what a guest's own copy of a strip is called — a clock in, a filename out),
   `pending-session.ts` (the IndexedDB store, tested for real against `fake-indexeddb`).
   `templates.ts` is pure too but has no test of its own: it is the registry the rest read, and it
   is exercised through them.

@@ -5,6 +5,7 @@ import { androidChromeIntent, cameraSupported, detectInApp, isIOS } from './in-a
 import { FILTERS, filterFor, type Filter } from './filters';
 import { dropPendingSession, isStale, loadPendingSessions, savePendingSession } from './pending-session';
 import { composeStrip, type Branding } from './strip-compose';
+import { stripFilename } from './strip-name';
 import { stripTheme } from './strip-theme';
 import { templateFor } from './templates';
 import { isTerminal, UploadError, uploadPhoto, type UploadFailureKind } from './upload';
@@ -343,7 +344,10 @@ function prepareStripShare() {
     if (!strip) return;
     strip.toBlob((blob) => {
         if (!blob) return;
-        stripFile = new File([blob], `${eventName}-strip.jpg`, { type: 'image/jpeg' });
+        // Named once, from the clock, and used by both the shared File and every
+        // download link below — the two used to build the same string separately.
+        const filename = stripFilename(eventName, new Date());
+        stripFile = new File([blob], filename, { type: 'image/jpeg' });
         if (stripUrl) URL.revokeObjectURL(stripUrl);
         stripUrl = URL.createObjectURL(blob);
 
@@ -356,7 +360,7 @@ function prepareStripShare() {
         // All three are plain download links, and that is all any of them does.
         for (const link of [saveReview, saveFailed, saveDone]) {
             link.href = stripUrl;
-            link.download = `${eventName}-strip.jpg`;
+            link.download = filename;
             link.removeAttribute('aria-disabled'); // encoding is done; the link is live
         }
     }, 'image/jpeg', STRIP_QUALITY);

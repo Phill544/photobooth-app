@@ -201,6 +201,15 @@ NOTE: Unsure how to test
       not dead, where `canShare({files})` is false.
 - [ ] The saved file has a sensible name, not a hash. **Re-check: on the done screen the name now
       comes from the anchor's `download` attribute on a `blob:` URL, not from the `File`'s name.**
+      It is `{event}_{YYYY-MM-DD}_{HH-mm-ss}_strip.jpg`, stamped from the phone's own clock, so
+      check the date and time are the guest's local ones and not UTC.
+- [ ] **Save two strips from one event, on one phone.** Two files, two names, and **no prompt
+      asking whether to replace the first** — that prompt was the bug. Then save the *same* strip
+      twice: that one should collide, because it is the same file. Worth doing on both phones, and
+      on Android specifically check what the Downloads notification and the gallery show.
+- [ ] **An event whose name is emoji, CJK, or carries a `/` or `:`.** The stem is still the raw
+      event name until HANDOVER item 34(1) lands, so this is where it looks wrong; what matters is
+      what the phone actually writes to disk after it sanitises the `download` attribute.
 - [ ] **Where the iOS download lands, and whether a guest can find it.** The sheet's "Save Image"
       was the only route to Photos; a download goes to Files › Downloads. Does Safari interpose a
       confirmation? Does the `download` filename survive on a `blob:` href?
