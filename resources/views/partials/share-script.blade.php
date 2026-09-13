@@ -9,16 +9,23 @@
             });
         }
         for (const copy of document.querySelectorAll('.share-copy')) {
+            // The label is read once, before the first tap can change it. Read
+            // inside the handler, a second tap within the window captured
+            // "Copied!" as the word to go back to, and the button wore that
+            // until the page reloaded. The timer is tracked for the same reason:
+            // the first tap's must not land in the middle of the second's.
+            const label = copy.textContent;
+            let restore;
             copy.addEventListener('click', async () => {
                 try {
                     await navigator.clipboard?.writeText(copy.dataset.copy);
                 } catch {
                     return; // clipboard blocked (some webviews) — the URL is shown in .link-chip anyway
                 }
-                const label = copy.textContent;
                 copy.textContent = 'Copied!';
                 copy.classList.add('copied');
-                setTimeout(() => { copy.textContent = label; copy.classList.remove('copied'); }, 1600);
+                clearTimeout(restore);
+                restore = setTimeout(() => { copy.textContent = label; copy.classList.remove('copied'); }, 1600);
             });
         }
     })();

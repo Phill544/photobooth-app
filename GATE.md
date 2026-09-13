@@ -326,6 +326,12 @@ The host does half of this from their own phone at a venue, not from a desk.
 - [x] The invite/share affordances (native sheet, copy-link, raw URL) on every page that has them.
       The **done** screen deliberately carries only two of the three — "Invite others" and the raw
       URL — so check the chip is the tappable floor there when a browser hides the sheet button.
+- [ ] **Tap "Copy link" twice in quick succession**, then wait a few seconds: it must end up reading
+      "Copy link" again, not wearing "Copied!" for the rest of the page's life. That was the bug —
+      the label was read *after* the first tap had already changed it — and a phone is where a
+      double-tap actually happens, so a desktop pass does not close this one. Worth one go on the
+      booth's start screen and one on the album, since each page renders its own copy of the
+      partial.
 - [ ] **Every control confirms itself, on the fold you used.** Save the look, toggle the booth, save
       privacy, save a date, ask for a download: each should land you back **on that panel with it
       open** and one accent-blue confirmation line inside it (`--ok` is the blue, not a green),

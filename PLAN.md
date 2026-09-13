@@ -222,7 +222,11 @@ has exactly one obvious thing to do. (Imported from the Claude Design canvas `Re
   the flash carries a fold name as well as the message.
 - Invite affordance (`.share` + `.share-btn`/`.share-copy`/`.link-chip`) driven by
   `partials/share-script.blade.php`: native share sheet where available, copy-link everywhere else,
-  raw URL always visible. **The done screen carries no Copy link** (Phill, 2026-09-11): "Invite
+  raw URL always visible. Its "Copied!" confirmation reads the button's own label **once, at setup**
+  — read per tap, a second tap inside the 1.6s window captured "Copied!" as the word to restore and
+  the button kept it until the page reloaded (fixed 2026-09-13). The booth's "Saved!" has the same
+  shape for the same reason; the two cannot share code, because this partial has to keep working on
+  a page where `capture.ts` never loaded. **The done screen carries no Copy link** (Phill, 2026-09-11): "Invite
   others" is the control that hands the event on there, and where a browser has no share sheet the
   chip is the link — `user-select: all`, one tap to select. It is a phone-first kiosk and the loss
   is a desktop one; Copy link stays on the start screen, one "Take another" away. **This is the
